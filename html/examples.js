@@ -4,7 +4,7 @@ examples = [
     description: 'A simple simulation showing basic physics rules applied to simple agents',
     source: '../src/examples/ball.coffee',
     configuration: {
-      "agents": [ {"type": "Mask.Examples.Ball", "count": 5, "attributes": {"image": "images/ball.png"} } ]
+      "agents": [ {"type": "breve.Examples.Ball", "count": 5, "attributes": {"image": "images/ball.png"} } ]
     }
   },
     
@@ -17,15 +17,15 @@ examples = [
         background: "images/road.jpg"
       },
       agents: [ 
-        {type: "Mask.Examples.BraitenbergVehicle", count: 1, attributes: {"image": "http://community.roll20.net/uploads/thumbnails/FileUpload/32/7abd6ab2e9bf92ae2a397db0db3b1c.png"} },
-        {type: "Mask.Examples.BraitenbergLight", "count": 1, attributes: {"location": [400,400]} } 
+        { type: "breve.Examples.BraitenbergVehicle", count: 1 },
+        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [400,400]} } 
       ]
     }
   } 
 ];
 
 function stop() {
-  Mask.stop();
+  breve.stop();
 }
 
 function start() {
@@ -36,7 +36,7 @@ function start() {
   } catch(err) {
     alert("An error occurred parsing the configuration: " + err);
   }
-  Mask.start($.extend(config, {canvas: 'mask-canvas'}));        
+  breve.start($.extend(config, {canvas: 'breve-canvas'}));        
 }
 
 function select() {

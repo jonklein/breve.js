@@ -1,34 +1,37 @@
-class Mask.Agent
-  # engine: null,
-  # 
-  # state:
-  #   image: null,
-  #   heading: 0
-  # 
-  # location: [0,0],
-  # velocity: [.8,.3],
-  # color: [1,1,1,1],
-  # radius: 6,
-  # imageInst: null,
-  
+class breve.Agent
   constructor: (@engine, attrs) ->
     @state = {}
-    @set('location', Mask.vector(attrs['location'] || [0,0]))
+    @set('location', breve.vector(attrs['location'] || [0,0]))
     @set('heading', attrs['heading'] || 0)
-    @set('velocity', Mask.vector(attrs['velocity'] || [0,0]))
+    @set('velocity', breve.vector(attrs['velocity'] || [0,0]))
     @set('color', [1,1,1,1])
     
     @setup(attrs)
 
   setup: (attrs) ->
-    @setImage(attrs['image'])
-
+    @set('image', attrs['image'])
 
   step: (step) ->
-    @set('location', @get('location').add(@get('velocity').multiply(step)))
+    location = @get('location').add(@get('velocity').multiply(step))
+    @set('location', location)
+    
+    if @parent
+      @set('global_location', location.rotate(@parent.get('heading'), [0,0]).add(@parent.get('location')))
+      @set('global_heading', @parent.get('heading') + @get('heading'))
+    else
+      @set('global_location', location)
+      @set('global_heading', @get('heading'))
+      
+  addChild: (child) ->
+    child.parent = this
+    @engine.add(child)
     
   set: (k,v) ->
     @state[k] = v
+    
+    setter = "set" + k[0].toUpperCase() + k.slice(1);
+    if this[setter]
+      this[setter](v)
 
   get: (k) ->
     @state[k]
@@ -49,8 +52,7 @@ class Mask.Agent
       dim = Math.max(@image.width, @image.height)
       factor = 2.0 / dim
       ctx.scale(factor, factor)
-      ctx.rotate(@state['heading'])
-      ctx.drawImage(@image, -dim/2, -dim/2)
+      ctx.drawImage(@image, -@image.width/2, -@image.height/2)
     else
       ctx.fillStyle = @fillStyle()
       ctx.beginPath();
@@ -59,7 +61,8 @@ class Mask.Agent
   
   render: (ctx) =>
     ctx.save()
-    ctx.translate(@state['location'].elements[0], @state['location'].elements[1])
+    ctx.translate(@state['global_location'].elements[0], @state['global_location'].elements[1])
+    ctx.rotate(@state['global_heading'])
     ctx.scale(@state['radius'], @state['radius'])
     @draw(ctx)
     ctx.restore() 

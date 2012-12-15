@@ -1,4 +1,5 @@
-all: mask
+all: breve
 
-mask:
-	sprockets -I. -Isrc manifest.mask.js > lib/mask.js
+breve:
+	sprockets -I. -Isrc manifest.breve.js > lib/breve.js
+	sprockets -I. -Isrc manifest.spec.js > lib/breve_spec.js

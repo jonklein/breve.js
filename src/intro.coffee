@@ -7,7 +7,7 @@ Sylvester.Vector.prototype.Y = ->
 Sylvester.Vector.prototype.Z = ->
   this.elements[2]
 
-window.Mask = 
+window.breve = 
   version: 1
   
   vector: $V
@@ -26,7 +26,7 @@ window.Mask =
   
   start: (opts) =>
     @stop()
-    @engine = new Mask.Engine(opts)
+    @engine = new breve.Engine(opts)
     @engine.start()
     @engine
   

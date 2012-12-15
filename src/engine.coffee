@@ -1,16 +1,20 @@
-class Mask.Engine
-  objects: []
-  
-  simulationTime: 0.0,
-  canvas: null,
-  frameCount: 0,
-
+class breve.Engine
   constructor: (@opts) ->
+    @opts ||= {}
+    @simulationTime = 0.0
+    @frameCount = 0
+    @objects = []
     @canvas = document.getElementById(@opts.canvas)
+    @canvas.addEventListener('click', @clickEvent) if @canvas
     @timeStep = @opts['stepsize'] || 0.1
     @opts.engine ||= {}
 
     @configure()
+    
+  clickEvent: (ev) =>
+    @click(breve.vector([ev.clientX, ev.clientY]), null, ev)
+    
+  click: (location, target, event) ->
     
   configure: ->
     if @opts.engine['background']
@@ -22,6 +26,10 @@ class Mask.Engine
         new (eval(agent.type))(@, agent.attributes || {})
       ))
     )
+        
+  add: (agent) =>
+    @objects.push(agent)
+    agent
     
   all: (o) =>
     _.select(@objects, (i) ->

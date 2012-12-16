@@ -5,7 +5,7 @@ breve.js (Javascript MultiAgent Simulation Kit)
 
 breve.js is a multiagent simulation toolkit that runs in the browser.
 
-This is a work in progress.  More documentation and details to come as the development continues.
+This is a work in progress.  Don't expect anything to work yet.  More documentation and details to come.
 
 ## Building ##
 

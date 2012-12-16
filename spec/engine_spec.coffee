@@ -1,4 +1,4 @@
 describe 'breve.Engine', ->
-	it 'exists', ->
-		expect(1).toEqual(1)
+  it 'should exist', ->
+    expect(new breve.Engine()).toNotEqual(null)
 

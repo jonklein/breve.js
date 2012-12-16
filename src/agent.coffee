@@ -1,11 +1,11 @@
 class breve.Agent
   constructor: (@engine, attrs) ->
     @state = {}
-    @set('location', breve.vector(attrs['location'] || [0,0]))
     @set('heading', attrs['heading'] || 0)
+    @set('location', breve.vector(attrs['location'] || [0,0]))
     @set('velocity', breve.vector(attrs['velocity'] || [0,0]))
     @set('color', [1,1,1,1])
-    
+
     @setup(attrs)
 
   setup: (attrs) ->

@@ -1,10 +1,14 @@
 class breve.Agent
   constructor: (@engine, attrs) ->
+    attrs ||= {}
     @state = {}
     @set('heading', attrs['heading'] || 0)
     @set('location', breve.vector(attrs['location'] || [0,0]))
     @set('velocity', breve.vector(attrs['velocity'] || [0,0]))
     @set('color', [1,1,1,1])
+
+    @set('global_location', breve.vector([0,0]))
+    @set('global_heading', 0)
 
     @setup(attrs)
 
@@ -16,8 +20,8 @@ class breve.Agent
     @set('location', location)
     
     if @parent
-      @set('global_location', location.rotate(@parent.get('heading'), [0,0]).add(@parent.get('location')))
-      @set('global_heading', @parent.get('heading') + @get('heading'))
+      @set('global_location', location.rotate(@parent.get('global_heading'), [0,0]).add(@parent.get('global_location')))
+      @set('global_heading', (@parent.get('global_heading') + @get('heading')) % breve.PI2)
     else
       @set('global_location', location)
       @set('global_heading', @get('heading'))
@@ -27,21 +31,34 @@ class breve.Agent
     @engine.add(child)
     
   set: (k,v) ->
-    @state[k] = v
-    
     setter = "set" + k[0].toUpperCase() + k.slice(1);
+
     if this[setter]
       this[setter](v)
+    else
+      @state[k] = v    
 
   get: (k) ->
     @state[k]
     
   setImage: (i) =>
+    @state.image = i
+    
     if i
       @image = new Image()
       @image.src = i
     else
       @image = null
+
+  setHeading: (heading) =>
+    @state['heading'] = heading % breve.PI2
+    
+  distanceTo: (agent) ->
+    @get('global_location').distanceFrom(agent.get('global_location'))
+    
+  angleTo: (agent) ->
+    (agent.get('global_location').subtract(@get('global_location'))
+      .angleFrom(breve.vector([1,0]).rotate(@get('global_heading'), breve.vector([0,0])))) % breve.PI2
     
   fillStyle: ->
     color = @get('color')

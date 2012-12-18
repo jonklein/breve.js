@@ -7,13 +7,22 @@ class breve.Examples.BraitenbergVehicle extends breve.Agent
     
     @leftSensor =  @addChild(new breve.Examples.BraitenbergSensor(@engine, {location: [65, -25]}))
     @rightSensor = @addChild(new breve.Examples.BraitenbergSensor(@engine, {location: [65,  25]}))
-    
-    
 
   step: (step) ->
     super(step)
-    @set("heading", @get('heading') + 0.02)
-    @set("velocity", breve.vector([10,0]).rotate(@get('heading'), [0,0]))
+    
+    left = right = 0
+    
+    _.map(@engine.all(breve.Examples.BraitenbergLight), (light) =>
+      left  += 1.0/Math.pow(@leftSensor.distanceTo(light),2)  if Math.abs(@leftSensor.angleTo(light)) < 1.4
+      right += 1.0/Math.pow(@rightSensor.distanceTo(light),2) if Math.abs(@rightSensor.angleTo(light)) < 1.4
+    )
+
+    @activateSensors(step, left, right)
+    
+  activateSensors: (step, left, right) ->
+    @set("heading", @get('heading') + step * 300 * (right - left))
+    @set("velocity", breve.vector([step * 400000 * Math.min(left, right),0]).rotate(@get('heading'), [0,0]))
 
 class breve.Examples.BraitenbergSensor extends breve.Agent
   setup: (attrs) ->
@@ -24,5 +33,5 @@ class breve.Examples.BraitenbergSensor extends breve.Agent
 class breve.Examples.BraitenbergLight extends breve.Agent
   setup: (attrs) ->
     super(attrs)
-    @set("radius", 4)
-    @set("color", [.5,0,0,1])
+    @set("radius", 8)
+    @set("color", [1,1,.2,1])

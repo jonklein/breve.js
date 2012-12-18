@@ -15,6 +15,8 @@ window.breve =
   plane: $P
   line: $L
   
+  PI2: Math.PI * 2.0
+  
   randomRangeScalar: (min, max) ->
     Math.random() * ((max||0.0) - (min||0.0)) + (min||0.0)
   

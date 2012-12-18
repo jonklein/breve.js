@@ -22,9 +22,7 @@ class breve.Engine
       @image.src = @opts.engine['background']
 
     _.each(@opts.agents, (agent) =>
-      @objects = @objects.concat(_.map([1..agent.count], => 
-        new (eval(agent.type))(@, agent.attributes || {})
-      ))
+      @objects = @objects.concat(_.map([1..agent.count], => new (eval(agent.type))(@, agent.attributes || {})))
     )
         
   add: (agent) =>
@@ -32,9 +30,7 @@ class breve.Engine
     agent
     
   all: (o) =>
-    _.select(@objects, (i) ->
-      i.prototype == o
-    )
+    _.select(@objects, (i) -> i.__proto__.constructor == o)
       
   start: () =>
     @i = setInterval(@step, 1000 * (1.0/60.0))
@@ -45,12 +41,20 @@ class breve.Engine
 
   step: => 
     @simulationTime += @timeStep
-    @mapMethod(@objects, "step", [@timeStep])
+    
+    try
+      @mapMethod(@objects, "step", [@timeStep])
+    catch err
+      @debug("An error occurred while iterating: " + err)
     
     ctx = @canvas.getContext('2d')
     ctx.clearRect(0, 0, @canvas.width, @canvas.height)
     @render(ctx)
-    @mapMethod(@objects, "render", [ctx])
+    try
+      @mapMethod(@objects, "render", [ctx])
+    catch err
+      @debug("An error occurred while rendering: " + err)
+      
     @trackFPS()
     @updatePage()
     
@@ -62,6 +66,9 @@ class breve.Engine
       @fps = if @lastCheck then (frameInterval / (((new Date()).getTime() - @lastCheck)/1000.0)) else 0.0
       @lastCheck = (new Date()).getTime()
       
+  debug: (msg) ->
+    $('.console').text(msg)
+  
   updatePage: ->
     $('.time-index').text(@simulationTimeString())
     $('.fps').text(@truncateValue(@fps))

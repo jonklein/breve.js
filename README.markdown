@@ -7,6 +7,8 @@ breve.js is a multiagent simulation toolkit that runs in the browser.
 
 This is a work in progress.  Don't expect anything to work yet.  More documentation and details to come.
 
+See some demos at [http://artificial.com/breve.js](http://artificial.com/breve.js).
+
 ## Building ##
 
 breve.js is written in CoffeeScript and uses Sprockets to build to a single JavaScript file suitable for use in the browser.  A simple Makefile is provided to execute the build process.

@@ -3,7 +3,7 @@ class breve.Examples.BraitenbergVehicle extends breve.Agent
     super(attrs)
     @set("location", breve.vector([250,250]))
     @set("radius", 80)
-    @set("image", "images/car.png")
+    @set("image", "html/images/car.png")
     
     @leftSensor =  @addChild(new breve.Examples.BraitenbergSensor(@engine, {location: [65, -25]}))
     @rightSensor = @addChild(new breve.Examples.BraitenbergSensor(@engine, {location: [65,  25]}))

@@ -2,19 +2,19 @@ examples = [
   {
     name: 'Bounce',
     description: 'A simple simulation showing basic physics rules applied to simple agents',
-    source: '../src/examples/ball.coffee',
+    source: 'src/examples/ball.coffee',
     configuration: {
-      "agents": [ {"type": "breve.Examples.Ball", "count": 5, "attributes": {"image": "images/ball.png"} } ]
+      "agents": [ {"type": "breve.Examples.Ball", "count": 5, "attributes": {"image": "html/images/ball.png"} } ]
     }
   },
     
   {
     name: 'Braitenberg',
     description: 'A Braitenberg vehicle simulation.',
-    source: '../src/examples/braitenberg.coffee',
+    source: 'src/examples/braitenberg.coffee',
     configuration: {
       engine: {
-        background: "images/road.jpg"
+        background: "html/images/road.jpg"
       },
       agents: [ 
         { type: "breve.Examples.BraitenbergVehicle", count: 1 },

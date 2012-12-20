@@ -18,7 +18,18 @@ examples = [
       },
       agents: [ 
         { type: "breve.Examples.BraitenbergVehicle", count: 1 },
-        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [400,400]} } 
+        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [200,200]} } 
+      ]
+    }
+  },
+
+  {
+    name: 'Swarm',
+    description: 'A swarm simulation.',
+    source: 'src/examples/swarm.coffee',
+    configuration: {
+      agents: [ 
+        { type: "breve.Examples.Boid", count: 100 }
       ]
     }
   } 

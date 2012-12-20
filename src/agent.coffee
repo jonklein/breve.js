@@ -16,6 +16,8 @@ class breve.Agent
     @set('image', attrs['image'])
 
   step: (step) ->
+    @set('velocity', @get('acceleration').multiply(step)) if @get('acceleration')
+    
     location = @get('location').add(@get('velocity').multiply(step))
     @set('location', location)
     

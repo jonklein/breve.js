@@ -38,6 +38,9 @@ class breve.Engine
   stop: =>
     @objects = []
     clearInterval(@i)
+    
+  bounds: ->
+    {left: -@canvas.width/2, right: @canvas.width/2, top: @canvas.height/2, bottom: -@canvas.height/2}
 
   step: => 
     @simulationTime += @timeStep
@@ -49,11 +52,17 @@ class breve.Engine
     
     ctx = @canvas.getContext('2d')
     ctx.clearRect(0, 0, @canvas.width, @canvas.height)
+    ctx.save()
+    ctx.translate(-@bounds().left, -@bounds().bottom)
+
     @render(ctx)
+    
     try
       @mapMethod(@objects, "render", [ctx])
     catch err
       @debug("An error occurred while rendering: " + err)
+      
+    ctx.restore()
       
     @trackFPS()
     @updatePage()
@@ -82,14 +91,14 @@ class breve.Engine
       
   render: (ctx) =>
     if @image 
-      ctx.drawImage(@image, 0, 0)
+      ctx.drawImage(@image, -@canvas.width/2, -@canvas.width/2)
     else
       lingrad = ctx.createLinearGradient(0,0,0,150);
       lingrad.addColorStop(0, '#00ABEB');
       lingrad.addColorStop(1, '#88DBFB');
 
       ctx.fillStyle = lingrad;
-      ctx.fillRect(0, 0, @canvas.width, @canvas.height)
+      ctx.fillRect(-@canvas.width/2, -@canvas.width/2, @canvas.width, @canvas.height)
         
   truncateValue: (value, count) ->
     factor = Math.pow(10, count || 2)

@@ -23,6 +23,9 @@ window.breve =
   randomRange: (min, max) ->
     max ||= []
     if (min.length == undefined) then @randomRangeScalar(min, max) else (@randomRangeScalar(min[i], max[i]) for i in [0..min.length-1])
+
+  randomVector: (min, max) ->
+    breve.vector(@randomRange(min, max))
   
   Examples: {}
   

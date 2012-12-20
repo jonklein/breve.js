@@ -1,7 +1,7 @@
 class breve.Examples.BraitenbergVehicle extends breve.Agent
   setup: (attrs) ->
     super(attrs)
-    @set("location", breve.vector([250,250]))
+    @set("location", breve.vector([0,0]))
     @set("radius", 80)
     @set("image", "html/images/car.png")
     

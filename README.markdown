@@ -23,6 +23,12 @@ breve.js is a new project for building multiagent simulations, written using mod
 
 breve.js simulations consist of a number of *agents* running in a breve *engine*.  At each time-step in the simulation, the engine executes a *step* method on each agent, which typically inspects its environment and modifies its state.
 
+## Agent Methods ##
+
+* setup
+* step
+* collide
+
 ## Simulation Configuration ##
 
 Simulations are configured by passing a hash of configuration properties to the breve engine upon initialization.

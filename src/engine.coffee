@@ -55,10 +55,10 @@ class breve.Engine
     ctx.save()
     ctx.translate(-@bounds().left, -@bounds().bottom)
 
-    @render(ctx)
+    @draw(ctx)
     
     try
-      @mapMethod(@objects, "render", [ctx])
+      @mapMethod(@objects, "_render", [ctx])
     catch err
       @debug("An error occurred while rendering: " + err)
       
@@ -89,7 +89,7 @@ class breve.Engine
     seconds = "0" + seconds if seconds < 10
     minutes + ":" + seconds 
       
-  render: (ctx) =>
+  draw: (ctx) =>
     if @image 
       ctx.drawImage(@image, -@canvas.width/2, -@canvas.width/2)
     else

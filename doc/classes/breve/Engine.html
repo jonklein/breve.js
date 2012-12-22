@@ -115,30 +115,14 @@
           <td>src&#47;engine.coffee</td>
         </tr>
       </table>
+      <h2>Overview</h2>
+      <div class='docstring'>
+  <p>The main breve simulation Engine which manages the simulation state.</p>
+</div>
+<div class='tags'>
+</div>
       <h2>Instance Method Summary</h2>
       <ul class='summary'>
-  <li>
-    <span class='signature'>
-      <a href='#constructor-instance'>
-        - (void) <strong>constructor</strong>(opts)
-      </a>
-    </span>
-    <span class='constructor note title'>Constructor</span>
-    <span class='desc'>
-      
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
-      <a href='#clickEvent-instance'>
-        - (void) <strong>clickEvent</strong>(ev)
-      </a>
-    </span>
-    <span class='bound note title'>Bound</span>
-    <span class='desc'>
-      
-    </span>
-  </li>
   <li>
     <span class='signature'>
       <a href='#click-instance'>
@@ -146,39 +130,39 @@
       </a>
     </span>
     <span class='desc'>
-      
+      Invoked on the engine when a click occurs in the rendered simulation area.
     </span>
   </li>
   <li>
     <span class='signature'>
-      <a href='#configure-instance'>
-        - (void) <strong>configure</strong>()
+      <a href='#setup-instance'>
+        - (void) <strong>setup</strong>()
       </a>
     </span>
     <span class='desc'>
-      
+      Sets up the simulation with a set of provided attributes.
     </span>
   </li>
   <li>
     <span class='signature'>
       <a href='#add-instance'>
-        - (void) <strong>add</strong>(agent)
+        - (breve.Agent) <strong>add</strong>(agent)
       </a>
     </span>
     <span class='bound note title'>Bound</span>
     <span class='desc'>
-      
+      Adds an agent to the simulation.
     </span>
   </li>
   <li>
     <span class='signature'>
       <a href='#all-instance'>
-        - (void) <strong>all</strong>(o)
+        - (Array) <strong>all</strong>(agentType)
       </a>
     </span>
     <span class='bound note title'>Bound</span>
     <span class='desc'>
-      
+      Returns an array of all agents in the simulation matching the given type.
     </span>
   </li>
   <li>
@@ -189,7 +173,7 @@
     </span>
     <span class='bound note title'>Bound</span>
     <span class='desc'>
-      
+      Starts the simulation, scheduling a timer to step the simulation forward in time 60 times per second until stop is called.
     </span>
   </li>
   <li>
@@ -200,17 +184,17 @@
     </span>
     <span class='bound note title'>Bound</span>
     <span class='desc'>
-      
+      Stops the simulation and clears all objects.
     </span>
   </li>
   <li>
     <span class='signature'>
       <a href='#bounds-instance'>
-        - (void) <strong>bounds</strong>()
+        - (Object) <strong>bounds</strong>()
       </a>
     </span>
     <span class='desc'>
-      
+      Gives the bounding box of the simulation rendering area.
     </span>
   </li>
   <li>
@@ -221,17 +205,7 @@
     </span>
     <span class='bound note title'>Bound</span>
     <span class='desc'>
-      
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
-      <a href='#trackFPS-instance'>
-        - (void) <strong>trackFPS</strong>()
-      </a>
-    </span>
-    <span class='desc'>
-      
+      Steps the simulation forward in time by the timeStep value.
     </span>
   </li>
   <li>
@@ -241,109 +215,84 @@
       </a>
     </span>
     <span class='desc'>
-      
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
-      <a href='#updatePage-instance'>
-        - (void) <strong>updatePage</strong>()
-      </a>
-    </span>
-    <span class='desc'>
-      
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
-      <a href='#simulationTimeString-instance'>
-        - (void) <strong>simulationTimeString</strong>()
-      </a>
-    </span>
-    <span class='desc'>
-      
+      Sets a debug message to be displayed on the simulation page.
     </span>
   </li>
   <li>
     <span class='signature'>
       <a href='#draw-instance'>
-        - (void) <strong>draw</strong>(ctx)
+        - (void) <strong>draw</strong>(canvasContext)
       </a>
     </span>
     <span class='bound note title'>Bound</span>
     <span class='desc'>
-      
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
-      <a href='#truncateValue-instance'>
-        - (void) <strong>truncateValue</strong>(value, count)
-      </a>
-    </span>
-    <span class='desc'>
-      
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
-      <a href='#mapMethod-instance'>
-        - (void) <strong>mapMethod</strong>(list, name, args)
-      </a>
-    </span>
-    <span class='desc'>
-      
+      Draws the background of the simulation.
     </span>
   </li>
 </ul>
-      <h2>Constructor Details</h2>
-      <div class='methods'>
-  <div class='method_details'>
-    <p class='signature' id='constructor-instance'>
-      - (void) <strong>constructor</strong>(opts)
-    </p>
-    <div class='tags'>
-</div>
-  </div>
-</div>
       <h2>Instance Method Details</h2>
       <div class='methods'>
-  <div class='method_details'>
-    <p class='signature' id='clickEvent-instance'>
-      - (void) <strong>clickEvent</strong>(ev)
-      (bound)
-    </p>
-    <div class='tags'>
-</div>
-  </div>
   <div class='method_details'>
     <p class='signature' id='click-instance'>
       - (void) <strong>click</strong>(location, target, event)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Invoked on the engine when a click occurs in the rendered simulation area.</p><p>@param location the x, y vector location of the click
+@param target the simulation agent that was clicked on, or null if no object was clicked
+@param event the DOM event which initiated the click</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
-    <p class='signature' id='configure-instance'>
-      - (void) <strong>configure</strong>()
+    <p class='signature' id='setup-instance'>
+      - (void) <strong>setup</strong>()
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Sets up the simulation with a set of provided attributes. This is the override point to configure 
+the initial state of the simulation based on the simulation options.</p><p>Note: You <em>must</em> invoke the superclass setup method from your own implementation.</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='add-instance'>
-      - (void) <strong>add</strong>(agent)
+      - (breve.Agent) <strong>add</strong>(agent)
       (bound)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Adds an agent to the simulation.</p><p>@param agent the agent to add.  Must be breve.Agent or one of its subclasses.</p>
+</div>
+<div class='tags'>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'></span>
+      (<tt><a href='../../classes/breve/Agent.html'>breve.Agent</a></tt>)
+      &mdash;
+      <span class='desc'>the agent that was added to the simulation</span>
+    </li>
+  </ul>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='all-instance'>
-      - (void) <strong>all</strong>(o)
+      - (Array) <strong>all</strong>(agentType)
       (bound)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Returns an array of all agents in the simulation matching the given type.</p><p>@param agentType the agent class to search for in the simulation</p>
+</div>
+<div class='tags'>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'></span>
+      (<tt>Array</tt>)
+      &mdash;
+      <span class='desc'>all agents of the given agentType</span>
+    </li>
+  </ul>
 </div>
   </div>
   <div class='method_details'>
@@ -351,7 +300,11 @@
       - (void) <strong>start</strong>()
       (bound)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Starts the simulation, scheduling a timer to step the simulation forward in time 60 
+times per second until stop is called.</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
@@ -359,14 +312,31 @@
       - (void) <strong>stop</strong>()
       (bound)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Stops the simulation and clears all objects.</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='bounds-instance'>
-      - (void) <strong>bounds</strong>()
+      - (Object) <strong>bounds</strong>()
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Gives the bounding box of the simulation rendering area.  Simulated agents are allowed to 
+move outside of the simulation bounds, but it is generally most useful for agents to remain
+inside of the bounds for visualization purposes.</p>
+</div>
+<div class='tags'>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'></span>
+      (<tt>Object</tt>)
+      &mdash;
+      <span class='desc'>the bounds of the simulation rendering area.</span>
+    </li>
+  </ul>
 </div>
   </div>
   <div class='method_details'>
@@ -374,64 +344,39 @@
       - (void) <strong>step</strong>()
       (bound)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Steps the simulation forward in time by the timeStep value.  This method may be overriden to 
+execute custom simulation behaviors at each timestep.</p><p>Note: You <em>must</em> invoke the superclass step method from your own implementation.</p>
 </div>
-  </div>
-  <div class='method_details'>
-    <p class='signature' id='trackFPS-instance'>
-      - (void) <strong>trackFPS</strong>()
-    </p>
-    <div class='tags'>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='debug-instance'>
       - (void) <strong>debug</strong>(msg)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Sets a debug message to be displayed on the simulation page.</p>
 </div>
-  </div>
-  <div class='method_details'>
-    <p class='signature' id='updatePage-instance'>
-      - (void) <strong>updatePage</strong>()
-    </p>
-    <div class='tags'>
-</div>
-  </div>
-  <div class='method_details'>
-    <p class='signature' id='simulationTimeString-instance'>
-      - (void) <strong>simulationTimeString</strong>()
-    </p>
-    <div class='tags'>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='draw-instance'>
-      - (void) <strong>draw</strong>(ctx)
+      - (void) <strong>draw</strong>(canvasContext)
       (bound)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Draws the background of the simulation. </p><p>@param canvasContext the HTML5 Canvas context to draw on to</p>
 </div>
-  </div>
-  <div class='method_details'>
-    <p class='signature' id='truncateValue-instance'>
-      - (void) <strong>truncateValue</strong>(value, count)
-    </p>
-    <div class='tags'>
-</div>
-  </div>
-  <div class='method_details'>
-    <p class='signature' id='mapMethod-instance'>
-      - (void) <strong>mapMethod</strong>(list, name, args)
-    </p>
-    <div class='tags'>
+<div class='tags'>
 </div>
   </div>
 </div>
     </div>
     <div id='footer'>
   Generated on
-  Fri Dec 21 2012 08:18:05 GMT-0500 (EST)
+  Fri Dec 21 2012 21:05:51 GMT-0500 (EST)
   by
   <a href='https://github.com/netzpirat/codo' title='CoffeeScript API documentation generator'>Codo</a>
   v1.5.4

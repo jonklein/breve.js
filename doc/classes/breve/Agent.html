@@ -134,17 +134,6 @@
       <ul class='summary'>
   <li>
     <span class='signature'>
-      <a href='#constructor-instance'>
-        - (void) <strong>constructor</strong>(engine, attrs)
-      </a>
-    </span>
-    <span class='constructor note title'>Constructor</span>
-    <span class='desc'>
-      Constructor for breve.Agent.
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
       <a href='#setup-instance'>
         - (void) <strong>setup</strong>(attributes)
       </a>
@@ -166,11 +155,21 @@
   <li>
     <span class='signature'>
       <a href='#addChild-instance'>
-        - (void) <strong>addChild</strong>(child)
+        - (void) <strong>addChild</strong>(childAgent)
       </a>
     </span>
     <span class='desc'>
-      
+      Adds a child agent to the simulation.
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#getNeighbors-instance'>
+        - (void) <strong>getNeighbors</strong>(radius)
+      </a>
+    </span>
+    <span class='desc'>
+      !!!
     </span>
   </li>
   <li>
@@ -180,17 +179,17 @@
       </a>
     </span>
     <span class='desc'>
-      
+      Sets the given key of the agent&#39;s state to the provided value.
     </span>
   </li>
   <li>
     <span class='signature'>
       <a href='#get-instance'>
-        - (void) <strong>get</strong>(key)
+        - (?) <strong>get</strong>(key)
       </a>
     </span>
     <span class='desc'>
-      
+      Returns the agent&#39;s state value for the provided key.
     </span>
   </li>
   <li>
@@ -201,7 +200,7 @@
     </span>
     <span class='bound note title'>Bound</span>
     <span class='desc'>
-      
+      Sets and loads the agent&#39;s image URL.
     </span>
   </li>
   <li>
@@ -211,7 +210,7 @@
       </a>
     </span>
     <span class='desc'>
-      
+      Returns the distance to another breve.Agent.
     </span>
   </li>
   <li>
@@ -221,7 +220,7 @@
       </a>
     </span>
     <span class='desc'>
-      
+      Returns the angle from this agent to another breve.Agent.
     </span>
   </li>
   <li>
@@ -232,44 +231,10 @@
     </span>
     <span class='bound note title'>Bound</span>
     <span class='desc'>
-      
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
-      <a href='#_fillStyle-instance'>
-        - (void) <strong>_fillStyle</strong>()
-      </a>
-    </span>
-    <span class='desc'>
-      
-    </span>
-  </li>
-  <li>
-    <span class='signature'>
-      <a href='#_render-instance'>
-        - (void) <strong>_render</strong>(ctx)
-      </a>
-    </span>
-    <span class='bound note title'>Bound</span>
-    <span class='desc'>
-      
+      Draws the agent with the given HTML5 Canvas Context.
     </span>
   </li>
 </ul>
-      <h2>Constructor Details</h2>
-      <div class='methods'>
-  <div class='method_details'>
-    <p class='signature' id='constructor-instance'>
-      - (void) <strong>constructor</strong>(engine, attrs)
-    </p>
-    <div class='docstring'>
-  <p>Constructor for breve.Agent.  Should not be overriden directly to configure agent state–override setup instead.</p>
-</div>
-<div class='tags'>
-</div>
-  </div>
-</div>
       <h2>Instance Method Details</h2>
       <div class='methods'>
   <div class='method_details'>
@@ -296,23 +261,54 @@ each step of the simulation.  </p><p>Note: You <em>must</em> invoke the supercla
   </div>
   <div class='method_details'>
     <p class='signature' id='addChild-instance'>
-      - (void) <strong>addChild</strong>(child)
+      - (void) <strong>addChild</strong>(childAgent)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Adds a child agent to the simulation.</p><p>@param childAgent the child agent to add to the simulation</p>
+</div>
+<div class='tags'>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='getNeighbors-instance'>
+      - (void) <strong>getNeighbors</strong>(radius)
+    </p>
+    <div class='docstring'>
+  <p>!!!</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='set-instance'>
       - (void) <strong>set</strong>(key, value)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Sets the given key of the agent&#39;s state to the provided value.</p><p>This method also looks for a method matching the given key in the form &quot;set[Keyname]&quot;, and invokes 
+it with the given value if it exists, allowing the agent to take other actions in response to state
+being set.  For example, &quot;@set(&#39;image&#39;, imageURL)&quot; also invokes the agent&#39;s &quot;setImage&quot; method to 
+load an image from a URL.</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='get-instance'>
-      - (void) <strong>get</strong>(key)
+      - (?) <strong>get</strong>(key)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Returns the agent&#39;s state value for the provided key.</p><p>@param key the state key to retrieve </p>
+</div>
+<div class='tags'>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'></span>
+      (<tt>?</tt>)
+      &mdash;
+      <span class='desc'>the value for the provided key</span>
+    </li>
+  </ul>
 </div>
   </div>
   <div class='method_details'>
@@ -320,21 +316,31 @@ each step of the simulation.  </p><p>Note: You <em>must</em> invoke the supercla
       - (void) <strong>setImage</strong>(imageURL)
       (bound)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Sets and loads the agent&#39;s image URL.</p><p>@param imageURL the image URL to set for this agent</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='distanceTo-instance'>
       - (void) <strong>distanceTo</strong>(agent)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Returns the distance to another breve.Agent.</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
     <p class='signature' id='angleTo-instance'>
       - (void) <strong>angleTo</strong>(agent)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Returns the angle from this agent to another breve.Agent.  Takes this agent&#39;s heading into account, 
+but not the target agent&#39;s heading.</p>
+</div>
+<div class='tags'>
 </div>
   </div>
   <div class='method_details'>
@@ -342,29 +348,20 @@ each step of the simulation.  </p><p>Note: You <em>must</em> invoke the supercla
       - (void) <strong>draw</strong>(canvasContext)
       (bound)
     </p>
-    <div class='tags'>
+    <div class='docstring'>
+  <p>Draws the agent with the given HTML5 Canvas Context.  You may override this method to perform your 
+own drawing methods if desired.  By the time this method is invoked, the context has already been 
+translated and rotated to match the agent&#39;s current position, so your drawing should be centered 
+around the point (0,0).</p>
 </div>
-  </div>
-  <div class='method_details'>
-    <p class='signature' id='_fillStyle-instance'>
-      - (void) <strong>_fillStyle</strong>()
-    </p>
-    <div class='tags'>
-</div>
-  </div>
-  <div class='method_details'>
-    <p class='signature' id='_render-instance'>
-      - (void) <strong>_render</strong>(ctx)
-      (bound)
-    </p>
-    <div class='tags'>
+<div class='tags'>
 </div>
   </div>
 </div>
     </div>
     <div id='footer'>
   Generated on
-  Fri Dec 21 2012 08:18:05 GMT-0500 (EST)
+  Fri Dec 21 2012 21:05:51 GMT-0500 (EST)
   by
   <a href='https://github.com/netzpirat/codo' title='CoffeeScript API documentation generator'>Codo</a>
   v1.5.4

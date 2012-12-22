@@ -11,7 +11,10 @@ class breve.Examples.Boid extends breve.Agent
   step: (step) ->
     super(step)
     
+    neighbors = @getNeighbors(50)
+    
     @set('acceleration', @centerUrge().add(@wanderUrge()))
+    @set('heading', @get('velocity').angleFrom(breve.vector([1, 0])) * (if @get('velocity').Y() < 0.0 then -1.0 else 1.0))
       
   centerUrge: ->
     @get('location').toUnitVector().multiply(-1 * @get('center_scale'))

@@ -11,7 +11,7 @@
 # * global_rotation
 # * image
 class breve.Agent
-  # Constructor for breve.Agent.  Should not be overriden directly to configure agent state–override setup instead.
+  # @private
   constructor: (@engine, attrs) ->
     attrs ||= {}
     @state = {}
@@ -49,22 +49,25 @@ class breve.Agent
       @set('global_location', location)
       @set('global_heading', @get('heading'))
       
-  addChild: (child) ->
-    ###
-    Adds a child object to the simulation.
-    ###
+  # Adds a child agent to the simulation.
+  #
+  # @param childAgent the child agent to add to the simulation
+  addChild: (childAgent) ->
     child.parent = this
-    @engine.add(child)
+    @engine.add(childAgent)
     
+    
+  # !!!
+  getNeighbors: (radius) ->
+    []
+    
+  # Sets the given key of the agent's state to the provided value.
+  # 
+  # This method also looks for a method matching the given key in the form "set[Keyname]", and invokes 
+  # it with the given value if it exists, allowing the agent to take other actions in response to state
+  # being set.  For example, "@set('image', imageURL)" also invokes the agent's "setImage" method to 
+  # load an image from a URL.
   set: (key, value) ->
-    ###
-    Sets the given key of the agent's state to the provided value.
-    
-    This method also looks for a method matching the given key in the form "set[Keyname]", and invokes 
-    it with the given value if it exists, allowing the agent to take other actions in response to state
-    being set.  For example, "@set('image', imageURL)" also invokes the agent's "setImage" method to 
-    load an image from a URL.
-    ###
     setter = "set" + key[0].toUpperCase() + key.slice(1);
 
     if this[setter]
@@ -72,42 +75,39 @@ class breve.Agent
 
     @state[key] = value
 
+  # Returns the agent's state value for the provided key.
+  #
+  # @param key the state key to retrieve 
+  # @return the value for the provided key
   get: (key) ->
-    ### Returns the agent's state value for the provided key. ###
     @state[key]
     
-  setImage: (imageURL) =>
-    ### Sets and loads the agent's image URL. ###
-    
+  # Sets and loads the agent's image URL.
+  # 
+  # @param imageURL the image URL to set for this agent
+  setImage: (imageURL) =>    
     if imageURL
       @image = new Image()
       @image.src = imageURL
     else
       @image = null
 
+  # Returns the distance to another breve.Agent.
   distanceTo: (agent) ->
-    ###
-    Returns the distance to another breve.Agent.
-    ###
-    
     @get('global_location').distanceFrom(agent.get('global_location'))
     
+  # Returns the angle from this agent to another breve.Agent.  Takes this agent's heading into account, 
+  # but not the target agent's heading.
   angleTo: (agent) ->
-    ###
-    Returns the angle from this agent to another breve.Agent.  Takes this agent's heading into account, 
-    but not the target agent's heading.
-    ###
 
     (agent.get('global_location').subtract(@get('global_location'))
       .angleFrom(breve.vector([1,0]).rotate(@get('global_heading'), breve.vector([0,0])))) % breve.PI2
-    
+
+  # Draws the agent with the given HTML5 Canvas Context.  You may override this method to perform your 
+  # own drawing methods if desired.  By the time this method is invoked, the context has already been 
+  # translated and rotated to match the agent's current position, so your drawing should be centered 
+  # around the point (0,0).
   draw: (canvasContext) =>
-    ###
-    Draws the agent with the given HTML5 Canvas Context.  You may override this method to perform your 
-    own drawing methods if desired.  By the time this method is invoked, the context has already been 
-    translated and rotated to match the agent's current position, so your drawing should be centered 
-    around the point (0,0).
-    ###
     if @image 
       dim = Math.max(@image.width, @image.height)
       factor = 2.0 / dim
@@ -119,10 +119,12 @@ class breve.Agent
       canvasContext.arc(0,0,1.0,0,Math.PI*2,true);
       canvasContext.fill()    
 
+  # @private
   _fillStyle: ->
     color = @get('color')
     @fillStyle_ ||= "rgba(" + Math.floor(255 * color[0]) + "," + Math.floor(255 * color[1]) + "," + Math.floor(255 * color[2]) + "," + color[3] + ")"
 
+  # @private
   _render: (ctx) =>
     ctx.save()
     ctx.translate(@state['global_location'].elements[0], @state['global_location'].elements[1])

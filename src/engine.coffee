@@ -12,6 +12,7 @@ class breve.Engine
     @canvas.addEventListener('click', @_clickEvent) if @canvas
     @timeStep = @opts['stepsize'] || 0.1
     @opts.engine ||= {}
+    @collider = new breve.CollisionDetector()
 
     @_configure()
     
@@ -67,6 +68,8 @@ class breve.Engine
   # 
   # Note: You *must* invoke the superclass step method from your own implementation.
   step: => 
+    @collider.detect(@objects)
+    
     @simulationTime += @timeStep
     
     try
@@ -100,14 +103,14 @@ class breve.Engine
   # @param canvasContext the HTML5 Canvas context to draw on to
   draw: (canvasContext) =>
     if @image 
-      ctx.drawImage(@image, -@canvas.width/2, -@canvas.width/2)
+      canvasContext.drawImage(@image, -@canvas.width/2, -@canvas.width/2)
     else
-      lingrad = ctx.createLinearGradient(0,0,0,150);
+      lingrad = canvasContext.createLinearGradient(0,0,0,150);
       lingrad.addColorStop(0, '#00ABEB');
       lingrad.addColorStop(1, '#88DBFB');
 
-      ctx.fillStyle = lingrad;
-      ctx.fillRect(-@canvas.width/2, -@canvas.width/2, @canvas.width, @canvas.height)
+      canvasContext.fillStyle = lingrad;
+      canvasContext.fillRect(-@canvas.width/2, -@canvas.width/2, @canvas.width, @canvas.height)
 
 
 

@@ -20,3 +20,6 @@ class breve.Examples.Ball extends breve.Agent
     @set('velocity', velocity)
     
     super(step)
+
+  collide: (agent, collision) ->
+    @set('velocity', @get('velocity').add(collision.normal.multiply(collision.force)))

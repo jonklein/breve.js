@@ -27,13 +27,17 @@ class breve.Agent
 
   # Sets up the agent with a set of provided attributes. This is the override point to configure the initial state 
   # of agents based on their parameters.
+  # 
+  # @param attributes [Object] an object containing properties to be set on this agent
   #
   # Note: You *must* invoke the superclass setup method from your own implementation.
   setup: (attributes) ->
     @set('image', attributes['image'])
 
   # Steps the agent forward in time by timestep seconds. This is the override point to update each agent's state at 
-  # each step of the simulation.  
+  # each step of the simulation. 
+  #
+  # @param timestep [Number] the amount of simulation time to step forward 
   #
   # Note: You *must* invoke the superclass step method from your own implementation.
   step: (timestep) ->
@@ -49,6 +53,12 @@ class breve.Agent
       @set('global_location', location)
       @set('global_heading', @get('heading'))
       
+  # Invoked when the agent collides with another.
+  #
+  # @param otherAgent [breve.Agent] the agent with which the collision occurred
+  # @param collision [Object] an object containing properties describing the collision
+  collide: (otherAgent, collision) ->
+      
   # Adds a child agent to the simulation.
   #
   # @param childAgent the child agent to add to the simulation
@@ -57,7 +67,11 @@ class breve.Agent
     @engine.add(childAgent)
     
     
-  # !!!
+  # Returns the neighbors of this agent within the given radius.  This 
+  # 
+  # @param radius [Number] the distance radius in which to search.
+  #
+  # @return [Array] an array of agents within the specified radius
   getNeighbors: (radius) ->
     []
     

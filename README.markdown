@@ -5,9 +5,9 @@ breve.js (Javascript MultiAgent Simulation Kit)
 
 breve.js is a multiagent simulation toolkit that runs in the browser.
 
-This is a work in progress.  Don't expect anything to work yet.  More documentation and details to come.
+See some demos at [http://artificial.com/breve.js](http://artificial.com/breve.js).  API documentation available at [http://artificial.com/breve.js/docs](http://artificial.com/breve.js/docs)
 
-See some demos at [http://artificial.com/breve.js](http://artificial.com/breve.js).
+*This is a work in progress.  Don't expect anything to work yet.  More documentation and details to come.*
 
 ## Building ##
 
@@ -25,9 +25,10 @@ breve.js simulations consist of a number of *agents* running in a breve *engine*
 
 ## Agent Methods ##
 
-* setup
-* step
-* collide
+Agents behaviors are largely implemented by overriding a number of methods that get called during the agent's lifecycle:
+* setup, called when an agent is created
+* step, called at each timestep during the simulation
+* collide, called when the agent collides with another
 
 ## Simulation Configuration ##
 

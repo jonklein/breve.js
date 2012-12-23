@@ -6,12 +6,15 @@ class breve.Examples.Boid extends breve.Agent
     @set("radius", 6)
     @set("image", "html/images/arrow.png")
     
-    @set('center_scale',1)
+    @set('center_scale',0.1)
     @set('alignment_scale', 15)
     @set('cohesion_scale', 2)
     @set('separation_scale', 25)
     @set('wander_scale', 10)
-    @set('crowdingDistance', 2)
+
+    @crowdingDistance = 3
+    @velocityDamping = .99
+    @accelerationScale = .75
 
   step: (step) ->
     super(step)
@@ -20,12 +23,12 @@ class breve.Examples.Boid extends breve.Agent
 
     sum = breve.sumVectors([@centerUrge(), @wanderUrge(), @cohesionUrge(neighbors), @alignmentUrge(neighbors), @separationUrge(neighbors)])
     
-    @set('acceleration', sum)
+    @set('acceleration', sum.multiply(@accelerationScale))
     @set('heading', @get('velocity').angleFrom(breve.vector([1, 0])) * (if @get('velocity').Y() < 0.0 then -1.0 else 1.0))
-    @set('velocity', @get('velocity').multiply(.99))
+    @set('velocity', @get('velocity').multiply(@velocityDamping))
  
   centerUrge: ->
-    @get('location').multiply(@get('center_scale') * -0.05)
+    @get('location').multiply(-@get('center_scale'))
 
   cohesionUrge: (neighbors) ->
     return breve.vector([0,0]) if neighbors.length == 0
@@ -38,7 +41,7 @@ class breve.Examples.Boid extends breve.Agent
     @_sumProperty(neighbors, 'velocity').toUnitVector().multiply(@get('alignment_scale'))
     
   separationUrge: (neighbors) ->
-    neighbors = _.filter(neighbors, (i) => @distanceTo(i) < @get('crowdingDistance'))
+    neighbors = _.filter(neighbors, (i) => @distanceTo(i) < @crowdingDistance)
     return breve.vector([0,0]) if neighbors.length == 0
 
     breve.sumVectors(_.map(neighbors, (l) => @get('location').subtract(l.get('location')))).toUnitVector().multiply(@get('separation_scale'))

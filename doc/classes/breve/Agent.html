@@ -174,12 +174,12 @@
   </li>
   <li>
     <span class='signature'>
-      <a href='#getNeighbors-instance'>
-        - (void) <strong>getNeighbors</strong>(radius)
+      <a href='#neighbors-instance'>
+        - (Array) <strong>neighbors</strong>(radius)
       </a>
     </span>
     <span class='desc'>
-      !!!
+      Returns the neighbors of this agent within the given radius.
     </span>
   </li>
   <li>
@@ -256,6 +256,17 @@
 of agents based on their parameters.</p><p>Note: You <em>must</em> invoke the superclass setup method from your own implementation.</p>
 </div>
 <div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>attributes</span>
+      <span class='type'>
+        (<tt>Object</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>an object containing properties to be set on this agent</span>
+    </li>
+  </ul>
 </div>
   </div>
   <div class='method_details'>
@@ -264,9 +275,20 @@ of agents based on their parameters.</p><p>Note: You <em>must</em> invoke the su
     </p>
     <div class='docstring'>
   <p>Steps the agent forward in time by timestep seconds. This is the override point to update each agent&#39;s state at 
-each step of the simulation.  </p><p>Note: You <em>must</em> invoke the superclass step method from your own implementation.</p>
+each step of the simulation. </p><p>Note: You <em>must</em> invoke the superclass step method from your own implementation.</p>
 </div>
 <div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>timestep</span>
+      <span class='type'>
+        (<tt>Number</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>the amount of simulation time to step forward </span>
+    </li>
+  </ul>
 </div>
   </div>
   <div class='method_details'>
@@ -277,6 +299,25 @@ each step of the simulation.  </p><p>Note: You <em>must</em> invoke the supercla
   <p>Invoked when the agent collides with another.</p>
 </div>
 <div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>otherAgent</span>
+      <span class='type'>
+        (<tt><a href='../../classes/breve/Agent.html'>breve.Agent</a></tt>)
+      </span>
+      &mdash;
+      <span class='desc'>the agent with which the collision occurred</span>
+    </li>
+    <li>
+      <span class='name'>collision</span>
+      <span class='type'>
+        (<tt>Object</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>an object containing properties describing the collision</span>
+    </li>
+  </ul>
 </div>
   </div>
   <div class='method_details'>
@@ -290,13 +331,33 @@ each step of the simulation.  </p><p>Note: You <em>must</em> invoke the supercla
 </div>
   </div>
   <div class='method_details'>
-    <p class='signature' id='getNeighbors-instance'>
-      - (void) <strong>getNeighbors</strong>(radius)
+    <p class='signature' id='neighbors-instance'>
+      - (Array) <strong>neighbors</strong>(radius)
     </p>
     <div class='docstring'>
-  <p>!!!</p>
+  <p>Returns the neighbors of this agent within the given radius.  This </p>
 </div>
 <div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>radius</span>
+      <span class='type'>
+        (<tt>Number</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>the distance radius in which to search.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'></span>
+      (<tt>Array</tt>)
+      &mdash;
+      <span class='desc'>an array of agents within the specified radius</span>
+    </li>
+  </ul>
 </div>
   </div>
   <div class='method_details'>
@@ -381,7 +442,7 @@ around the point (0,0).</p>
     </div>
     <div id='footer'>
   Generated on
-  Sat Dec 22 2012 09:05:16 GMT-0500 (EST)
+  Sun Dec 23 2012 07:29:18 GMT-0500 (EST)
   by
   <a href='https://github.com/netzpirat/codo' title='CoffeeScript API documentation generator'>Codo</a>
   v1.5.4

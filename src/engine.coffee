@@ -8,12 +8,23 @@ class breve.Engine
     @simulationTime = 0.0
     @frameCount = 0
     @objects = []
-    @canvas = document.getElementById(@opts.canvas)
+    @canvas = document.getElementById(@opts.canvas) if @opts.canvas
     @canvas.addEventListener('click', @_clickEvent) if @canvas
     @timeStep = @opts['stepsize'] || 0.1
     @opts.engine ||= {}
     @collider = new breve.CollisionDetector()
-
+    
+    @datapoints = {}
+    
+    if @opts.chart
+      @charter = new breve.Chart(@, @opts.chart.selector) 
+      @chartfields = @opts.chart.fields
+      
+      _.each(_.keys(@opts.chart.fields), (field) =>
+        @opts.chart.fields[field].values = []
+        @opts.chart.fields[field].color ||= '#ff0000'
+      )
+      
     @_configure()
     
   # Invoked on the engine when a click occurs in the rendered simulation area.
@@ -54,6 +65,7 @@ class breve.Engine
   stop: =>
     @objects = []
     clearInterval(@i)
+    @charter.stop() if @charter
   
   # Gives the bounding box of the simulation rendering area.  Simulated agents are allowed to 
   # move outside of the simulation bounds, but it is generally most useful for agents to remain
@@ -63,13 +75,43 @@ class breve.Engine
   bounds: ->
     {left: -@canvas.width/2, right: @canvas.width/2, top: @canvas.height/2, bottom: -@canvas.height/2}
 
+  # Returns the neighbors for the given agent, inside of the provided radius.
+  #
+  # @param agent [breve.Agent] the agent to find neighbors for
+  # @param radius [Number] the radius in which to search for neighbors
+  neighbors: (agent, radius) ->
+    @collider.neighbors(agent, @objects, radius)
+    
+  # Add a datapoint to the simulation data results.
+  datapoint: (eventName, value, options = {}) ->
+    @datapoints[eventName] ||= []
+    @datapoints[eventName].push([@simulationTime, value])
+
+  # Charts an value in the simulation, updating the chart with the provided frequency.
+  #
+  # @param eventName (String) the name of the value to add a data point for
+  # @param value (Number) the value to add to the chart
+  # @param frequency (Number) the number of frames between each rendering of the chart.
+  #        Rendering the chart too frequently will result in poor simulation performance.
+  chart: (eventName, value, frequency = 20) ->
+    if @chartfields[eventName] && (@frameCount % frequency == 1)
+      values = @chartfields[eventName].values
+
+      last = values[values.length - 1]
+      
+      if !last || last.x != @simulationTime
+        @chartDataUpdated = true
+        values.push({x: @simulationTime, y: value})
+        values.shift() if values.length > 500
+
   # Steps the simulation forward in time by the timeStep value.  This method may be overriden to 
   # execute custom simulation behaviors at each timestep.
   # 
   # Note: You *must* invoke the superclass step method from your own implementation.
   step: => 
-    @collider.detect(@objects)
+    @collider.detect(@objects, @simulationTime)
     
+    @frameCount += 1
     @simulationTime += @timeStep
     
     try
@@ -81,6 +123,7 @@ class breve.Engine
     ctx.clearRect(0, 0, @canvas.width, @canvas.height)
     ctx.save()
     ctx.translate(-@bounds().left, -@bounds().bottom)
+    ctx.scale(1.0, -1.0)
 
     @draw(ctx)
     
@@ -93,7 +136,8 @@ class breve.Engine
       
     @_trackFPS()
     @_updatePage()
-  
+    @_updateChartData()
+
   # Sets a debug message to be displayed on the simulation page.
   debug: (msg) ->
     $('.console').text(msg)
@@ -116,7 +160,6 @@ class breve.Engine
 
 
 
-
   # @private
   _configure: ->
     if @opts.engine['background']
@@ -130,13 +173,17 @@ class breve.Engine
     @setup(@opts)
 
   # @private
+  _updateChartData: ->
+    @charter.update(@chartfields) if @charter && @chartDataUpdated
+    @chartDataUpdated = false
+
+  # @private
   _clickEvent: (ev) =>
     @click(breve.vector([ev.clientX, ev.clientY]), null, ev)
 
   # @private
   _trackFPS: ->
     frameInterval = 100
-    @frameCount += 1
 
     if (@frameCount % frameInterval) == 1
       @fps = if @lastCheck then (frameInterval / (((new Date()).getTime() - @lastCheck)/1000.0)) else 0.0

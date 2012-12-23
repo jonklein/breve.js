@@ -1,32 +1,50 @@
 class breve.Examples.Boid extends breve.Agent
   setup: (attrs) ->
     super(attrs)
-    @set("location", breve.randomVector([-100,-100], [100,100]))
+    @set("location", breve.random.vector([-250,-250], [250,250]))
+    @set("velocity", breve.random.vector([-50,-50], [50,50]))
     @set("radius", 6)
     @set("image", "html/images/arrow.png")
     
-    @set('center_scale', 80)
-    @set('wander_scale', 500)
+    @set('center_scale',1)
+    @set('alignment_scale', 2)
+    @set('cohesion_scale', 2)
+    @set('separation_scale', 20)
+    @set('wander_scale', 15)
+    @set('crowdingDistance', 5)
 
   step: (step) ->
     super(step)
     
-    neighbors = @getNeighbors(50)
+    neighbors = _.filter(@neighbors(50), (i) => @angleTo(i) < 1.5)
+
+    sum = breve.sumVectors([@centerUrge(), @wanderUrge(), @cohesionUrge(neighbors), @alignmentUrge(neighbors), @separationUrge(neighbors)])
     
-    @set('acceleration', @centerUrge().add(@wanderUrge()))
+    @set('acceleration', sum)
     @set('heading', @get('velocity').angleFrom(breve.vector([1, 0])) * (if @get('velocity').Y() < 0.0 then -1.0 else 1.0))
-      
+    @set('velocity', @get('velocity').multiply(.995))
+ 
   centerUrge: ->
-    @get('location').toUnitVector().multiply(-1 * @get('center_scale'))
+    @get('location').multiply(@get('center_scale') * -0.01)
 
-  flockUrge: ->
-    0
+  cohesionUrge: (neighbors) ->
+    return breve.vector([0,0]) if neighbors.length == 0
 
-  velocityUrge: ->
-    0
+    @get('location').subtract(@_sumProperty(neighbors, 'location').multiply(1.0/neighbors.length)).toUnitVector().multiply(@get('cohesion_scale'))
+
+  alignmentUrge: (neighbors) ->
+    return breve.vector([0,0]) if neighbors.length == 0
+
+    @_sumProperty(neighbors, 'velocity').toUnitVector().multiply(@get('alignment_scale'))
     
-  spacingUrge: ->
-    0
+  separationUrge: (neighbors) ->
+    neighbors = _.filter(neighbors, (i) => @distanceTo(i) < @get('crowdingDistance'))
+    return breve.vector([0,0]) if neighbors.length == 0
+
+    breve.sumVectors(_.map(neighbors, (l) => @get('location').subtract(l.get('location')))).toUnitVector().multiply(@get('separation_scale'))
     
   wanderUrge: ->
-    breve.randomVector([-1,-1], [1,1]).toUnitVector().multiply(@get('wander_scale'))
+    breve.random.vector([-1,-1], [1,1]).toUnitVector().multiply(@get('wander_scale'))
+    
+  _sumProperty: (neighbors, property) ->
+    breve.sumVectors(_.map(neighbors, (agent) => agent.get(property)))

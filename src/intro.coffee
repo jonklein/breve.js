@@ -17,16 +17,22 @@ window.breve =
   
   PI2: Math.PI * 2.0
   
-  randomRangeScalar: (min, max) ->
-    Math.random() * ((max||0.0) - (min||0.0)) + (min||0.0)
+  sumVectors: (list) ->
+    _.reduce(list, (v, memo) => 
+      memo.add(v)
+    , breve.vector([0,0]))
   
+  random:
+    rangeScalar: (min, max) ->
+      Math.random() * ((max||0.0) - (min||0.0)) + (min||0.0)
+  
+    vector: (min, max) ->
+      breve.vector(breve.randomRange(min, max))
+
   randomRange: (min, max) ->
     max ||= []
-    if (min.length == undefined) then @randomRangeScalar(min, max) else (@randomRangeScalar(min[i], max[i]) for i in [0..min.length-1])
+    if (min.length == undefined) then @random.rangeScalar(min, max) else (@random.rangeScalar(min[i], max[i]) for i in [0..min.length-1])
 
-  randomVector: (min, max) ->
-    breve.vector(@randomRange(min, max))
-  
   Examples: {}
   
   start: (opts) =>

@@ -22,6 +22,9 @@ class breve.Agent
 
     @set('global_location', breve.vector([0,0]))
     @set('global_heading', 0)
+    
+    @set('id', Math.uuid())
+    console.log(@get('id'))
 
     @setup(attrs)
 
@@ -41,7 +44,7 @@ class breve.Agent
   #
   # Note: You *must* invoke the superclass step method from your own implementation.
   step: (timestep) ->
-    @set('velocity', @get('acceleration').multiply(timestep)) if @get('acceleration')
+    @set('velocity', @get('velocity').add(@get('acceleration').multiply(timestep))) if @get('acceleration')
     
     location = @get('location').add(@get('velocity').multiply(timestep))
     @set('location', location)
@@ -63,7 +66,7 @@ class breve.Agent
   #
   # @param childAgent the child agent to add to the simulation
   addChild: (childAgent) ->
-    child.parent = this
+    childAgent.parent = this
     @engine.add(childAgent)
     
     
@@ -72,8 +75,8 @@ class breve.Agent
   # @param radius [Number] the distance radius in which to search.
   #
   # @return [Array] an array of agents within the specified radius
-  getNeighbors: (radius) ->
-    []
+  neighbors: (radius) ->
+    @engine.neighbors(@, radius)
     
   # Sets the given key of the agent's state to the provided value.
   # 

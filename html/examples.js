@@ -4,6 +4,10 @@ examples = [
     description: 'A simple simulation showing basic physics rules applied to simple agents',
     source: 'src/examples/ball.coffee',
     configuration: {
+      "chart": {
+        selector: '#chart svg',
+        fields: { height: { label: 'Ball Height', color: '#0000ff'} }
+      },
       "agents": [ {"type": "breve.Examples.Ball", "count": 5, "attributes": {"image": "html/images/ball.png"} } ]
     }
   },
@@ -16,9 +20,17 @@ examples = [
       engine: {
         background: "html/images/road.jpg"
       },
+      chart: {
+        selector: '#chart svg',
+        fields: { leftsensor: { label: 'Left Sensor Reading', color: '#0000ff'}, rightsensor: { label: 'Right Sensor Reading', color: '#ff0000'} }
+      },
       agents: [ 
         { type: "breve.Examples.BraitenbergVehicle", count: 1 },
-        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [200,200]} } 
+        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [200,200]} },
+        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [-200,-200]} },
+        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [150,-180]} },
+        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [-220,-10]} },
+        { type: "breve.Examples.BraitenbergLight", "count": 1, attributes: {"location": [-20,-220]} }
       ]
     }
   },
@@ -47,7 +59,8 @@ function start() {
   } catch(err) {
     alert("An error occurred parsing the configuration: " + err);
   }
-  breve.start($.extend(config, {canvas: 'breve-canvas'}));        
+  
+  breve.start($.extend(config, {canvas: 'breve-canvas'}));
 }
 
 function select() {

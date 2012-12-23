@@ -21,7 +21,7 @@ breve.js is a new project for building multiagent simulations, written using mod
 
 # Building Simulations
 
-breve.js simulations consist of a number of *agents* running in a breve *engine*.  At each time-step in the simulation, the engine executes a *step* method on each agent, which typically inspects its environment and modifies its state.
+breve.js simulations consist of a number of *agents* running in a breve *engine*.  The engine and its agents implement a number of methods which hook into the lifecycle of the simulation to inspect the environment and update their state accordingly.  Simulations are constructed by defining a set of agents and their behaviors.
 
 ## Agent Methods ##
 
@@ -39,4 +39,9 @@ Simulations are configured by passing a hash of configuration properties to the 
 breve.js agents are plain javascript Objects, and as such, can be assigned arbitrary object properties.  However, these properties should not be used to store data which tracks the state of agents in the simulation.  Instead, agent states such as location, velocity, etc. should be set and retrieved on agents using "get" and "set".  Agent states managed using set/get will be properly handled when serializing, deserializing, copying and otherwise manipulating objects.  If these agent states are stored improperly as object properties, some of this functionality will not work as expected.
 
 Object properties may still be useful, however, for storing temporary, runtime data which is not intrinsically part of the agent's state.  For example, when setting an agent's image, the image URL is stored as part of the agent state, but an actual Image object is stored as an object property in order to render the object at runtime.  When the agent is serialized or copied, the image URL in the agent's state will be preserved, but the actual Image object property will need to be recreated. 
+
+
+## Utility Libraries and Functions ##
+
+breve.js uses a number of external libraries for support, and makes these libraries available when writing simulations.
 

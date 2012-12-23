@@ -17,7 +17,7 @@ breve.js is written in CoffeeScript and uses Sprockets to build to a single Java
 
 In 2001, I released a project called breve, a 3D multiagent simulation toolkit.  breve was used in a number of labs and classrooms around the world for research and education in areas such as multiagent simulation, biology, artificial intelligence and artificial life.  Over time, though, the project grew old, crufty and difficult to maintain, especially as I left the academic world and didn't have as much time to work on the project.
 
-breve.js is a new project for building multiagent simulations, written using modern technologies and with the benefit of a great deal of retrospect.
+breve.js is a toolkit for building multiagent simulations, written using modern technologies and with the benefit of a great deal of retrospect.
 
 # Building Simulations
 
@@ -32,7 +32,7 @@ Agents behaviors are largely implemented by overriding a number of methods that 
 
 ## Simulation Configuration ##
 
-Simulations are configured by passing a hash of configuration properties to the breve engine upon initialization.
+Simulations are configured by passing a hash of configuration properties to the breve engine upon initialization.  The configuration properties specify the number, type and attributes of initial agents in the simulation, along with engine-level properties used to configure the simulation.  When the simulation is initialized, these properties are passed to the "setup" method of both the engine and the agents.  You should make every attempt to expose all configurable simulation parameters through the configuration hash so that the simulation can be easily tweaked and experimented with, without requiring changes to the code.
 
 ## Agent State vs. Object Properties ##
 
@@ -43,5 +43,18 @@ Object properties may still be useful, however, for storing temporary, runtime d
 
 ## Utility Libraries and Functions ##
 
-breve.js uses a number of external libraries for support, and makes these libraries available when writing simulations.
+breve.js uses a number of external libraries for support, and makes these libraries available when writing simulations.  You may need to refer to documentation for these components separately:
 
+* [Underscore](http://underscorejs.org/), general utility and functional programming support
+* [Sylvester](http://sylvester.jcoglan.com/), vector and matrix math
+
+# Tracking simulation results
+
+Forthcoming.
+
+# License
+
+breve.js 0.0
+http://artificial.com/breve.js
+(c) 2012-2013 Jonathan Klein
+breve.js may be freely distributed under the MIT license.

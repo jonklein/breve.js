@@ -3,7 +3,7 @@ class breve.Examples.Boid extends breve.Agent
     super(attrs)
     @set("location", breve.random.vector([-250,-250], [250,250]))
     @set("velocity", breve.random.vector([-50,-50], [50,50]))
-    @set("radius", 6)
+    @set("radius", 5)
     @set("image", "html/images/arrow.png")
     
     @set('center_scale',0.1)

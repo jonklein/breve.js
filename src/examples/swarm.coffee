@@ -7,25 +7,25 @@ class breve.Examples.Boid extends breve.Agent
     @set("image", "html/images/arrow.png")
     
     @set('center_scale',1)
-    @set('alignment_scale', 2)
+    @set('alignment_scale', 15)
     @set('cohesion_scale', 2)
-    @set('separation_scale', 20)
-    @set('wander_scale', 15)
-    @set('crowdingDistance', 5)
+    @set('separation_scale', 25)
+    @set('wander_scale', 10)
+    @set('crowdingDistance', 2)
 
   step: (step) ->
     super(step)
     
-    neighbors = _.filter(@neighbors(50), (i) => @angleTo(i) < 1.5)
+    neighbors = _.filter(@neighbors(20), (i) => @angleTo(i) < 1.5)
 
     sum = breve.sumVectors([@centerUrge(), @wanderUrge(), @cohesionUrge(neighbors), @alignmentUrge(neighbors), @separationUrge(neighbors)])
     
     @set('acceleration', sum)
     @set('heading', @get('velocity').angleFrom(breve.vector([1, 0])) * (if @get('velocity').Y() < 0.0 then -1.0 else 1.0))
-    @set('velocity', @get('velocity').multiply(.995))
+    @set('velocity', @get('velocity').multiply(.99))
  
   centerUrge: ->
-    @get('location').multiply(@get('center_scale') * -0.01)
+    @get('location').multiply(@get('center_scale') * -0.05)
 
   cohesionUrge: (neighbors) ->
     return breve.vector([0,0]) if neighbors.length == 0

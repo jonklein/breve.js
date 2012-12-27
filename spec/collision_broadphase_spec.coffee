@@ -43,7 +43,7 @@ describe 'breve.CollisionSweepAndPrune', ->
         @objects[1].set('location', breve.vector([20, 20]))
         @objects[2].set('location', breve.vector([40, 40]))
         @broadphase.update(@objects)
-        expect(@broadphase.candidates(@objects[0], 100)).toEqual([@objects[1]])
+        expect(@broadphase.candidates(@objects[0], 10)).toEqual([@objects[1]])
       
       it 'should not give candidates overlapping in only one dimension', ->
         @objects[0].set('location', breve.vector([10, 10]))

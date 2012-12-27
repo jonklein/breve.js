@@ -25,7 +25,7 @@ class breve.CollisionSweepAndPruneBase
       radius   = @radius(obj)
 
       for bound in boundList
-        if bound.agent != obj && Math.abs(bound.value - bound) <= radius
+        if bound.agent != obj && Math.abs(bound.value - location) <= radius
           candidates.push(bound.agent)
         else if bound.value > location + radius
           break

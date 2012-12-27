@@ -19,7 +19,7 @@ window.breve =
   
   sumVectors: (list) ->
     _.reduce(list, (v, memo) => 
-      memo.add(v)
+      if v then memo.add(v) else memo
     , breve.vector([0,0]))
   
   random:

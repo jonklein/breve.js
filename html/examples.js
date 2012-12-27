@@ -1,17 +1,14 @@
 examples = [
   {
-    name: 'Bounce',
-    description: 'A simple simulation showing basic physics rules applied to simple agents',
-    source: 'src/examples/ball.coffee',
+    name: 'Swarm',
+    description: 'A swarm simulation.',
+    source: 'src/examples/swarm.coffee',
     configuration: {
-      "chart": {
-        selector: '#chart svg',
-        fields: { height: { label: 'Ball Height', color: '#0000ff'} }
-      },
-      "agents": [ {"type": "breve.Examples.Ball", "count": 5, "attributes": {"image": "html/images/ball.png"} } ]
+      agents: [ 
+        { type: "breve.Examples.Boid", count: 100 }
+      ]
     }
   },
-    
   {
     name: 'Braitenberg',
     description: 'A Braitenberg vehicle simulation.',
@@ -34,17 +31,18 @@ examples = [
       ]
     }
   },
-
   {
-    name: 'Swarm',
-    description: 'A swarm simulation.',
-    source: 'src/examples/swarm.coffee',
+    name: 'Bounce',
+    description: 'A simple simulation showing basic physics rules applied to simple agents',
+    source: 'src/examples/ball.coffee',
     configuration: {
-      agents: [ 
-        { type: "breve.Examples.Boid", count: 100 }
-      ]
+      "chart": {
+        selector: '#chart svg',
+        fields: { height: { label: 'Ball Height', color: '#0000ff'} }
+      },
+      "agents": [ {"type": "breve.Examples.Ball", "count": 5, "attributes": {"image": "html/images/ball.png"} } ]
     }
-  } 
+  }
 ];
 
 function stop() {

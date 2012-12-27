@@ -2,25 +2,74 @@ class breve.CollisionDetectorBase
   constructor: -> 
     @objectPairs = []
     @bounds = []
+    @dimensions = [[],[]]
+    @objectMap = {}
   
-  setObjects: (objects) ->
+  updateBoundsList: (objects) ->
+    n = 0
+
     for obj in objects
-      for dim in @dimensions
-        dim.push({})    
+      id = obj.get('id')
+      if !@objectMap[id]
+        @objectMap[id] = true
+        
+        _.each(@dimensions, (dim, i) =>
+          location = @location(obj)
+          radius = @radius(obj)
+      
+          dim.push({type: 'min', value: location.elements[i] - radius, agent: obj})
+          dim.push({type: 'max', value: location.elements[i] + radius, agent: obj})
+        )
+        
+        n += 1
     
-  sweepAndPrune: () ->
-    _.each(@dimensions, (list, i) ->
-      list.sort((a,b) =>
-        a.bounds[i] - b.bounds[i]
-      )
+  sweepAndPrune: (objects) ->
+    @updateBoundsList(objects)
+    _.each(@dimensions, (dim, i) =>
+      @insertionSort(dim, @_compareBounds, @_swapBounds)
     )
     
-  # Sorts the bounds in each dimension
-  sweep: () ->
+    []
+  
+  _compairBounds: (a, b) ->
+    a.value - b.value
     
+  _swapBounds: (a, b, context) =>
+    pair = @pair(a.agent, b.agent)
+    console.log("Swapping " + b.agent.get('id') + ' ' + a.agent.get('id'))
+    
+  # Insertion sort.
+  # 
+  # Why, in 2012, am I writing my own sorting algorithm?  Because efficient sweep-and-prune requires
+  # hooking into the swapping of two entries in the list, and furthermore takes advantage of the 
+  # spatial coherence of insertion sort, which should be more performant than quicksort for simulation
+  # type applications.
+  
+  insertionSort: (array, predicate = null, swap = null, context = null) ->
+    predicate ||= (i, j) -> i - j
+    
+    for index in [1..array.length-1]
+      activeIndex = index
+      compareIndex = index - 1
+      
+      while compareIndex >= 0 && predicate(array[activeIndex], array[compareIndex]) <= 0
+        swap(array[activeIndex], array[compareIndex], context) if swap != null
+        
+        tmp                 = array[compareIndex]
+        array[compareIndex] = array[activeIndex]
+        array[activeIndex]  = tmp
+        
+        compareIndex -= 1
+        activeIndex  -= 1
+    
+    array
+      
   # Computes collision candidate pairs in each dimension
   prune: () ->
-    
+  
+  # 
+  _markOverlap: (pair, dimension) ->
+    pair.overlaps += 1
   
   # Return a collision pair record for the given object pair
   pair: (o1, o2) ->
@@ -36,6 +85,8 @@ class breve.CollisionDetectorBase
     _.filter(allAgents, (otherAgent) => agent != otherAgent && @checkPair(agent, otherAgent).distance < radius)
 
   detect: (objects, time) ->
+    pairs = @sweepAndPrune(objects)
+    
     for i in [1..objects.length-1]
       for j in [0..(i-1)]
         pair = @checkPair(objects[i], objects[j], time)
@@ -49,7 +100,7 @@ class breve.CollisionDetectorBase
   checkPair: (o1, o2, time) ->
     pair = @pair(o1, o2)
 
-    if pair.time != time
+    if o1.collide && o2.collide && pair.time != time
       separation = @location(o2).subtract(@location(o1))
     
       pair.distance = separation.modulus()

@@ -45,7 +45,7 @@ class breve.Engine
   # 
   # @param agent the agent to add.  Must be breve.Agent or one of its subclasses.
   # @return [breve.Agent] the agent that was added to the simulation
-  add: (agent) =>
+  add: (agent) ->
     @objects.push(agent)
     agent
   
@@ -53,16 +53,18 @@ class breve.Engine
   #
   # @param agentType the agent class to search for in the simulation
   # @return [Array] all agents of the given agentType
-  all: (agentType) =>
+  all: (agentType) ->
     _.select(@objects, (i) -> i.__proto__.constructor == agentType)
     
   # Starts the simulation, scheduling a timer to step the simulation forward in time 60 
   # times per second until stop is called.
-  start: () =>
-    @i = setInterval(@step, 1000 * (1.0/60.0))
+  start: () ->
+    @i = setInterval(() => 
+      @step()
+    , 1000 * (1.0/60.0))
   
   # Stops the simulation and clears all objects.
-  stop: =>
+  stop: ->
     @objects = []
     clearInterval(@i)
     @charter.stop() if @charter
@@ -108,7 +110,7 @@ class breve.Engine
   # execute custom simulation behaviors at each timestep.
   # 
   # Note: You *must* invoke the superclass step method from your own implementation.
-  step: => 
+  step: -> 
     @collider.detect(@objects, @simulationTime)
     
     @frameCount += 1
@@ -145,7 +147,7 @@ class breve.Engine
   # Draws the background of the simulation. 
   #
   # @param canvasContext the HTML5 Canvas context to draw on to
-  draw: (canvasContext) =>
+  draw: (canvasContext) ->
     if @image 
       canvasContext.drawImage(@image, -@canvas.width/2, -@canvas.width/2)
     else

@@ -40,7 +40,6 @@ breve.js agents are plain javascript Objects, and as such, can be assigned arbit
 
 Object properties may still be useful, however, for storing temporary, runtime data which is not intrinsically part of the agent's state.  For example, when setting an agent's image, the image URL is stored as part of the agent state, but an actual Image object is stored as an object property in order to render the object at runtime.  When the agent is serialized or copied, the image URL in the agent's state will be preserved, but the actual Image object property will need to be recreated. 
 
-
 ## Utility Libraries and Functions ##
 
 breve.js uses a number of external libraries for support, and makes these libraries available when writing simulations.  You may need to refer to documentation for these components separately:

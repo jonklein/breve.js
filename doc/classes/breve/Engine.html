@@ -149,7 +149,6 @@
         - (breve.Agent) <strong>add</strong>(agent)
       </a>
     </span>
-    <span class='bound note title'>Bound</span>
     <span class='desc'>
       Adds an agent to the simulation.
     </span>
@@ -160,7 +159,6 @@
         - (Array) <strong>all</strong>(agentType)
       </a>
     </span>
-    <span class='bound note title'>Bound</span>
     <span class='desc'>
       Returns an array of all agents in the simulation matching the given type.
     </span>
@@ -171,7 +169,6 @@
         - (void) <strong>start</strong>()
       </a>
     </span>
-    <span class='bound note title'>Bound</span>
     <span class='desc'>
       Starts the simulation, scheduling a timer to step the simulation forward in time 60 times per second until stop is called.
     </span>
@@ -182,7 +179,6 @@
         - (void) <strong>stop</strong>()
       </a>
     </span>
-    <span class='bound note title'>Bound</span>
     <span class='desc'>
       Stops the simulation and clears all objects.
     </span>
@@ -233,7 +229,6 @@
         - (void) <strong>step</strong>()
       </a>
     </span>
-    <span class='bound note title'>Bound</span>
     <span class='desc'>
       Steps the simulation forward in time by the timeStep value.
     </span>
@@ -254,7 +249,6 @@
         - (void) <strong>draw</strong>(canvasContext)
       </a>
     </span>
-    <span class='bound note title'>Bound</span>
     <span class='desc'>
       Draws the background of the simulation.
     </span>
@@ -288,7 +282,6 @@ the initial state of the simulation based on the simulation options.</p><p>Note:
   <div class='method_details'>
     <p class='signature' id='add-instance'>
       - (breve.Agent) <strong>add</strong>(agent)
-      (bound)
     </p>
     <div class='docstring'>
   <p>Adds an agent to the simulation.</p><p>@param agent the agent to add.  Must be breve.Agent or one of its subclasses.</p>
@@ -308,7 +301,6 @@ the initial state of the simulation based on the simulation options.</p><p>Note:
   <div class='method_details'>
     <p class='signature' id='all-instance'>
       - (Array) <strong>all</strong>(agentType)
-      (bound)
     </p>
     <div class='docstring'>
   <p>Returns an array of all agents in the simulation matching the given type.</p><p>@param agentType the agent class to search for in the simulation</p>
@@ -328,7 +320,6 @@ the initial state of the simulation based on the simulation options.</p><p>Note:
   <div class='method_details'>
     <p class='signature' id='start-instance'>
       - (void) <strong>start</strong>()
-      (bound)
     </p>
     <div class='docstring'>
   <p>Starts the simulation, scheduling a timer to step the simulation forward in time 60 
@@ -340,7 +331,6 @@ times per second until stop is called.</p>
   <div class='method_details'>
     <p class='signature' id='stop-instance'>
       - (void) <strong>stop</strong>()
-      (bound)
     </p>
     <div class='docstring'>
   <p>Stops the simulation and clears all objects.</p>
@@ -424,7 +414,6 @@ inside of the bounds for visualization purposes.</p>
   <div class='method_details'>
     <p class='signature' id='step-instance'>
       - (void) <strong>step</strong>()
-      (bound)
     </p>
     <div class='docstring'>
   <p>Steps the simulation forward in time by the timeStep value.  This method may be overriden to 
@@ -446,7 +435,6 @@ execute custom simulation behaviors at each timestep.</p><p>Note: You <em>must</
   <div class='method_details'>
     <p class='signature' id='draw-instance'>
       - (void) <strong>draw</strong>(canvasContext)
-      (bound)
     </p>
     <div class='docstring'>
   <p>Draws the background of the simulation. </p><p>@param canvasContext the HTML5 Canvas context to draw on to</p>
@@ -458,7 +446,7 @@ execute custom simulation behaviors at each timestep.</p><p>Note: You <em>must</
     </div>
     <div id='footer'>
   Generated on
-  Sun Dec 23 2012 09:27:34 GMT-0500 (EST)
+  Sun Dec 23 2012 09:47:33 GMT-0500 (EST)
   by
   <a href='https://github.com/netzpirat/codo' title='CoffeeScript API documentation generator'>Codo</a>
   v1.5.4

@@ -102,7 +102,7 @@ class breve.Agent
   # Sets and loads the agent's image URL.
   # 
   # @param imageURL the image URL to set for this agent
-  setImage: (imageURL) =>    
+  setImage: (imageURL) ->    
     if imageURL
       @image = new Image()
       @image.src = imageURL

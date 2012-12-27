@@ -82,7 +82,7 @@ class breve.Engine
   # @param agent [breve.Agent] the agent to find neighbors for
   # @param radius [Number] the radius in which to search for neighbors
   neighbors: (agent, radius) ->
-    @collider.neighbors(agent, @objects, radius)
+    @collider.neighbors(agent, @objects, radius, @simulationTime)
     
   # Add a datapoint to the simulation data results.
   datapoint: (eventName, value, options = {}) ->

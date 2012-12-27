@@ -14,6 +14,7 @@ class breve.Agent
   # @private
   constructor: (@engine, attrs) ->
     attrs ||= {}
+    @setters = {}
     @state = {}
     @set('heading', attrs['heading'] || 0)
     @set('location', breve.vector(attrs['location'] || [0,0]))
@@ -28,6 +29,9 @@ class breve.Agent
     console.log(@get('id'))
 
     @setup(attrs)
+    
+  toString: ->
+    @state['id']
 
   # Sets up the agent with a set of provided attributes. This is the override point to configure the initial state 
   # of agents based on their parameters.
@@ -61,7 +65,7 @@ class breve.Agent
   #
   # @param otherAgent [breve.Agent] the agent with which the collision occurred
   # @param collision [Object] an object containing properties describing the collision
-  collide: (otherAgent, collision) ->
+  # collide: (otherAgent, collision) ->
       
   # Adds a child agent to the simulation.
   #
@@ -85,11 +89,14 @@ class breve.Agent
   # it with the given value if it exists, allowing the agent to take other actions in response to state
   # being set.  For example, "@set('image', imageURL)" also invokes the agent's "setImage" method to 
   # load an image from a URL.
-  set: (key, value) ->
-    setter = "set" + key[0].toUpperCase() + key.slice(1);
-
-    if this[setter]
-      this[setter](value)
+  set: (key, value) =>
+    if @setters[key] == undefined 
+      name = "set" + key[0].toUpperCase() + key.slice(1)
+      @setters[key] = @[name] || false
+      console.log("Found setter for " + name) if @setters[key] && @setters[key] != false
+    
+    if @setters[key] && @setters[key] != false
+      @setters[key].call(@, value)
 
     @state[key] = value
 

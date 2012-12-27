@@ -11,18 +11,21 @@
 # significant additional bookkeeping, and does not easily enable neighbor detection with
 # arbitrary search radii, so it's not likely worth the tradeoff.
 class breve.CollisionSweepAndPruneBase
+  @MIN = 1
+  @MAX = 2
+  
   constructor: -> 
     @sortedBoundLists = [[],[]]
     @objectMap = {}
     
   candidates: (obj, radius) ->
     candidateLists = []
+    radius   = @radius(obj)
 
     for i in [0..@sortedBoundLists.length - 1]
       boundList = @sortedBoundLists[i]
       candidates = []
       location = @location(obj).elements[i]
-      radius   = @radius(obj)
 
       for bound in boundList
         if bound.agent != obj && Math.abs(bound.value - location) <= radius
@@ -47,13 +50,13 @@ class breve.CollisionSweepAndPruneBase
         @objectMap[id] = true
 
         for dim in @sortedBoundLists
-          dim.push({type: 'min', value: 0, agent: obj})
-          dim.push({type: 'max', value: 0, agent: obj})
+          dim.push({type: breve.CollisionSweepAndPruneBase.MIN, value: 0, agent: obj})
+          dim.push({type: breve.CollisionSweepAndPruneBase.MAX, value: 0, agent: obj})
 
     _.each(@sortedBoundLists, (dim, i) =>
       for bound in dim
         r = @radius(bound.agent)
-        bound.value = @location(bound.agent).elements[i] + (if (bound.type == 'max') then r else -r)
+        bound.value = @location(bound.agent).elements[i] + (if (bound.type == breve.CollisionSweepAndPruneBase.MAX) then r else -r)
     )
 
   _compareBounds: (a, b) ->
@@ -100,22 +103,25 @@ class breve.CollisionDetectorBase
     @broadphase = new breve.CollisionSweepAndPrune()
   
   # Return a list of neighbors in under a given radius 
-  neighbors: (agent, allAgents, radius) ->
+  neighbors: (agent, allAgents, radius, time) ->
     candidates = @broadphase.candidates(agent, radius)
-    _.filter(candidates, (otherAgent) => agent != otherAgent && @_checkPair(agent, otherAgent).distance < radius)
+    _.filter(@broadphase.candidates(agent, radius), (otherAgent) => agent != otherAgent && @_checkPair(agent, otherAgent, time).distance < radius)
 
   detect: (objects, time) ->
     @broadphase.update(objects, time)
     
     for i in objects
-      for j in @broadphase.candidates(i, 0)
-        pair = @_checkPair(i, j, time)
-
-        if pair.collision
-          j.collide(i, pair.collision)
+      if i.collide 
+        for j in @broadphase.candidates(i, 0)
           
-          pair.collision.normal = pair.collision.normal.multiply(-1)
-          i.collide(j, pair.collision)
+          if j.collide
+            pair = @_checkPair(i, j, time)
+
+            if pair.collision
+              j.collide(i, pair.collision)
+          
+              pair.collision.normal = pair.collision.normal.multiply(-1)
+              i.collide(j, pair.collision)
   
   # Return a collision pair record for the given object pair
   _pair: (o1, o2) ->
@@ -130,7 +136,7 @@ class breve.CollisionDetectorBase
     pair = @_pair(o1, o2)
     pair.collision = null
 
-    if o1.collide && o2.collide && pair.time != time
+    if pair.time != time
       separation = @location(o2).subtract(@location(o1))
     
       pair.distance = separation.modulus()

@@ -19,6 +19,7 @@ class breve.Agent
     @set('location', breve.vector(attrs['location'] || [0,0]))
     @set('velocity', breve.vector(attrs['velocity'] || [0,0]))
     @set('color', [1,1,1,1])
+    @set('radius', attrs['radius'])
 
     @set('global_location', breve.vector([0,0]))
     @set('global_heading', 0)

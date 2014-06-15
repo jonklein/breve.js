@@ -100,9 +100,10 @@ class breve.CollisionDetectorBase
     @broadphase = new breve.CollisionSweepAndPrune()
   
   # Return a list of neighbors in under a given radius 
-  neighbors: (agent, allAgents, radius) ->
-    candidates = @broadphase.candidates(agent, radius)
-    _.filter(candidates, (otherAgent) => agent != otherAgent && @_checkPair(agent, otherAgent).distance < radius)
+  neighbors: (agent, allAgents, radius, time) ->
+    # candidates = @broadphase.candidates(agent, radius)
+    # _.filter(candidates, (otherAgent) => agent != otherAgent && @_checkPair(agent, otherAgent).distance < radius)
+    _.filter(allAgents, (otherAgent) => agent != otherAgent && @_checkPair(agent, otherAgent, time).distance < radius)
 
   detect: (objects, time) ->
     @broadphase.update(objects, time)
@@ -130,7 +131,7 @@ class breve.CollisionDetectorBase
     pair = @_pair(o1, o2)
     pair.collision = null
 
-    if o1.collide && o2.collide && pair.time != time
+    if pair.time != time
       separation = @location(o2).subtract(@location(o1))
     
       pair.distance = separation.modulus()

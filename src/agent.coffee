@@ -106,7 +106,7 @@ class breve.Agent
   setImage: (imageURL) ->    
     if imageURL
       @image = new Image()
-      @image.src = imageURL
+      @image.src = @engine.resourceURL(imageURL)
     else
       @image = null
 

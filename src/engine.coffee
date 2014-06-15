@@ -158,15 +158,18 @@ class breve.Engine
       canvasContext.fillStyle = lingrad;
       canvasContext.fillRect(-@canvas.width/2, -@canvas.width/2, @canvas.width, @canvas.height)
 
-
-
-
+  # Returns the fully qualified URL for the provided relative URL according to the configuration
+  # of the resourceBaseURL option.
+  resourceURL: (url) ->
+    if (!url || url.match(/:\/\//)) then url else (@opts.resourceBaseURL + url)
 
   # @private
   _configure: ->
+    @opts.resourceBaseURL ||= ''
+    
     if @opts.engine['background']
       @image = new Image()
-      @image.src = @opts.engine['background']
+      @image.src = @resourceURL(@opts.engine['background'])
 
     _.each(@opts.agents, (agent) =>
       @objects = @objects.concat(_.map([1..agent.count], => new (eval(agent.type))(@, agent.attributes || {})))

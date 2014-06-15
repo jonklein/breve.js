@@ -25,8 +25,6 @@ class breve.Agent
     @set('global_heading', 0)
     
     @set('id', Math.uuid())
-    console.log(@get('id'))
-
     @setup(attrs)
 
   # Sets up the agent with a set of provided attributes. This is the override point to configure the initial state 

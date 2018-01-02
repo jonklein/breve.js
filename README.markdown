@@ -5,7 +5,7 @@ breve.js (Javascript MultiAgent Simulation Kit)
 
 breve.js is a multiagent simulation toolkit that runs in the browser.
 
-See some demos at [http://artificial.com/breve.js](http://artificial.com/breve.js).  API documentation available at [http://artificial.com/breve.js/docs](http://artificial.com/breve.js/docs)
+See some demos at [http://kleininen.com/breve.js](http://kleininen.com/breve.js).  API documentation available at [http://kleininen.com/breve.js/docs](http://kleininen.com/breve.js/docs)
 
 *This is a work in progress.  Don't expect anything to work yet.  More documentation and details to come.*
 
@@ -54,6 +54,6 @@ Forthcoming.
 # License
 
 breve.js 0.0
-http://artificial.com/breve.js
+http://kleininen.com/breve.js
 (c) 2012-2013 Jonathan Klein
 breve.js may be freely distributed under the MIT license.

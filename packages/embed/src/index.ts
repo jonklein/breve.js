@@ -8,6 +8,8 @@ export interface EmbedOptions {
   height?: number
   /** Slowly turn the camera around the scene until someone drags it (default true). */
   autoRotate?: boolean
+  /** Simulation speed as a multiple of the scene's own tick rate (default 1: 60 ticks a second unless the scene says otherwise). */
+  speed?: number
   /** Start paused (default false). */
   paused?: boolean
 }
@@ -92,7 +94,7 @@ export async function run(target: string | HTMLElement, code: string, config: un
     last = now
     if (visible) {
       if (running) {
-        budget = Math.min(budget + dt * sim.rate, 6) // never try to catch up on more than a few ticks at once
+        budget = Math.min(budget + dt * sim.rate * (options.speed ?? 1), 8) // never try to catch up on more than a few ticks at once
         let stepped = false
         while (budget >= 1) { sim.step(); budget--; stepped = true }
         if (stepped) draw()

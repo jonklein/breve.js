@@ -183,6 +183,20 @@ export class WorldView {
     return l instanceof AgentLayer ? l : null
   }
 
+  /** The entity under a ray, if any: which set (scene order) and which row. */
+  pick(ray: THREE.Raycaster): { set: number; row: number } | null {
+    const found: { set: number; row: number; distance: number }[] = []
+    this.layers.forEach((l, set) => { const hit = l?.pick(ray); if (hit) found.push({ set, ...hit }) })
+    if (this.isBodies) { const hit = this.rigid.pick(ray); if (hit) found.push({ set: 0, ...hit }) }
+    found.sort((a, b) => a.distance - b.distance)
+    return found[0] ? { set: found[0].set, row: found[0].row } : null
+  }
+
+  /** Mark the agent being inspected (or none). */
+  select(sel: { set: number; row: number } | null): void {
+    this.layers.forEach((l, i) => { if (l instanceof AgentLayer) l.selected = sel && sel.set === i ? sel.row : -1 })
+  }
+
   update(frames: WorldFrame[]): void {
     // physics scenes draw their own ground: hide the bounds box and floor grid the other kinds use
     const rigidFrame = frames.find((f) => f.kind === 'bodies')

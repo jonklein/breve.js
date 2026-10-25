@@ -24,6 +24,16 @@ export class RigidView {
     scene.add(this.group)
   }
 
+  /** The nearest creature under a ray (its row is the instance index of any of its parts). */
+  pick(ray: THREE.Raycaster): { row: number; distance: number } | null {
+    let best: { row: number; distance: number } | null = null
+    for (const m of this.meshes) {
+      m.boundingSphere = null
+      for (const hit of ray.intersectObject(m)) if (hit.instanceId !== undefined && (!best || hit.distance < best.distance)) best = { row: hit.instanceId, distance: hit.distance }
+    }
+    return best
+  }
+
   setVisible(v: boolean): void {
     this.group.visible = v
   }

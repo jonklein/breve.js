@@ -86,3 +86,36 @@ test('keys held by a person reach ctx.input, are logged, and a controller can sa
   assert.deepEqual(s.inputLog, [{ tick: 1, keys: ['w'] }, { tick: 3, keys: [] }])
   assert.deepEqual(s.nondeterministic(), ['a'])
 })
+
+test('inspect shows one entity with typed fields; poke edits it; controllerNames lists the script exports', () => {
+  const sc = scene({ at: [1, 2, 3] }, { state: { energy: 5, awake: true, name: 'x', w: { length: 3, init: 0.5 } } })
+  const s = new Sim(sc, { default: { decide: () => ({}) }, Other: { decide: () => ({}) }, metrics: {} })
+  const i = s.inspect(0, 2)!
+  assert.equal(i.set, 'a')
+  assert.equal(i.kind, 'agent')
+  assert.deepEqual([i.fields.px, i.fields.py, i.fields.pz], [1, 2, 3])
+  assert.deepEqual([i.fields.energy, i.fields.awake, i.fields.name, i.fields.w], [5, false || true, 'x', [0.5, 0.5, 0.5]])
+  s.poke(0, 2, 'energy', 9); s.poke(0, 2, 'awake', false); s.poke(0, 2, 'name', 'z'); s.poke(0, 2, 'w', 7, 1)
+  const j = s.inspect(0, 2)!
+  assert.deepEqual([j.fields.energy, j.fields.awake, j.fields.name, j.fields.w], [9, false, 'z', [0.5, 7, 0.5]])
+  assert.equal(s.inspect(0, 99), null)
+  assert.throws(() => s.poke(0, 2, 'nope', 1), /no field/)
+  assert.deepEqual(s.controllerNames(), ['default', 'Other'])
+})
+
+test('changing a set\'s type swaps its controller on a running sim, with no other scene edit', () => {
+  const sc = scene({ at: [0, 0, 0] }, { type: 'Left', motion: { maxSpeed: 50, plane: 'xz' } })
+  const script: ScriptModule = {
+    Left: { decide: () => ({ steer: [-10, 0, 0] }) },
+    Right: { decide: () => ({ steer: [10, 0, 0] }) },
+  }
+  const s = new Sim(sc, script)
+  for (let i = 0; i < 30; i++) s.step()
+  const vx = () => (s.table.cols.vx as Float32Array)[0]
+  assert.ok(vx() < 0, 'running Left')
+  const next = structuredClone(sc)
+  next.entities[0].type = 'Right'
+  s.setScene(next)
+  for (let i = 0; i < 90; i++) s.step()
+  assert.ok(vx() > 0, 'now running Right')
+})

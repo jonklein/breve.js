@@ -1,4 +1,4 @@
-import { Sim, SimGroup, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
+import { Sim, SimGroup, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
 
 export type ToWorker =
   | { type: 'init'; scene: string; script: string }
@@ -9,6 +9,11 @@ export type ToWorker =
   | { type: 'reset' }
   /** The keys held down in the view, for human-driven controllers. */
   | { type: 'keys'; keys: string[] }
+  /** Watch one entity (or nothing). Its fields come back with every frame. */
+  | { type: 'inspect'; set: number; row: number }
+  | { type: 'uninspect' }
+  /** Edit one value of one entity. */
+  | { type: 'poke'; set: number; row: number; field: string; value: number | boolean | string; index?: number }
   /** Run the scene once per value of one param, side by side. */
   | { type: 'sweep'; param: string; values: number[] }
   /** Leave the sweep. */
@@ -35,7 +40,8 @@ export interface WorldFrameMsg {
 export type FromWorker =
   | { type: 'tiles'; tick: number; rate: number; stepMs: number; tiles: { name: string; value: number; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
   | { type: 'focused'; param: string; value: number }
-  | { type: 'frame'; tick: number; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
+  | { type: 'controllers'; names: string[] }
+  | { type: 'frame'; tick: number; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -46,6 +52,7 @@ let running = true
 let sceneErrors: string[] = []
 let scriptErrors: string[] = []
 let lastSent = ''
+let selection: { set: number; row: number } | null = null
 // sweep mode: many sims in one group, ticking together
 let group: SimGroup | null = null
 let sweepParam = ''
@@ -81,6 +88,7 @@ async function applyScript(code: string): Promise<void> {
   try {
     script = await compile(code)
     scriptErrors = []
+    postMessage({ type: 'controllers', names: Object.entries(script).filter(([k, v]) => k !== 'metrics' && !!v && typeof v === 'object' && ['decide', 'update', 'init'].some((f) => typeof (v as Record<string, unknown>)[f] === 'function')).map(([k]) => k) } satisfies FromWorker)
   } catch (e) {
     scriptErrors = [e instanceof Error ? e.message : String(e)]
   }
@@ -130,7 +138,8 @@ function post(): void {
     lastPosted = sim.tick
     const frames = sim.frames()
     const m = sim.tick % 4 === 0 || sim.rate < 30 ? sim.metrics() : null
-    const msg: FromWorker = { type: 'frame', tick: sim.tick, metrics: m, stepMs, rate: sim.rate, frames }
+    const inspected = selection ? sim.inspect(selection.set, selection.row) : null
+    const msg: FromWorker = { type: 'frame', tick: sim.tick, inspected, metrics: m, stepMs, rate: sim.rate, frames }
     postMessage(msg, frames.flatMap(transfers))
   }
   const runtime = sim.takeErrors()
@@ -185,6 +194,21 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'keys':
       sim?.setInput(m.keys)
+      break
+    case 'inspect':
+      selection = { set: m.set, row: m.row }
+      lastPosted = -1
+      break
+    case 'uninspect':
+      selection = null
+      break
+    case 'poke':
+      try {
+        sim?.poke(m.set, m.row, m.field, m.value, m.index)
+        lastPosted = -1 // show the new value even while paused
+      } catch (e) {
+        postMessage({ type: 'problems', scene: sceneErrors, script: scriptErrors, runtime: [e instanceof Error ? e.message : String(e)] } satisfies FromWorker)
+      }
       break
     case 'play':
       running = m.running

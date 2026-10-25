@@ -62,6 +62,8 @@ Acceptance:
 
 ## M3 — Controllers and inspector
 
+Status: done. Several entity sets per scene, controllers by named export (`type`), `ctx.blend` composition, keyboard-driven controllers flagged non-deterministic (`examples/herding`), the ants acceptance (`examples/ants`), and a click-to-inspect panel with a controller swap menu. Not done: per-entity (rather than per-set) controller choice.
+
 - Controller interface and state contract; sensors and actuators declared as data.
 - Script, Human and Oscillator controllers.
 - Controller composition (wrapping).

@@ -11,6 +11,9 @@ export class Viewport {
   private controls: OrbitControls
   private lastTime = performance.now()
 
+  /** Called with the entity under a click, or null for a click on nothing. */
+  onPick: (sel: { set: number; row: number } | null) => void = () => {}
+
   constructor(private container: HTMLElement) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
@@ -20,6 +23,17 @@ export class Viewport {
     this.controls = new OrbitControls(camera, this.renderer.domElement)
     this.controls.enableDamping = true
     this.view = new WorldView(this.renderer, camera, this.controls)
+    // a click (press and release without dragging) picks the entity under the pointer
+    const canvas = this.renderer.domElement
+    let down: { x: number; y: number } | null = null
+    canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY } })
+    canvas.addEventListener('pointerup', (e) => {
+      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return
+      const r = canvas.getBoundingClientRect()
+      const ray = new THREE.Raycaster()
+      ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1)), this.view.camera)
+      this.onPick(this.view.pick(ray))
+    })
     new ResizeObserver(() => this.resize()).observe(container)
     this.resize()
     const loop = () => {

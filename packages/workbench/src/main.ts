@@ -1,6 +1,7 @@
 import { Viewport, type WorldLook } from './viewport'
 import { TileGrid } from './tiles'
 import { makeEditor, setParamInText } from './editors'
+import { setEntityKey } from '@breve/core'
 import { ParamsPanel, MetricsPanel } from './panel'
 import {
   clearDoc, createProject, deleteProject, fetchExample, loadExamples, renameProject, saveDoc, savedDoc, userProjects,
@@ -8,6 +9,7 @@ import {
 } from './projects'
 import { ChatPanel } from './chat'
 import { DocsPanel } from './docs'
+import { InspectorPanel } from './inspector'
 import type { FromWorker, ToWorker } from './sim.worker'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -138,6 +140,35 @@ async function main(): Promise<void> {
   view.addEventListener('keyup', (e) => { held.delete(e.key.toLowerCase()); sendKeys() })
   view.addEventListener('blur', () => { held.clear(); sendKeys() })
 
+  // ---- inspector: click an entity to see and edit it ----
+  let inspecting: { set: number; row: number } | null = null
+  const inspector = new InspectorPanel($('inspector'), {
+    poke: (field, value, index) => inspecting && send({ type: 'poke', ...inspecting, field, value, index }),
+    controller: (set, name) => {
+      const next = setEntityKey(sceneEditor.getText(), set, 'type', name === 'default' ? undefined : name)
+      if (next === null) return
+      loading = true
+      sceneEditor.setText(next)
+      loading = false
+      saveDoc(current, docNow())
+      showScene(next)
+      send({ type: 'scene', scene: next })
+    },
+    close: () => stopInspecting(),
+  })
+  const stopInspecting = () => {
+    inspecting = null
+    inspector.hide()
+    viewport.view.select(null)
+    send({ type: 'uninspect' })
+  }
+  viewport.onPick = (sel) => {
+    if (!sel) return stopInspecting()
+    inspecting = sel
+    viewport.view.select(sel)
+    send({ type: 'inspect', ...sel })
+  }
+
   // ---- assistant ----
   const chat = new ChatPanel($('chat'), {
     project: () => ({ id: current, name: projectName(), ...docNow() }),
@@ -201,6 +232,7 @@ async function main(): Promise<void> {
     scriptEditor.setText(doc.script)
     loading = false
     metrics.clear()
+    if (inspecting) stopInspecting()
     if (sweeping) showSweep(false)
     $('sweepbar').classList.add('hidden')
     showScene(doc.scene)
@@ -292,6 +324,7 @@ async function main(): Promise<void> {
     const m = ev.data
     if (m.type === 'frame') {
       viewport.update(m.frames.map((f) => ({ ...f, rate: m.rate })))
+      if (inspecting) { if (m.inspected) inspector.update(m.inspected); else stopInspecting() }
       if (m.metrics) metrics.push(m.metrics)
       const now = performance.now()
       if (now - lastTime > 500) {
@@ -309,6 +342,8 @@ async function main(): Promise<void> {
         lastTime = now
         $('stats').textContent = `tick ${m.tick} · ${m.tiles.length} runs · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick (all runs)`
       }
+    } else if (m.type === 'controllers') {
+      inspector.setControllers(m.names)
     } else if (m.type === 'focused') {
       // continue from the picked tile: make its param value the scene's own, and go back to the big view
       const next = setParamInText(sceneEditor.getText(), m.param, m.value)

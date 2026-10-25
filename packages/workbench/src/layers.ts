@@ -33,6 +33,13 @@ export class AgentLayer {
 
   get object(): THREE.InstancedMesh { return this.mesh }
 
+  /** The nearest agent under a ray: its row and how far away it is. */
+  pick(ray: THREE.Raycaster): { row: number; distance: number } | null {
+    this.mesh.boundingSphere = null
+    const hit = ray.intersectObject(this.mesh)[0]
+    return hit && hit.instanceId !== undefined ? { row: hit.instanceId, distance: hit.distance } : null
+  }
+
   setVisible(on: boolean): void { this.mesh.visible = on }
 
   /** `fixed` is the color every agent gets, or null to color by heading. */
@@ -94,8 +101,17 @@ export class CellLayer {
   private d = new THREE.Vector3()
   private c = new THREE.Color()
   private fixed: THREE.Color | null = null
+  /** Which lattice row each drawn cube is, so a click on a cube can name its cell. */
+  private rows = new Int32Array(0)
 
   constructor(private scene: THREE.Scene) {}
+
+  pick(ray: THREE.Raycaster): { row: number; distance: number } | null {
+    if (!this.cubes || !this.cubes.visible) return null
+    this.cubes.boundingSphere = null
+    const hit = ray.intersectObject(this.cubes)[0]
+    return hit && hit.instanceId !== undefined ? { row: this.rows[hit.instanceId], distance: hit.distance } : null
+  }
 
   setVisible(on: boolean): void { if (this.cubes) this.cubes.visible = on }
 
@@ -104,6 +120,7 @@ export class CellLayer {
     if (this.cubes && need <= this.capacity) return this.cubes
     this.dispose()
     this.capacity = need
+    this.rows = new Int32Array(need)
     const cubes = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), need)
     cubes.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(need * 3), 3)
     cubes.frustumCulled = false
@@ -173,6 +190,7 @@ export class CellLayer {
       this.d.set(u * c.thick[0], u * c.thick[1], u * c.thick[2])
       this.m.compose(this.p, this.q, this.d)
       cubes.setMatrixAt(w, this.m)
+      this.rows[w] = i
       if (this.fixed && !c.palette) this.c.copy(this.fixed)
       else this.tint(c.color[i], this.c)
       colors.setXYZ(w, this.c.r, this.c.g, this.c.b)

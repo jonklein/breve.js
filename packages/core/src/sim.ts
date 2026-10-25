@@ -5,9 +5,20 @@ import { AgentWorld } from './agent-world'
 import { LatticeWorld } from './lattice-world'
 import { RigidWorld } from './rigid-world'
 import type { PhysicsEngine } from './physics/types'
-import { paramValues, type EntityDef, type Params, type Scene } from './scene'
+import { paramValues, stateFields, type EntityDef, type Params, type Scene } from './scene'
 import { blend } from './blend'
 import type { Controller, Ctx, FrameData, Host, MetricInput, Message, ScriptModule, World } from './world'
+
+/** One entity as an inspector shows it. */
+export interface Inspected {
+  set: string
+  index: number
+  kind: 'agent' | 'cell' | 'creature'
+  row: number
+  id: number
+  controller: string
+  fields: Record<string, number | boolean | string | number[]>
+}
 
 export interface SimSnapshot { tick: number; rng: number; worlds: unknown[]; waiting: Message[]; outbox: Message[]; keys: string[] }
 
@@ -180,6 +191,47 @@ export class Sim {
     if (next.join() === this.keys.join()) return
     this.keys = next
     this.inputLog.push({ tick: this.tick, keys: next })
+  }
+
+  /** Everything one entity holds, for an inspector: its set, kind, controller, and every field by name. */
+  inspect(set: number, row: number): Inspected | null {
+    const def = this.scene.entities[set]
+    const table = this.worlds[set]?.table
+    if (!def || !table || row < 0 || row >= table.size) return null
+    const kinds = Object.fromEntries(stateFields(def.state).map((f) => [f.name, f]))
+    const fields: Inspected['fields'] = {}
+    for (const k of Object.keys(table.schema)) {
+      const stride = table.strides[k], col = table.cols[k] as unknown as ArrayLike<number | string>
+      const f = kinds[k]
+      const get = (i: number) => (f?.kind === 'boolean' ? col[i] !== 0 : col[i])
+      fields[k] = stride === 1 ? (get(row) as number) : Array.from({ length: Math.min(stride, 64) }, (_, j) => Number(col[row * stride + j]))
+    }
+    return { set: def.name, index: set, kind: def.lattice ? 'cell' : def.body ? 'creature' : 'agent', row, id: table.idAt(row), controller: def.type ?? 'default', fields }
+  }
+
+  /** Change one value of one entity (an inspector edit). Creatures live in the physics engine, so they cannot be edited yet. */
+  poke(set: number, row: number, field: string, value: number | boolean | string, index = 0): void {
+    const def = this.scene.entities[set]
+    const table = this.worlds[set]?.table
+    if (!def || !table || row < 0 || row >= table.size) throw new Error('no such entity')
+    if (def.body) throw new Error('creatures cannot be edited yet: their pose lives in the physics engine')
+    if (!(field in table.schema)) throw new Error(`there is no field "${field}"`)
+    const f = stateFields(def.state).find((x) => x.name === field)
+    const col = table.cols[field] as unknown as (number | string)[]
+    const at = row * table.strides[field] + index
+    if (f?.kind === 'string') col[at] = String(value)
+    else if (f?.kind === 'boolean') col[at] = value ? 1 : 0
+    else {
+      const x = Number(value)
+      if (!Number.isFinite(x)) throw new Error(`"${field}" needs a number`)
+      col[at] = f?.type === 'i32' ? Math.round(x) : x
+    }
+  }
+
+  /** The names a set's `type` can take: every export of the script that is a controller. */
+  controllerNames(): string[] {
+    const isController = (v: unknown) => !!v && typeof v === 'object' && ['decide', 'update', 'init'].some((k) => typeof (v as Record<string, unknown>)[k] === 'function')
+    return Object.entries(this.script ?? {}).filter(([k, v]) => k !== 'metrics' && isController(v)).map(([k]) => k)
   }
 
   /** Names of the entity sets whose controller depends on something outside the sim (a person, a model), so forking or replay may not reproduce it. */

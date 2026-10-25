@@ -10,6 +10,8 @@ export interface EmbedOptions {
   autoRotate?: boolean
   /** Simulation speed as a multiple of the scene's own tick rate (default 1: 60 ticks a second unless the scene says otherwise). */
   speed?: number
+  /** How far to zoom in from the default camera, as a multiple (default 1; 1.3 is a little closer). */
+  zoom?: number
   /** Start paused (default false). */
   paused?: boolean
 }
@@ -88,6 +90,11 @@ export async function run(target: string | HTMLElement, code: string, config: un
 
   const draw = () => view.update(sim.frames().map((f) => ({ ...f, rate: sim.rate }) as WorldFrame))
   draw()
+  if (options.zoom && options.zoom !== 1) {
+    // the view framed the world on its first draw; move the camera along its line of sight
+    camera.position.sub(controls.target).multiplyScalar(1 / options.zoom).add(controls.target)
+    controls.update()
+  }
   const loop = (now: number) => {
     if (stopped) return
     const dt = Math.min(0.1, (now - last) / 1000)

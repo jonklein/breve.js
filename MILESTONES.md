@@ -18,7 +18,8 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 | M5 | Abstract worlds | **Done**, no `via` sensors | `epidemic`, `epidemic-grid`, `market` |
 | M6 | Bodies and physics | **Mostly done** (no MuJoCo, MJCF, glTF, mutation utilities) | `creature`, `urdf-bot`, `morphology` |
 | M7 | Learning and language models | **Partly done** (no ONNX, Hugging Face, VLM) | `llm-wanderers`, `neural`, assistant |
-| Later | Gallery, sandboxing, scrubber, GPU layers, remote training | Not started | |
+| M8 | Site and editing polish | **Planned** | home page, site nav, JSON tree editor, gallery |
+| Later | Sandboxing, scrubber, GPU layers, remote training | Not started | |
 
 Also built, outside the original list:
 
@@ -136,9 +137,20 @@ Pending:
 - [ ] A camera sensor so a VLM can drive an agent.
 - [ ] Workbench controls for lockstep mode and for saving and replaying a decision log.
 
+## M8 — Site and editing polish — Planned
+
+The workbench is currently the whole app. This milestone gives breve a front door and makes configs easier to edit without hand-writing JSON.
+
+- [ ] **Home page**, separate from the simulations page (the workbench). It introduces breve and embeds a few live demos (aim for three, for example boids, ants and the epidemic) using `breve.run`, with links into each one in the workbench. It should load fast: the demos start when scrolled into view and pause when off screen.
+- [ ] **Standard project site navigation**: Home, Simulations (the workbench), Gallery, Docs, About, and a link to the source. The workbench header and the Docs tab share it, and `?embed` hides it.
+- [ ] **JSON tree editor for the config**: edit `scene.json` (and `experiment.json`) as a collapsible tree with typed fields, number inputs, color pickers, dropdowns drawn from the schema, add/remove for lists and objects, and inline validation errors. It sits beside the text editor as a second view of the same text, so either can be used and edits keep the file's formatting.
+- [ ] **Gallery view**: browse all examples as cards with a live thumbnail or screenshot, title, description and tags; open one in the workbench, fork it, or copy a link. It also lists your own projects (stored in the browser for now) and is where URL-encoded sharing starts: a shareable link that carries a scene and script.
+
+Acceptance: the home page shows three working demos and links to everything above; every config field in the examples can be edited from the tree editor without touching the text, and the text still validates; the gallery lists every example and opens any of them in one click.
+
 ## Later (not started)
 
-- Gallery and URL-encoded sharing; projects live in browser storage only today.
+- Server-side project storage and accounts; projects live in browser storage only today.
 - Sandboxed untrusted sims (QuickJS).
 - Timeline scrubber.
 - GPU-resident dense patch layers.

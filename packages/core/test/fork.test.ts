@@ -61,3 +61,27 @@ test('a fork of a sim whose agents were added keeps ids working', async () => {
   assert.equal(b.table.size, a.table.size)
   assert.equal(b.table.idAt(5), a.table.idAt(5))
 })
+
+test('agents with a neural brain: a fork mid-run carries every brain and memory across', async () => {
+  const { scene, script } = await load('neural', 'brain.js')
+  const a = new Sim(scene, script)
+  for (let i = 0; i < 50; i++) a.step()
+  assert.equal(a.takeErrors().length, 0)
+  const b = a.fork()
+  assert.equal(a.hash(), b.hash())
+  for (let i = 0; i < 100; i++) { a.step(); b.step() }
+  assert.equal(a.hash(), b.hash())
+  assert.equal(a.takeErrors().length, 0)
+  const memory = a.table.cols.memory as Float32Array
+  assert.ok(memory.slice(0, 500).some((v) => Math.abs(v) > 0.01), 'the brains are using their memory')
+})
+
+test('strided state survives agents being removed (swap-remove moves whole arrays)', async () => {
+  const { scene, script } = await load('neural', 'brain.js')
+  const a = new Sim(scene, script)
+  const w = a.table.cols.weights as Float32Array
+  const last = a.table.size - 1
+  const lastWeights = Array.from(w.slice(last * 108, (last + 1) * 108))
+  a.table.despawn(a.table.idAt(3))
+  assert.deepEqual(Array.from(w.slice(3 * 108, 4 * 108)), lastWeights)
+})

@@ -49,11 +49,18 @@ export class Table<K extends string = string> {
   private freeSlots: number[] = []
   private nextSlot = 0
 
-  constructor(schema: Record<K, ColumnType>, capacity = 64) {
+  /** Numbers per row for each column: 1 unless a column holds a small array per entity (weights, a hidden state). */
+  readonly strides: Record<K, number>
+
+  constructor(schema: Record<K, ColumnType>, capacity = 64, strides: Partial<Record<K, number>> = {}) {
     this.schema = schema
     this.capacity = capacity
     this.cols = {} as Record<K, Column>
-    for (const k of Object.keys(schema) as K[]) this.cols[k] = new CTORS[schema[k]](capacity)
+    this.strides = {} as Record<K, number>
+    for (const k of Object.keys(schema) as K[]) {
+      this.strides[k] = strides[k] ?? 1
+      this.cols[k] = new CTORS[schema[k]](capacity * this.strides[k])
+    }
     this.rowToSlot = new Uint32Array(capacity)
     this.slotToRow = new Int32Array(capacity).fill(-1)
     this.slotGen = new Uint32Array(capacity)
@@ -62,7 +69,7 @@ export class Table<K extends string = string> {
   private grow(): void {
     const cap = this.capacity * 2
     for (const k of Object.keys(this.schema) as K[]) {
-      const next = new CTORS[this.schema[k]](cap)
+      const next = new CTORS[this.schema[k]](cap * this.strides[k])
       next.set(this.cols[k] as never)
       this.cols[k] = next
     }
@@ -84,7 +91,7 @@ export class Table<K extends string = string> {
     const row = this.size++
     this.slotToRow[slot] = row
     this.rowToSlot[row] = slot
-    for (const k of Object.keys(this.schema) as K[]) this.cols[k][row] = 0
+    for (const k of Object.keys(this.schema) as K[]) this.cols[k].fill(0, row * this.strides[k], (row + 1) * this.strides[k])
     return this.slotGen[slot] * (SLOT_MASK + 1) + slot
   }
 
@@ -111,7 +118,10 @@ export class Table<K extends string = string> {
     const slot = this.rowToSlot[row]
     const last = this.size - 1
     if (row !== last) {
-      for (const k of Object.keys(this.schema) as K[]) this.cols[k][row] = this.cols[k][last]
+      for (const k of Object.keys(this.schema) as K[]) {
+        const n = this.strides[k]
+        this.cols[k].copyWithin(row * n, last * n, (last + 1) * n)
+      }
       const movedSlot = this.rowToSlot[last]
       this.rowToSlot[row] = movedSlot
       this.slotToRow[movedSlot] = row
@@ -126,7 +136,7 @@ export class Table<K extends string = string> {
   /** A copy of everything the table holds, ids included, so a restored table hands out the same ids as the original would have. */
   snapshot(): TableSnapshot {
     const cols: Record<string, Column> = {}
-    for (const k of Object.keys(this.schema)) cols[k] = (this.cols[k as K] as Float64Array).slice(0, this.size)
+    for (const k of Object.keys(this.schema)) cols[k] = (this.cols[k as K] as Float64Array).slice(0, this.size * this.strides[k as K])
     return {
       size: this.size,
       nextSlot: this.nextSlot,
@@ -161,7 +171,7 @@ export class Table<K extends string = string> {
     let h = 0x811c9dc5
     for (const k of Object.keys(this.schema).sort() as K[]) {
       const c = this.cols[k]
-      const bytes = new Uint8Array(c.buffer, c.byteOffset, this.size * c.BYTES_PER_ELEMENT)
+      const bytes = new Uint8Array(c.buffer, c.byteOffset, this.size * this.strides[k] * c.BYTES_PER_ELEMENT)
       for (let i = 0; i < bytes.length; i++) {
         h ^= bytes[i]
         h = Math.imul(h, 0x01000193)

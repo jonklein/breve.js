@@ -44,6 +44,10 @@ Colors are hex only: `#rgb` or `#rrggbb`. Anywhere a number is expected in an en
 
 Agents live in continuous 3D space. Each tick every agent's `decide` is called and returns a steering acceleration; the engine integrates it, enforces the speed limits, and applies the bounds.
 
+**Per-agent state (memory, brains).** Free agents may declare `state`: extra numbers each agent carries. A plain type (`"energy": "f32"`) is one number; an object gives an array and how it starts: `"weights": { "type": "f32", "length": 108, "init": { "normal": 0.7 } }` (`init` can be a number, `{ "normal": spread }` or `{ "uniform": [low, high] }`, drawn from the seeded generator). In `decide`, `self.energy` is a number and `self.weights` is a read-only array. To change state, return it: `{ steer, state: { energy: self.energy - 1, memory: [..5 numbers..] } }`. Like everything else, new state is applied after all agents have decided. State is saved by snapshots and copied by forks.
+
+`ctx.mlp([11, 5, 8])` makes a small neural network (tanh layers) whose `run(weights, inputs)` returns the outputs; the weights for that shape are 11×5+5 + 5×8+8 = 108 numbers. See `examples/neural`.
+
 ### Entity set: lattice of cells
 
 ```jsonc
@@ -217,4 +221,4 @@ Names listed in the scene's `"metrics"` must exist in the script's exported `met
 
 ## Examples
 
-Four complete examples live in `examples/` (a fifth, `life2d`, shows the whole-grid `update` rule): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.
+Five complete examples live in `examples/` (`life2d` shows the whole-grid `update` rule and `neural` per-agent neural networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.

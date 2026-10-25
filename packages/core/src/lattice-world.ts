@@ -40,7 +40,7 @@ export class LatticeWorld implements World {
     const L = def.lattice!
     this.dims = L.size
     this.n = L.size[0] * L.size[1] * L.size[2]
-    this.types = def.state ?? {}
+    this.types = (def.state ?? {}) as Record<string, StateType>
     this.fields = Object.keys(this.types)
     this.table = new Table<string>(this.types as Record<string, ColumnType>, this.n)
     for (let i = 0; i < this.n; i++) this.table.spawn()

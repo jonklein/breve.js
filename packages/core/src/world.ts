@@ -1,3 +1,4 @@
+import type { Mlp } from './nn'
 import type { Rng } from './rng'
 import type { Params, Scene } from './scene'
 import type { Table } from './store'
@@ -10,6 +11,8 @@ export interface Ctx {
   dt: number
   /** Seeded randomness. Scripts must use this, never Math.random. */
   random(): number
+  /** A small neural network of the given layer sizes: `const brain = ctx.mlp([6, 5, 3])`, then `brain.run(self.weights, inputs)`. */
+  mlp(sizes: number[]): Mlp
   /** Make a vector: `vec(1, 0, 0)`. */
   vec(x?: number, y?: number, z?: number): Vec3
 }

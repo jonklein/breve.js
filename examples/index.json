@@ -26,5 +26,12 @@
     "description": "Conway's Life on a flat grid using whole-grid field operations instead of a per-cell rule.",
     "scene": "scene.json",
     "script": "life.js"
+  },
+  {
+    "id": "neural",
+    "name": "Neural agents",
+    "description": "Each agent has its own neural network brain, kept as per-agent state arrays: weights and a memory.",
+    "scene": "scene.json",
+    "script": "brain.js"
   }
 ]

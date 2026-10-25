@@ -57,8 +57,8 @@ export class Vecs extends Array<Vec3> {
   /** The average vector. An empty list averages to the zero vector. */
   average(): Vec3 { return this.length ? this.sum().times(1 / this.length) : Vec3.zero }
 
-  /** How long each vector is, as a plain list of numbers. */
-  lengths(): number[] { return Array.from(this, (v) => v.length()) }
+  /** How long each vector is, as a list of numbers you can ask `.average()`, `.max()` and so on. */
+  lengths(): Nums { return Nums.from(this, (v) => v.length()) as Nums }
 
   isEmpty(): boolean { return this.length === 0 }
 
@@ -71,6 +71,7 @@ export class Vecs extends Array<Vec3> {
 
 /** A list of numbers that answers questions as a whole: `neighbors.alive.sum()`. */
 export class Nums extends Array<number> {
+  static get [Symbol.species]() { return Array }
   sum(): number { let t = 0; for (const v of this) t += v; return t }
   /** The average, or 0 for an empty list. */
   average(): number { return this.length ? this.sum() / this.length : 0 }

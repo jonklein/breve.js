@@ -1,3 +1,4 @@
+import { Mlp } from './nn'
 import { Rng } from './rng'
 import { Vec3 } from './vec'
 import { AgentWorld } from './agent-world'
@@ -77,8 +78,16 @@ export class Sim implements Host {
     this.tick++
   }
 
+  private nets = new Map<string, Mlp>()
+  private mlp(sizes: number[]): Mlp {
+    const key = sizes.join()
+    let net = this.nets.get(key)
+    if (!net) this.nets.set(key, (net = new Mlp(sizes)))
+    return net
+  }
+
   ctx(): Ctx {
-    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z) }
+    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes) }
   }
 
   frame(): FrameData {

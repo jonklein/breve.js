@@ -1,6 +1,6 @@
-import { Agent, Agents } from './agents'
-import { resolve } from './scene'
-import { Table, type TableSnapshot } from './store'
+import { Agent, Agents, type AgentCols } from './agents'
+import { resolve, stateFields } from './scene'
+import { Table, type ColumnType, type TableSnapshot } from './store'
 import { toVec } from './vec'
 import type { FrameData, Host, MetricInput, World } from './world'
 
@@ -20,8 +20,10 @@ const DEFAULT_BOUNDS = { size: 30, mode: 'soft' as const }
 
 /** Free-moving agents in continuous 3D space with a neighbor sensor. */
 export class AgentWorld implements World {
-  readonly table = new Table(SCHEMA, 256)
+  readonly table: Table<string>
   private handles: Agent[] = []
+  private extra: ReturnType<typeof stateFields>
+  private AgentClass: new (cols: AgentCols, row: number) => Agent
   private gridN = 1
   private gridCell = 1
   private gridStart = new Int32Array(2)
@@ -29,6 +31,12 @@ export class AgentWorld implements World {
   private cellOf = new Int32Array(0)
 
   constructor(private host: Host) {
+    this.extra = stateFields(host.scene.entities[0].state)
+    const schema: Record<string, ColumnType> = { ...SCHEMA }
+    const strides: Record<string, number> = {}
+    for (const f of this.extra) { schema[f.name] = f.type; strides[f.name] = f.length }
+    this.table = new Table(schema, 256, strides)
+    this.AgentClass = this.makeClass()
     this.sceneChanged()
   }
 
@@ -62,8 +70,52 @@ export class AgentWorld implements World {
       c.vx[r] = Math.cos(th) * s * sp
       c.vy[r] = u * sp
       c.vz[r] = Math.sin(th) * s * sp
+      this.initState(r)
     }
-    while (this.handles.length < this.table.size) this.handles.push(new Agent(c, this.handles.length))
+    while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(c, this.handles.length))
+  }
+
+  /** One class per scene, with a getter for every declared state field (a number, or a view of its array). */
+  private makeClass(): new (cols: AgentCols, row: number) => Agent {
+    const table = this.table
+    class Stateful extends Agent {}
+    for (const f of this.extra) {
+      const n = f.length
+      Object.defineProperty(Stateful.prototype, f.name, {
+        get(this: Agent) { return f.array ? table.cols[f.name].subarray(this.row * n, (this.row + 1) * n) : table.cols[f.name][this.row] },
+        enumerable: true,
+      })
+    }
+    return Stateful
+  }
+
+  private writeState(row: number, state: Record<string, unknown>): void {
+    for (const [name, v] of Object.entries(state)) {
+      const f = this.extra.find((x) => x.name === name)
+      if (!f) { this.host.fail('decide', new Error(`state "${name}" is not declared in the scene's "state"`)); continue }
+      const vals = typeof v === 'number' ? [v] : Array.isArray(v) || ArrayBuffer.isView(v) ? Array.from(v as ArrayLike<number>) : null
+      if (!vals || vals.length !== f.length || vals.some((x) => !Number.isFinite(x))) {
+        this.host.fail('decide', new Error(`state "${name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`))
+        continue
+      }
+      const col = this.table.cols[name]
+      for (let k = 0; k < f.length; k++) col[row * f.length + k] = vals[k]
+    }
+  }
+
+  private initState(r: number): void {
+    const rng = this.host.rng
+    for (const f of this.extra) {
+      const col = this.table.cols[f.name]
+      for (let k = 0; k < f.length; k++) {
+        const i = r * f.length + k
+        const init = f.init
+        if (init === undefined) continue
+        if (typeof init === 'number') col[i] = init
+        else if ('normal' in init) col[i] = init.normal * Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next())
+        else col[i] = rng.range(init.uniform[0], init.uniform[1])
+      }
+    }
   }
 
   step(): void {
@@ -79,11 +131,13 @@ export class AgentWorld implements World {
     // decide: controllers read state and write only the action columns
     const ctx = this.host.ctx()
     const ctrl = script?.default
+    const writes: { row: number; state: Record<string, unknown> }[] = []
     for (let i = 0; i < n; i++) {
       let ax = 0, ay = 0, az = 0
       if (ctrl) {
         try {
-          const out = ctrl.decide!({ self: this.handles[i], neighbors: this.neighborsOf(i, radius) }, p, ctx) as { steer?: Parameters<typeof toVec>[0] } | void
+          const out = ctrl.decide!({ self: this.handles[i], neighbors: this.neighborsOf(i, radius) }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown> } | void
+          if (out && out.state && typeof out.state === 'object') writes.push({ row: i, state: out.state })
           if (out && out.steer) {
             const s = toVec(out.steer)
             if (Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.z)) { ax = s.x; ay = s.y; az = s.z }
@@ -94,6 +148,9 @@ export class AgentWorld implements World {
       }
       c.ax[i] = ax; c.ay[i] = ay; c.az[i] = az
     }
+
+    // state returned by decide lands now, after every agent has read the old values
+    for (const w of writes) this.writeState(w.row, w.state)
 
     // act: integrate steering into velocity, with entity-level limits
     const maxSpeed = resolve(def.motion?.maxSpeed, p, Infinity)
@@ -156,7 +213,7 @@ export class AgentWorld implements World {
 
   restore(s: unknown): void {
     this.table.restore(s as TableSnapshot)
-    while (this.handles.length < this.table.size) this.handles.push(new Agent(this.cols, this.handles.length))
+    while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(this.cols, this.handles.length))
   }
 
   metricInput(): MetricInput {

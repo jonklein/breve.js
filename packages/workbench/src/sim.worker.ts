@@ -25,8 +25,8 @@ async function compile(code: string): Promise<ScriptModule> {
   const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }))
   try {
     const mod = (await import(/* @vite-ignore */ url)) as ScriptModule
-    if (!mod.default || typeof mod.default.decide !== 'function')
-      throw new Error('the script must `export default { decide(obs, params, ctx) { ... } }`')
+    if (!mod.default || (typeof mod.default.decide !== 'function' && typeof mod.default.update !== 'function'))
+      throw new Error('the script must `export default { decide(obs, params, ctx) { ... } }` (or `update`, for lattices)')
     return mod
   } finally {
     URL.revokeObjectURL(url)

@@ -19,6 +19,15 @@ export interface SensorDef {
 
 export type StateType = 'u8' | 'i32' | 'f32'
 
+/** How a state field starts: a constant, or random draws from the seeded RNG. */
+export type StateInit = number | { normal: number } | { uniform: [number, number] }
+
+/**
+ * A per-entity state field. Just a type (`"f32"`) for one number, or an object for an array per entity,
+ * such as network weights (`length: 24`), with an optional starting value.
+ */
+export type StateDef = StateType | { type: StateType; length?: number; init?: StateInit }
+
 /** A 3D grid of cells with implicit neighbors. Each cell is an entity. */
 export interface LatticeDef {
   size: [number, number, number]
@@ -41,8 +50,8 @@ export interface EntityDef {
   /** Free-moving agents. Use this or `lattice`. */
   count?: NumOrParam
   lattice?: LatticeDef
-  /** Per-cell state, for lattices: field name to storage type. */
-  state?: Record<string, StateType>
+  /** Per-entity state: field name to storage type (lattice cells take plain types only). */
+  state?: Record<string, StateDef>
   /** Fill a state field at the start: `density` of cells, within the central `within` fraction of the grid. */
   fill?: { field: string; density: NumOrParam; within?: number }
   controller: string
@@ -208,7 +217,30 @@ export const sceneSchema = {
               fade: { type: 'number', minimum: 0, maximum: 1 },
             },
           },
-          state: { type: 'object', additionalProperties: { enum: ['u8', 'i32', 'f32'] } },
+          state: {
+            type: 'object',
+            additionalProperties: {
+              anyOf: [
+                { enum: ['u8', 'i32', 'f32'] },
+                {
+                  type: 'object',
+                  required: ['type'],
+                  additionalProperties: false,
+                  properties: {
+                    type: { enum: ['u8', 'i32', 'f32'] },
+                    length: { type: 'integer', minimum: 1, maximum: 4096 },
+                    init: {
+                      anyOf: [
+                        { type: 'number' },
+                        { type: 'object', required: ['normal'], additionalProperties: false, properties: { normal: { type: 'number' } } },
+                        { type: 'object', required: ['uniform'], additionalProperties: false, properties: { uniform: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } } },
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
           fill: {
             type: 'object',
             required: ['field', 'density'],
@@ -291,6 +323,8 @@ export function validateScene(data: unknown): SceneResult {
       if (e.lattice.color && !fields.includes(e.lattice.color)) errors.push(`entities.${i}.lattice.color: "${e.lattice.color}" is not a state field`)
       if (e.fill && !fields.includes(e.fill.field)) errors.push(`entities.${i}.fill.field: "${e.fill.field}" is not a state field`)
       check(e.fill?.density, `entities.${i}.fill.density`)
+      for (const [k, d] of Object.entries(e.state ?? {}))
+        if (typeof d !== 'string') errors.push(`entities.${i}.state.${k}: lattice cells hold one plain number per field, like "u8"`)
     }
     check(e.count, `entities.${i}.count`)
     if (e.body) {
@@ -312,6 +346,12 @@ export function validateScene(data: unknown): SceneResult {
     }
   })
   return errors.length ? { ok: false, errors } : { ok: true, scene }
+}
+
+/** Every state field of an entity set in one shape: a name, a storage type, how many numbers, and how it starts. */
+export function stateFields(state: Record<string, StateDef> | undefined): { name: string; type: StateType; length: number; array: boolean; init?: StateInit }[] {
+  return Object.entries(state ?? {}).map(([name, d]) =>
+    typeof d === 'string' ? { name, type: d, length: 1, array: false } : { name, type: d.type, length: d.length ?? 1, array: d.length !== undefined, init: d.init })
 }
 
 export function paramValues(scene: Scene): Params {

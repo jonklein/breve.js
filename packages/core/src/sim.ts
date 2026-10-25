@@ -6,6 +6,7 @@ import { LatticeWorld } from './lattice-world'
 import { RigidWorld } from './rigid-world'
 import type { PhysicsEngine } from './physics/types'
 import { paramValues, type EntityDef, type Params, type Scene } from './scene'
+import { blend } from './blend'
 import type { Controller, Ctx, FrameData, Host, MetricInput, Message, ScriptModule, World } from './world'
 
 export interface SimSnapshot { tick: number; rng: number; worlds: unknown[]; waiting: Message[]; outbox: Message[]; keys: string[] }
@@ -160,7 +161,7 @@ export class Sim {
   }
 
   ctx(): Ctx {
-    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), inbox: this.inbox, input: new Input(this.keys), send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
+    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
   }
 
   /** What to draw for each entity set, in scene order. */

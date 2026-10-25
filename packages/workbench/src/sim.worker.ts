@@ -7,6 +7,8 @@ export type ToWorker =
   | { type: 'play'; running: boolean }
   | { type: 'step' }
   | { type: 'reset' }
+  /** The keys held down in the view, for human-driven controllers. */
+  | { type: 'keys'; keys: string[] }
   /** Run the scene once per value of one param, side by side. */
   | { type: 'sweep'; param: string; values: number[] }
   /** Leave the sweep. */
@@ -180,6 +182,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
     case 'script':
       await applyScript(m.script)
       if (script) { sim?.setScript(script); if (group) for (const s of group.sims.values()) s.setScript(script) }
+      break
+    case 'keys':
+      sim?.setInput(m.keys)
       break
     case 'play':
       running = m.running

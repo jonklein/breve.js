@@ -15,6 +15,7 @@ export class Viewport {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     container.appendChild(this.renderer.domElement)
+    container.tabIndex = 0 // click the view to give it the keyboard
     const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000)
     this.controls = new OrbitControls(camera, this.renderer.domElement)
     this.controls.enableDamping = true

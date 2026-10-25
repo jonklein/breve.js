@@ -125,6 +125,19 @@ async function main(): Promise<void> {
   })
   Object.assign(window, { breve: { sceneEditor, scriptEditor, worker, viewport } }) // handle for poking at it from the console
 
+  // ---- keyboard: held keys go to controllers that ask for them (ctx.input), while the 3D view has focus ----
+  const held = new Set<string>()
+  const view = $('viewport')
+  const sendKeys = () => send({ type: 'keys', keys: [...held] })
+  view.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey) return
+    held.add(e.key.toLowerCase())
+    sendKeys()
+    if (e.key.startsWith('Arrow') || e.key === ' ') e.preventDefault()
+  })
+  view.addEventListener('keyup', (e) => { held.delete(e.key.toLowerCase()); sendKeys() })
+  view.addEventListener('blur', () => { held.clear(); sendKeys() })
+
   // ---- assistant ----
   const chat = new ChatPanel($('chat'), {
     project: () => ({ id: current, name: projectName(), ...docNow() }),

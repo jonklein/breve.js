@@ -58,3 +58,31 @@ test('a fence fires onLeave once per crossing, and self.reset() sends the agent 
   const x = Array.from(s.table.cols.px as Float32Array).slice(0, 20)
   assert.ok(x.every((v) => Math.abs(v) < 2.6), 'everyone was sent back near the start')
 })
+
+test('ctx.blend adds steering and amounts, and merges state', () => {
+  const sc = scene(undefined, { state: { a: 0, b: 0 } })
+  let got: unknown
+  const s = new Sim(sc, { default: { decide: ({ self }, _p, ctx) => {
+    if (self.row === 0) got = ctx.blend({ steer: [1, 0, 0], add: { x: 1, deep: { y: 2 } }, state: { a: 1 } }, null, { steer: [0, 2, 0], add: { x: 2, deep: { y: 3 } }, state: { b: 5 } })
+    return {}
+  } } })
+  s.step()
+  const g = got as { steer: { toArray(): number[] }; add: { x: number; deep: { y: number } }; state: object }
+  assert.deepEqual(g.steer.toArray(), [1, 2, 0])
+  assert.deepEqual(g.add, { x: 3, deep: { y: 5 } })
+  assert.deepEqual(g.state, { a: 1, b: 5 })
+})
+
+test('keys held by a person reach ctx.input, are logged, and a controller can say it is not deterministic', () => {
+  const sc = scene(undefined, {})
+  const seen: boolean[] = []
+  const s = new Sim(sc, { default: { spec: { nondeterministic: true }, decide: ({ self }, _p, ctx) => { if (self.row === 0) seen.push(ctx.input.pressed('W')) } } })
+  s.step()
+  s.setInput(['w'])
+  s.step(); s.step()
+  s.setInput([])
+  s.step()
+  assert.deepEqual(seen, [false, true, true, false])
+  assert.deepEqual(s.inputLog, [{ tick: 1, keys: ['w'] }, { tick: 3, keys: [] }])
+  assert.deepEqual(s.nondeterministic(), ['a'])
+})

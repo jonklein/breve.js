@@ -107,7 +107,7 @@ export class WorldView {
     if (size === this.boxSize) return
     this.boxSize = size
     this.controls.target.set(0, 0, 0)
-    this.camera.position.set(1, 0.6, 1).normalize().multiplyScalar(size * 3.1)
+    this.camera.position.set(1, 0.6, 1).normalize().multiplyScalar(size * 2.5)
     if (this.box) { this.scene.remove(this.box); this.box.geometry.dispose() }
     const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(size * 2, size * 2, size * 2))
     this.box = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: this.boundsColor }))

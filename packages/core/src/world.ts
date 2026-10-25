@@ -19,6 +19,12 @@ export interface Ctx {
   dt: number
   /** Seeded randomness. Scripts must use this, never Math.random. */
   random(): number
+  /**
+   * Merge what several behaviors returned into one result: steering adds up, `add` amounts add up, `state` and
+   * `joints` are combined (later ones win on the same name). Write each behavior as a plain function, then
+   * `return ctx.blend(graze(obs, p, ctx), flee(obs, p, ctx))`.
+   */
+  blend(...results: unknown[]): unknown
   /** The keys a person is holding: `ctx.input.pressed('w')`. For human-driven controllers; mark them `spec: { nondeterministic: true }`. */
   readonly input: { pressed(key: string): boolean; readonly keys: readonly string[] }
   /** Messages the parent sent to this sim since the last tick, oldest first. Read-only; the same list for every agent in a tick. */

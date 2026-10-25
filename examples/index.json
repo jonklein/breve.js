@@ -40,5 +40,12 @@
     "description": "Foraging ants lay scent on a ground layer: two entity sets (agents and cells) in one world, trails form by themselves.",
     "scene": "scene.json",
     "script": "ants.js"
+  },
+  {
+    "id": "herding",
+    "name": "Sheepdog (you drive)",
+    "description": "Drive the dog with W A S D and herd sheep. Two sets of agents, a cross-set sensor, ctx.blend, and keyboard input.",
+    "scene": "scene.json",
+    "script": "herding.js"
   }
 ]

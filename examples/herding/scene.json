@@ -1,0 +1,38 @@
+{
+  "name": "herding",
+  "seed": 21,
+  "bounds": { "size": 24, "mode": "clamp" },
+  "world": { "sky": { "top": "#12263f", "horizon": "#5b7a5a" }, "grid": true, "boundsColor": "#2f4a3a" },
+  "params": {
+    "sheep": { "value": 40, "min": 5, "max": 150, "step": 5 },
+    "fear": { "value": 40, "min": 0, "max": 120, "step": 1, "label": "how scared of the dog" },
+    "flocking": { "value": 3, "min": 0, "max": 10, "step": 0.5, "label": "how much sheep stick together" },
+    "dogSpeed": { "value": 14, "min": 4, "max": 30, "step": 1 }
+  },
+  "entities": [
+    {
+      "name": "sheep",
+      "type": "Sheep",
+      "controller": "herding.js",
+      "count": "$sheep",
+      "color": "#f3efe6",
+      "size": 2.6,
+      "spawn": { "box": [[-14, 0, -14], [-2, 0, 14]] },
+      "sensors": [
+        { "type": "neighbors", "radius": 7 },
+        { "type": "neighbors", "of": "dog", "name": "dogs", "radius": 12 }
+      ],
+      "motion": { "maxSpeed": 7, "minSpeed": 0, "maxAccel": 40, "plane": "xz" }
+    },
+    {
+      "name": "dog",
+      "type": "Dog",
+      "count": 1,
+      "color": "#d9822b",
+      "size": 3.6,
+      "spawn": { "at": [-18, 0, 0] },
+      "motion": { "maxSpeed": "$dogSpeed", "maxAccel": 80, "plane": "xz" }
+    }
+  ],
+  "metrics": ["together", "penned"]
+}

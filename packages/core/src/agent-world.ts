@@ -31,6 +31,9 @@ export class AgentWorld implements World {
   private gridStart = new Int32Array(2)
   private gridItems = new Int32Array(0)
   private cellOf = new Int32Array(0)
+  /** Bumped whenever positions change, so the grid knows when it is out of date. */
+  private moved = 1
+  private builtAt = 0
 
   constructor(private host: Host) {
     this.extra = stateFields(host.def.state)
@@ -76,6 +79,7 @@ export class AgentWorld implements World {
       this.initState(r)
     }
     while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(c, this.handles.length))
+    this.moved++
   }
 
   /** One class per scene, with a getter for every declared state field (a number, or a view of its array). */
@@ -167,10 +171,14 @@ export class AgentWorld implements World {
     const def = this.host.def
     const n = this.table.size
     const c = this.cols
-    const radius = resolve(def.sensors?.find((s) => s.type === 'neighbors')?.radius, p, 0)
+    // the sensor with no `of` looks at this set's own agents and shows up as `neighbors`; the rest are named
+    const sensors = def.sensors ?? []
+    const own = sensors.find((s) => !s.of || s.of === def.name)
+    const others = sensors.filter((s) => s !== own).map((s) => ({ name: s.name!, radius: resolve(s.radius, p, 0), world: this.agentWorld(s.of!) }))
+    const radius = resolve(own?.radius, p, 0)
 
     // sense: build the neighbor index from current positions
-    this.buildGrid(radius)
+    this.ensureGrid(radius)
 
     // decide: controllers read state and write only the action columns
     const ctx = this.host.ctx()
@@ -180,7 +188,9 @@ export class AgentWorld implements World {
       let ax = 0, ay = 0, az = 0
       if (ctrl) {
         try {
-          const out = ctrl.decide!({ self: this.handles[i], neighbors: this.neighborsOf(i, radius) }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
+          const obs: Record<string, unknown> = { self: this.handles[i], neighbors: this.neighborsOf(i, radius) }
+          for (const o of others) obs[o.name] = o.world?.around(this.handles[i], o.radius) ?? new this.GroupClass(this.handles[i])
+          const out = ctrl.decide!(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
           if (out && ((out.state && typeof out.state === 'object') || (out.add && typeof out.add === 'object'))) writes.push({ row: i, state: out.state ?? {}, add: out.add })
           if (out && out.steer) {
             const s = toVec(out.steer)
@@ -236,6 +246,7 @@ export class AgentWorld implements World {
         if (Math.abs(c.pz[i]) > size) { c.pz[i] = Math.sign(c.pz[i]) * size; c.vz[i] = -c.vz[i] }
       }
     }
+    this.moved++
   }
 
   frame(): FrameData {
@@ -258,6 +269,7 @@ export class AgentWorld implements World {
 
   restore(s: unknown): void {
     this.table.restore(s as TableSnapshot)
+    this.moved++
     while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(this.cols, this.handles.length))
   }
 
@@ -265,6 +277,28 @@ export class AgentWorld implements World {
     const agents = new this.GroupClass(null)
     for (let i = 0; i < this.table.size; i++) agents.push(this.handles[i])
     return { agents, count: this.table.size, cols: this.table.cols }
+  }
+
+  /** Another set of agents in this scene, by name (null if it is not one). */
+  private agentWorld(name: string): AgentWorld | null {
+    const i = this.host.scene.entities.findIndex((e) => e.name === name)
+    const w = this.host.worlds()[i]
+    return w instanceof AgentWorld ? w : null
+  }
+
+  /** Agents of this set within `radius` of another agent (one from any set), nearest to nobody in particular. */
+  around(origin: Agent, radius: number): Agents {
+    this.ensureGrid(0)
+    const out = new this.GroupClass(origin)
+    this.collect(out, origin.x, origin.y, origin.z, radius, -1)
+    return out
+  }
+
+  /** The grid is rebuilt when positions have changed since it was last built. */
+  private ensureGrid(radius: number): void {
+    if (this.builtAt === this.moved) return
+    this.builtAt = this.moved
+    this.buildGrid(radius)
   }
 
   private buildGrid(radius: number): void {
@@ -293,26 +327,31 @@ export class AgentWorld implements World {
 
   private neighborsOf(i: number, radius: number): Agents {
     const out = new this.GroupClass(this.handles[i])
-    if (radius <= 0) return out
+    if (radius > 0) this.collect(out, this.cols.px[i], this.cols.py[i], this.cols.pz[i], radius, i)
+    return out
+  }
+
+  /** Add to `out` every agent within `radius` of a point, except row `skip`. */
+  private collect(out: Agents, x: number, y: number, z: number, radius: number, skip: number): void {
+    if (radius <= 0) return
     const axis = this.gridN
     const c = this.cols
-    const ci = this.cellOf[i]
-    const cx = ci % axis, cy = Math.floor(ci / axis) % axis, cz = Math.floor(ci / (axis * axis))
+    const size = this.bounds.size
+    const idx = (v: number) => Math.min(axis - 1, Math.max(0, Math.floor((v + size) / this.gridCell)))
+    const cx = idx(x), cy = idx(y), cz = idx(z)
     const reach = Math.max(1, Math.ceil(radius / this.gridCell))
     const r2 = radius * radius
-    const x = c.px[i], y = c.py[i], z = c.pz[i]
     for (let dz = Math.max(0, cz - reach); dz <= Math.min(axis - 1, cz + reach); dz++)
       for (let dy = Math.max(0, cy - reach); dy <= Math.min(axis - 1, cy + reach); dy++)
         for (let dx = Math.max(0, cx - reach); dx <= Math.min(axis - 1, cx + reach); dx++) {
           const cell = dx + axis * (dy + axis * dz)
           for (let k = this.gridStart[cell]; k < this.gridStart[cell + 1]; k++) {
             const j = this.gridItems[k]
-            if (j === i) continue
+            if (j === skip) continue
             const ex = c.px[j] - x, ey = c.py[j] - y, ez = c.pz[j] - z
             if (ex * ex + ey * ey + ez * ez <= r2) out.push(this.handles[j])
           }
         }
-    return out
   }
 }
 

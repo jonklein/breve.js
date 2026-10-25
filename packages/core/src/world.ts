@@ -6,11 +6,23 @@ import type { Vec3 } from './vec'
 import type { Agents } from './agents'
 import type { RigidFrame } from './rigid-frame'
 
+/** A message between a sim and its parent. */
+export interface Message {
+  topic: string
+  data?: unknown
+  /** The sim's tick when it was sent (or when the parent sent it). */
+  tick: number
+}
+
 export interface Ctx {
   tick: number
   dt: number
   /** Seeded randomness. Scripts must use this, never Math.random. */
   random(): number
+  /** Messages the parent sent to this sim since the last tick, oldest first. Read-only; the same list for every agent in a tick. */
+  readonly inbox: readonly Message[]
+  /** Tell the parent something. Sims never talk to each other: the parent decides what, if anything, to pass on. `data` must be plain JSON. */
+  send(topic: string, data?: unknown): void
   /** A small neural network of the given layer sizes: `const brain = ctx.mlp([6, 5, 3])`, then `brain.run(self.weights, inputs)`. */
   mlp(sizes: number[]): Mlp
   /** Make a vector: `vec(1, 0, 0)`. */

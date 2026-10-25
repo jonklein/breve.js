@@ -360,6 +360,17 @@ export function paramValues(scene: Scene): Params {
   return out
 }
 
+/** A copy of the scene with some params set to new values (their ranges are kept). */
+export function withParams(scene: Scene, values: Params): Scene {
+  const out = structuredClone(scene)
+  for (const [k, v] of Object.entries(values)) {
+    if (!(k in out.params)) throw new Error(`there is no param "${k}" (the scene has: ${Object.keys(out.params).join(', ')})`)
+    const cur = out.params[k]
+    out.params[k] = typeof cur === 'number' ? v : { ...cur, value: v }
+  }
+  return out
+}
+
 export function resolve(v: NumOrParam | undefined, params: Params, fallback: number): number {
   if (v === undefined) return fallback
   if (typeof v === 'number') return v

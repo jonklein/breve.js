@@ -6,11 +6,11 @@ import { LatticeWorld } from './lattice-world'
 import { RigidWorld } from './rigid-world'
 import type { PhysicsEngine } from './physics/types'
 import { paramValues, type Params, type Scene } from './scene'
-import type { Ctx, FrameData, Host, ScriptModule, World } from './world'
+import type { Ctx, FrameData, Host, Message, ScriptModule, World } from './world'
 
-export interface SimSnapshot { tick: number; rng: number; world: unknown }
+export interface SimSnapshot { tick: number; rng: number; world: unknown; waiting: Message[]; outbox: Message[] }
 
-export type { Ctx, Controller, FrameData, MetricInput, ScriptModule } from './world'
+export type { Ctx, Controller, FrameData, Message, MetricInput, ScriptModule } from './world'
 
 const DT = 1 / 60
 
@@ -74,8 +74,28 @@ export class Sim implements Host {
   }
 
   step(): void {
+    this.inbox = this.waiting
+    this.waiting = []
     this.world.step()
     this.tick++
+  }
+
+  /** Messages for the script during the current tick, and the ones waiting for the next. */
+  private inbox: Message[] = []
+  private waiting: Message[] = []
+  /** What the script has sent to the parent since the parent last looked. */
+  outbox: Message[] = []
+
+  /** Parent side: queue a message to arrive at the start of the next tick. */
+  deliver(topic: string, data?: unknown): void {
+    this.waiting.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick })
+  }
+
+  /** Parent side: take everything the script has sent. */
+  takeOutbox(): Message[] {
+    const out = this.outbox
+    this.outbox = []
+    return out
   }
 
   private nets = new Map<string, Mlp>()
@@ -87,7 +107,7 @@ export class Sim implements Host {
   }
 
   ctx(): Ctx {
-    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes) }
+    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), inbox: this.inbox, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
   }
 
   frame(): FrameData {
@@ -130,7 +150,7 @@ export class Sim implements Host {
    */
   snapshot(): SimSnapshot {
     if (!this.world.snapshot) throw new Error('this kind of world cannot be snapshotted yet (physics scenes keep their state inside the engine)')
-    return { tick: this.tick, rng: this.rng.getState(), world: this.world.snapshot() }
+    return { tick: this.tick, rng: this.rng.getState(), world: this.world.snapshot(), waiting: structuredClone(this.waiting), outbox: structuredClone(this.outbox) }
   }
 
   /** Go back to a snapshot taken from this sim, or from any sim built from the same scene. */
@@ -139,6 +159,9 @@ export class Sim implements Host {
     this.tick = s.tick
     this.rng.setState(s.rng)
     this.world.restore(s.world)
+    this.waiting = structuredClone(s.waiting)
+    this.outbox = structuredClone(s.outbox)
+    this.inbox = []
   }
 
   /**

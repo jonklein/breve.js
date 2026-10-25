@@ -17,7 +17,7 @@ test('the example scene carries exactly what the importer makes from robot.urdf'
 })
 
 test('unsupported things are reported plainly', () => {
-  const rot = importUrdf('<robot name="r"><link name="a"><collision><geometry><box size="1 1 1"/></geometry></collision></link><link name="b"><collision><geometry><box size="1 1 1"/></geometry></collision></link><link name="c"><collision><geometry><mesh filename="x.stl"/></geometry></collision></link><joint name="j" type="prismatic"><parent link="a"/><child link="b"/><origin xyz="0 0 1" rpy="0 1.5 0"/></joint></robot>')
+  const rot = importUrdf('<robot name="r"><link name="a"><collision><geometry><box size="1 1 1"/></geometry></collision></link><link name="b"><collision><geometry><box size="1 1 1"/></geometry></collision></link><link name="c"><collision><geometry><mesh filename="x.stl"/></geometry></collision></link><joint name="j" type="prismatic"><parent link="a"/><child link="b"/><origin xyz="0 0 1" rpy="0 1.5 0"/></joint><joint name="k" type="fixed"><parent link="a"/><child link="c"/></joint></robot>')
   const msg = rot.errors.join('\n')
   assert.match(msg, /rotated frames/)
   assert.match(msg, /<mesh> shapes are not supported/)

@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<!-- A small four-legged robot written as a URDF file (z is up, units are meters and kilograms).
+     Load it with `npm run urdf -- examples/urdf-bot/robot.urdf` and paste the body into scene.json. -->
+<robot name="quad">
+  <link name="base">
+    <inertial><mass value="3"/></inertial>
+    <collision><geometry><box size="0.5 0.3 0.12"/></geometry></collision>
+  </link>
+  <link name="FL_upper">
+    <inertial><mass value="0.3"/></inertial>
+    <collision><origin xyz="0 0 -0.12"/><geometry><cylinder length="0.24" radius="0.035"/></geometry></collision>
+  </link>
+  <link name="FL_lower">
+    <inertial><mass value="0.3"/></inertial>
+    <collision><origin xyz="0 0 -0.12"/><geometry><cylinder length="0.24" radius="0.035"/></geometry></collision>
+  </link>
+  <link name="FR_upper">
+    <inertial><mass value="0.3"/></inertial>
+    <collision><origin xyz="0 0 -0.12"/><geometry><cylinder length="0.24" radius="0.035"/></geometry></collision>
+  </link>
+  <link name="FR_lower">
+    <inertial><mass value="0.3"/></inertial>
+    <collision><origin xyz="0 0 -0.12"/><geometry><cylinder length="0.24" radius="0.035"/></geometry></collision>
+  </link>
+  <link name="HL_upper">
+    <inertial><mass value="0.3"/></inertial>
+    <collision><origin xyz="0 0 -0.12"/><geometry><cylinder length="0.24" radius="0.035"/></geometry></collision>
+  </link>
+  <link name="HL_lower">
+    <inertial><mass value="0.3"/></inertial>
+    <collision><origin xyz="0 0 -0.12"/><geometry><cylinder length="0.24" radius="0.035"/></geometry></collision>
+  </link>
+  <link name="HR_upper">
+    <inertial><mass value="0.3"/></inertial>
+    <collision><origin xyz="0 0 -0.12"/><geometry><cylinder length="0.24" radius="0.035"/></geometry></collision>
+  </link>
+  <link name="HR_lower">
+    <inertial><mass value="0.3"/></inertial>
+    <collision><origin xyz="0 0 -0.12"/><geometry><cylinder length="0.24" radius="0.035"/></geometry></collision>
+  </link>
+  <joint name="FL_hip" type="revolute">
+    <parent link="base"/><child link="FL_upper"/>
+    <origin xyz="0.2 0.17 -0.04"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-0.9" upper="0.9"/>
+  </joint>
+  <joint name="FL_knee" type="revolute">
+    <parent link="FL_upper"/><child link="FL_lower"/>
+    <origin xyz="0 0 -0.24"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-1.6" upper="0.1"/>
+  </joint>
+  <joint name="FR_hip" type="revolute">
+    <parent link="base"/><child link="FR_upper"/>
+    <origin xyz="0.2 -0.17 -0.04"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-0.9" upper="0.9"/>
+  </joint>
+  <joint name="FR_knee" type="revolute">
+    <parent link="FR_upper"/><child link="FR_lower"/>
+    <origin xyz="0 0 -0.24"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-1.6" upper="0.1"/>
+  </joint>
+  <joint name="HL_hip" type="revolute">
+    <parent link="base"/><child link="HL_upper"/>
+    <origin xyz="-0.2 0.17 -0.04"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-0.9" upper="0.9"/>
+  </joint>
+  <joint name="HL_knee" type="revolute">
+    <parent link="HL_upper"/><child link="HL_lower"/>
+    <origin xyz="0 0 -0.24"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-1.6" upper="0.1"/>
+  </joint>
+  <joint name="HR_hip" type="revolute">
+    <parent link="base"/><child link="HR_upper"/>
+    <origin xyz="-0.2 -0.17 -0.04"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-0.9" upper="0.9"/>
+  </joint>
+  <joint name="HR_knee" type="revolute">
+    <parent link="HR_upper"/><child link="HR_lower"/>
+    <origin xyz="0 0 -0.24"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-1.6" upper="0.1"/>
+  </joint>
+</robot>

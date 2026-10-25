@@ -71,5 +71,12 @@
     "description": "Traders with cash and goods buy from the cheapest neighbor; trades are atomic exchanges, prices adapt.",
     "scene": "scene.json",
     "script": "market.js"
+  },
+  {
+    "id": "urdf-bot",
+    "name": "Robot from a URDF",
+    "description": "A four-legged robot converted from a URDF file (robot.urdf) and walked by a script.",
+    "scene": "scene.json",
+    "script": "urdf-bot.js"
   }
 ]

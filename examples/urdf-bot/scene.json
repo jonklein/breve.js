@@ -1,0 +1,402 @@
+{
+  "name": "urdf-bot",
+  "seed": 5,
+  "world": {
+    "sky": {
+      "top": "#16233f",
+      "horizon": "#7f6a6c"
+    }
+  },
+  "terrain": {
+    "size": 60,
+    "amplitude": 0.4,
+    "frequency": 0.07,
+    "color": "#6a7a55"
+  },
+  "params": {
+    "count": {
+      "value": 6,
+      "min": 1,
+      "max": 30,
+      "step": 1,
+      "label": "robots"
+    },
+    "frequency": {
+      "value": 1.6,
+      "min": 0.5,
+      "max": 4,
+      "step": 0.1,
+      "label": "step rate (Hz)"
+    },
+    "stride": {
+      "value": 0.5,
+      "min": 0,
+      "max": 0.9,
+      "step": 0.05,
+      "label": "stride (rad)"
+    },
+    "lift": {
+      "value": 0.7,
+      "min": 0,
+      "max": 1.2,
+      "step": 0.05,
+      "label": "knee bend (rad)"
+    },
+    "strength": {
+      "value": 150,
+      "min": 20,
+      "max": 400,
+      "step": 5,
+      "label": "motor strength"
+    }
+  },
+  "entities": [
+    {
+      "name": "robot",
+      "count": "$count",
+      "controller": "urdf-bot.js",
+      "fence": {
+        "floor": -20
+      },
+      "body": {
+        "parts": [
+          {
+            "name": "base",
+            "shape": "box",
+            "size": [
+              0.5,
+              0.12,
+              0.3
+            ],
+            "mass": 3,
+            "position": [
+              0,
+              0.54,
+              0
+            ]
+          },
+          {
+            "name": "FL_upper",
+            "shape": "cylinder",
+            "size": [
+              0.24,
+              0.035
+            ],
+            "mass": 0.3,
+            "position": [
+              0.2,
+              0.38,
+              -0.17
+            ]
+          },
+          {
+            "name": "FL_lower",
+            "shape": "cylinder",
+            "size": [
+              0.24,
+              0.035
+            ],
+            "mass": 0.3,
+            "position": [
+              0.2,
+              0.14,
+              -0.17
+            ]
+          },
+          {
+            "name": "FR_upper",
+            "shape": "cylinder",
+            "size": [
+              0.24,
+              0.035
+            ],
+            "mass": 0.3,
+            "position": [
+              0.2,
+              0.38,
+              0.17
+            ]
+          },
+          {
+            "name": "FR_lower",
+            "shape": "cylinder",
+            "size": [
+              0.24,
+              0.035
+            ],
+            "mass": 0.3,
+            "position": [
+              0.2,
+              0.14,
+              0.17
+            ]
+          },
+          {
+            "name": "HL_upper",
+            "shape": "cylinder",
+            "size": [
+              0.24,
+              0.035
+            ],
+            "mass": 0.3,
+            "position": [
+              -0.2,
+              0.38,
+              -0.17
+            ]
+          },
+          {
+            "name": "HL_lower",
+            "shape": "cylinder",
+            "size": [
+              0.24,
+              0.035
+            ],
+            "mass": 0.3,
+            "position": [
+              -0.2,
+              0.14,
+              -0.17
+            ]
+          },
+          {
+            "name": "HR_upper",
+            "shape": "cylinder",
+            "size": [
+              0.24,
+              0.035
+            ],
+            "mass": 0.3,
+            "position": [
+              -0.2,
+              0.38,
+              0.17
+            ]
+          },
+          {
+            "name": "HR_lower",
+            "shape": "cylinder",
+            "size": [
+              0.24,
+              0.035
+            ],
+            "mass": 0.3,
+            "position": [
+              -0.2,
+              0.14,
+              0.17
+            ]
+          }
+        ],
+        "joints": [
+          {
+            "name": "FL_hip",
+            "type": "hinge",
+            "parent": "base",
+            "child": "FL_upper",
+            "anchor": [
+              0.2,
+              0.5,
+              -0.17
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 100,
+              "damping": 8
+            },
+            "limits": [
+              -0.9,
+              0.9
+            ]
+          },
+          {
+            "name": "FL_knee",
+            "type": "hinge",
+            "parent": "FL_upper",
+            "child": "FL_lower",
+            "anchor": [
+              0.2,
+              0.26,
+              -0.17
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 100,
+              "damping": 8
+            },
+            "limits": [
+              -1.6,
+              0.1
+            ]
+          },
+          {
+            "name": "FR_hip",
+            "type": "hinge",
+            "parent": "base",
+            "child": "FR_upper",
+            "anchor": [
+              0.2,
+              0.5,
+              0.17
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 100,
+              "damping": 8
+            },
+            "limits": [
+              -0.9,
+              0.9
+            ]
+          },
+          {
+            "name": "FR_knee",
+            "type": "hinge",
+            "parent": "FR_upper",
+            "child": "FR_lower",
+            "anchor": [
+              0.2,
+              0.26,
+              0.17
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 100,
+              "damping": 8
+            },
+            "limits": [
+              -1.6,
+              0.1
+            ]
+          },
+          {
+            "name": "HL_hip",
+            "type": "hinge",
+            "parent": "base",
+            "child": "HL_upper",
+            "anchor": [
+              -0.2,
+              0.5,
+              -0.17
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 100,
+              "damping": 8
+            },
+            "limits": [
+              -0.9,
+              0.9
+            ]
+          },
+          {
+            "name": "HL_knee",
+            "type": "hinge",
+            "parent": "HL_upper",
+            "child": "HL_lower",
+            "anchor": [
+              -0.2,
+              0.26,
+              -0.17
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 100,
+              "damping": 8
+            },
+            "limits": [
+              -1.6,
+              0.1
+            ]
+          },
+          {
+            "name": "HR_hip",
+            "type": "hinge",
+            "parent": "base",
+            "child": "HR_upper",
+            "anchor": [
+              -0.2,
+              0.5,
+              0.17
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 100,
+              "damping": 8
+            },
+            "limits": [
+              -0.9,
+              0.9
+            ]
+          },
+          {
+            "name": "HR_knee",
+            "type": "hinge",
+            "parent": "HR_upper",
+            "child": "HR_lower",
+            "anchor": [
+              -0.2,
+              0.26,
+              0.17
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 100,
+              "damping": 8
+            },
+            "limits": [
+              -1.6,
+              0.1
+            ]
+          }
+        ],
+        "sensors": [
+          {
+            "type": "pose"
+          },
+          {
+            "type": "joints"
+          },
+          {
+            "type": "touch"
+          }
+        ]
+      }
+    }
+  ],
+  "metrics": [
+    "distance"
+  ]
+}

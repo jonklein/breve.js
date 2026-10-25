@@ -55,7 +55,7 @@ export class Agents extends Array<Agent> {
   /** Only the agents closer than `radius`. */
   within(radius: number): Agents {
     const me = this.need('within').position
-    const out = new Agents(this.origin)
+    const out = new (this.constructor as typeof Agents)(this.origin)
     for (const a of this) if (a.position.distanceTo(me) <= radius) out.push(a)
     return out
   }

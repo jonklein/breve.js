@@ -1,8 +1,8 @@
 import { Table, type Column, type ColumnType, type TableSnapshot } from './store'
-import { resolve, type Params, type StateType } from './scene'
+import { fillList, resolve, type Params, type StateType } from './scene'
 import { Field, type NeighborTable } from './field'
 import { Nums, Vec3, Vecs } from './vec'
-import type { Ctx, FrameData, Host, MetricInput, World } from './world'
+import type { Ctx, FrameData, Host, MetricInput, PatchLayer, World } from './world'
 
 const CTORS = { u8: Uint8Array, i32: Int32Array, f32: Float32Array } as const
 
@@ -17,8 +17,12 @@ function coerce(type: StateType, v: number): number {
  * so a 100,000-cell grid needs no edge lists. Rules are synchronous: every cell reads
  * the old state, and the new state is written all at once at the end of the tick.
  */
-export class LatticeWorld implements World {
+export class LatticeWorld implements World, PatchLayer {
   readonly table: Table<string>
+  readonly patches = this
+  /** Amounts agents have queued to add to cells, applied at the start of this layer's next step. */
+  private pending: Record<string, Float32Array> | null = null
+  get name(): string { return this.host.def.name }
   private dims: [number, number, number]
   private n: number
   private fields: string[]
@@ -36,7 +40,7 @@ export class LatticeWorld implements World {
   private Cells: new () => any[]
 
   constructor(private host: Host, from?: LatticeWorld) {
-    const def = host.scene.entities[0]
+    const def = host.def
     const L = def.lattice!
     this.dims = L.size
     this.n = L.size[0] * L.size[1] * L.size[2]
@@ -62,6 +66,44 @@ export class LatticeWorld implements World {
     if (!from) this.fill() // a fork gets its cells from the snapshot
   }
 
+  patchAt(x: number, y: number, z: number): unknown | null {
+    const row = this.rowAt(x, y, z)
+    return row < 0 ? null : new this.Cell(row)
+  }
+
+  addAt(x: number, y: number, z: number, delta: Record<string, number>): void {
+    const row = this.rowAt(x, y, z)
+    if (row < 0) return
+    this.pending ??= {}
+    for (const [f, v] of Object.entries(delta)) {
+      if (!(f in this.types)) { this.host.fail('add', new Error(`"${f}" is not a state field of "${this.name}" (it has: ${this.fields.join(', ')})`)); continue }
+      if (!Number.isFinite(v)) continue
+      this.pending[f] ??= new Float32Array(this.n)
+      this.pending[f][row] += v
+    }
+  }
+
+  /** The row of the cell containing a world-space point, or -1 outside the grid. A flat grid (size 1 on an axis) covers every height. */
+  private rowAt(x: number, y: number, z: number): number {
+    const [nx, ny, nz] = this.dims
+    const sp = this.host.def.lattice!.spacing ?? 1.2
+    const i = Math.round(x / sp + (nx - 1) / 2)
+    const j = Math.round(y / sp + (ny - 1) / 2)
+    const k = Math.round(z / sp + (nz - 1) / 2)
+    const jj = ny === 1 ? 0 : j, kk = nz === 1 ? 0 : k
+    if (i < 0 || i >= nx || jj < 0 || jj >= ny || kk < 0 || kk >= nz) return -1
+    return i + nx * (jj + ny * kk)
+  }
+
+  private applyPending(): void {
+    if (!this.pending) return
+    for (const f of Object.keys(this.pending)) {
+      const col = this.table.cols[f], add = this.pending[f]
+      for (let r = 0; r < this.n; r++) if (add[r] !== 0) col[r] = coerce(this.types[f], col[r] + add[r])
+    }
+    this.pending = null
+  }
+
   /** One readable handle per cell, made the first time a per-cell rule or metric needs them (whole-grid rules never do). */
   private get handles(): any[] {
     if (!this.made) {
@@ -74,7 +116,7 @@ export class LatticeWorld implements World {
   private makeTypes() {
     const table = this.table
     const [nx, ny] = this.dims
-    const sp = this.host.scene.entities[0].lattice!.spacing ?? 1.2
+    const sp = this.host.def.lattice!.spacing ?? 1.2
     const centre = this.dims.map((d) => (d - 1) / 2)
     const readOnly = () => { throw new Error('cells are read-only inside decide(): return the new state instead, like `return { alive: 1 }`') }
 
@@ -101,18 +143,25 @@ export class LatticeWorld implements World {
     return { Cell, Cells: Cells as unknown as new () => unknown[] }
   }
 
-  /** Seed the starting state with a random blob in the middle of the grid. */
+  /** Seed the starting state: each fill sets cells of one field, at random or inside a region. */
   private fill(): void {
-    const def = this.host.scene.entities[0]
-    if (!def.fill) return
-    const density = resolve(def.fill.density, this.host.params, 0)
-    const within = def.fill.within ?? 1
-    const col = this.table.cols[def.fill.field]
     const [nx, ny, nz] = this.dims
-    const inside = (v: number, n: number) => Math.abs(v - (n - 1) / 2) <= (within * n) / 2
-    for (let r = 0; r < this.n; r++) {
-      const i = r % nx, j = Math.floor(r / nx) % ny, k = Math.floor(r / (nx * ny))
-      if (inside(i, nx) && inside(j, ny) && inside(k, nz) && this.host.rng.next() < density) col[r] = 1
+    const sp = this.host.def.lattice!.spacing ?? 1.2
+    for (const f of fillList(this.host.def.fill)) {
+      const density = resolve(f.density, this.host.params, 1)
+      const within = f.within ?? 1
+      const value = f.value ?? 1
+      const col = this.table.cols[f.field]
+      const inside = (v: number, n: number) => Math.abs(v - (n - 1) / 2) <= (within * n) / 2
+      for (let r = 0; r < this.n; r++) {
+        const i = r % nx, j = Math.floor(r / nx) % ny, k = Math.floor(r / (nx * ny))
+        if (!(inside(i, nx) && inside(j, ny) && inside(k, nz))) continue
+        if (f.region) {
+          const d = Math.hypot((i - (nx - 1) / 2) * sp - f.region.center[0], (j - (ny - 1) / 2) * sp - f.region.center[1], (k - (nz - 1) / 2) * sp - f.region.center[2])
+          if (d > f.region.radius) continue
+        }
+        if (density >= 1 || this.host.rng.next() < density) col[r] = value
+      }
     }
   }
 
@@ -123,7 +172,7 @@ export class LatticeWorld implements World {
   /** Work out every cell's neighbors once, so a tick only follows indexes. */
   private buildNeighbors(): void {
     const [nx, ny, nz] = this.dims
-    const wrap = this.host.scene.entities[0].lattice!.edges === 'wrap'
+    const wrap = this.host.def.lattice!.edges === 'wrap'
     this.stride = this.offsets.length
     this.nbr = new Int32Array(this.n * this.stride)
     this.nbrCount = new Uint8Array(this.n)
@@ -175,14 +224,15 @@ export class LatticeWorld implements World {
   }
 
   step(): void {
-    const ctrl = this.host.script?.default
+    this.applyPending()
+    const ctrl = this.host.controller()
     if (ctrl?.update) return this.stepFields(ctrl.update)
     const ctx = this.host.ctx()
     const { params } = this.host
     const cols = this.table.cols
     for (let row = 0; row < this.n; row++) {
       let out: unknown
-      if (ctrl) {
+      if (ctrl?.decide) {
         try {
           out = ctrl.decide!({ self: this.handles[row], neighbors: this.neighborsOf(row) }, params, ctx)
         } catch (e) {
@@ -203,7 +253,7 @@ export class LatticeWorld implements World {
   }
 
   frame(): FrameData {
-    const L = this.host.scene.entities[0].lattice!
+    const L = this.host.def.lattice!
     const [nx, ny, nz] = this.dims
     const sp = L.spacing ?? 1.2
     const showCol = this.table.cols[L.show]
@@ -224,16 +274,18 @@ export class LatticeWorld implements World {
       pos: new Float32Array(0),
       vel: null,
       attr,
-      lattice: { dims: [nx, ny, nz], spacing: sp, show, fade: L.fade ?? 0 },
+      lattice: { dims: [nx, ny, nz], spacing: sp, show, fade: L.fade ?? 0, palette: L.palette, thickness: L.thickness },
     }
   }
 
   snapshot(): unknown {
-    return this.table.snapshot()
+    return { table: this.table.snapshot(), pending: this.pending && Object.fromEntries(Object.entries(this.pending).map(([k, v]) => [k, v.slice()])) }
   }
 
   restore(s: unknown): void {
-    this.table.restore(s as TableSnapshot)
+    const x = s as { table: TableSnapshot; pending: Record<string, Float32Array> | null }
+    this.table.restore(x.table)
+    this.pending = x.pending && Object.fromEntries(Object.entries(x.pending).map(([k, v]) => [k, v.slice()]))
   }
 
   metricInput(): MetricInput {

@@ -28,6 +28,8 @@ export class Vec3 {
     const o = toVec(v)
     return new Vec3(this.y * o.z - this.z * o.y, this.z * o.x - this.x * o.z, this.x * o.y - this.y * o.x)
   }
+  /** Turned by `angle` radians around the vertical axis (positive turns toward -x seen from above, like the physics yaw). */
+  turned(angle: number): Vec3 { const c = Math.cos(angle), s = Math.sin(angle); return new Vec3(this.x * c + this.z * s, this.y, -this.x * s + this.z * c) }
   distanceTo(v: VecLike): number { return this.minus(v).length() }
 
   toArray(): [number, number, number] { return [this.x, this.y, this.z] }

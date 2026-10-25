@@ -35,6 +35,14 @@ export class Field {
     return new Field(out, this.table)
   }
 
+  /** For each cell, the average of its neighbors (0 for a cell with none). */
+  neighborAverage(): Field {
+    const { count } = this.table
+    const sum = this.neighborSum().data as Float32Array
+    for (let r = 0; r < sum.length; r++) if (count[r]) sum[r] /= count[r]
+    return new Field(sum, this.table)
+  }
+
   /** For each cell, the biggest value among its neighbors. */
   neighborMax(): Field {
     const { nbr, count, stride } = this.table

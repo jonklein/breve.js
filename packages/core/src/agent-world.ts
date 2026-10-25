@@ -1,7 +1,7 @@
 import { Agent, Agents, type AgentCols } from './agents'
 import { resolve, stateFields } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
-import { toVec } from './vec'
+import { Nums, toVec } from './vec'
 import type { FrameData, Host, MetricInput, World } from './world'
 
 const SCHEMA = {
@@ -24,6 +24,8 @@ export class AgentWorld implements World {
   private handles: Agent[] = []
   private extra: ReturnType<typeof stateFields>
   private AgentClass: new (cols: AgentCols, row: number) => Agent
+  /** Groups of these agents, with a list for every declared state field (`neighbors.energy.average()`). */
+  private GroupClass: new (origin: Agent | null) => Agents
   private gridN = 1
   private gridCell = 1
   private gridStart = new Int32Array(2)
@@ -31,12 +33,13 @@ export class AgentWorld implements World {
   private cellOf = new Int32Array(0)
 
   constructor(private host: Host) {
-    this.extra = stateFields(host.scene.entities[0].state)
+    this.extra = stateFields(host.def.state)
     const schema: Record<string, ColumnType> = { ...SCHEMA }
     const strides: Record<string, number> = {}
     for (const f of this.extra) { schema[f.name] = f.type; strides[f.name] = f.length }
     this.table = new Table(schema, 256, strides)
     this.AgentClass = this.makeClass()
+    this.GroupClass = this.makeGroupClass()
     this.sceneChanged()
   }
 
@@ -49,7 +52,7 @@ export class AgentWorld implements World {
   }
 
   sceneChanged(): void {
-    const def = this.host.scene.entities[0]
+    const def = this.host.def
     if (def.count === undefined) return
     const { params, rng } = this.host
     const target = Math.max(0, Math.min(5000, Math.round(resolve(def.count, params, 0))))
@@ -61,14 +64,14 @@ export class AgentWorld implements World {
       this.table.spawn()
       const r = this.table.size - 1
       c.px[r] = rng.range(-size, size) * 0.5
-      c.py[r] = rng.range(-size, size) * 0.5
+      c.py[r] = def.motion?.plane === 'xz' ? 0 : rng.range(-size, size) * 0.5
       c.pz[r] = rng.range(-size, size) * 0.5
       const th = rng.range(0, Math.PI * 2)
       const u = rng.range(-1, 1)
       const s = Math.sqrt(1 - u * u)
       const sp = maxSpeed * 0.6
       c.vx[r] = Math.cos(th) * s * sp
-      c.vy[r] = u * sp
+      c.vy[r] = def.motion?.plane === 'xz' ? 0 : u * sp
       c.vz[r] = Math.sin(th) * s * sp
       this.initState(r)
     }
@@ -78,7 +81,13 @@ export class AgentWorld implements World {
   /** One class per scene, with a getter for every declared state field (a number, or a view of its array). */
   private makeClass(): new (cols: AgentCols, row: number) => Agent {
     const table = this.table
-    class Stateful extends Agent {}
+    const world = this
+    class Stateful extends Agent {
+      /** The cell of the first lattice layer under this agent, or null when it is outside the grid or there is no layer. */
+      /** The cell at an offset from this agent (a vector), or null off the grid: `self.patchAt(heading.times(3))`. */
+      patchAt(offset: Parameters<typeof toVec>[0]): unknown | null { const o = toVec(offset); return world.layer()?.patchAt(this.x + o.x, this.y + o.y, this.z + o.z) ?? null }
+      get patch(): unknown | null { return world.layer()?.patchAt(this.x, this.y, this.z) ?? null }
+    }
     for (const f of this.extra) {
       const n = f.length
       Object.defineProperty(Stateful.prototype, f.name, {
@@ -87,6 +96,31 @@ export class AgentWorld implements World {
       })
     }
     return Stateful
+  }
+
+  /** The lattice layer agents stand on (the first one in the scene). */
+  layer() {
+    for (const w of this.host.worlds()) if (w.patches) return w.patches
+    return undefined
+  }
+
+  /** `add: { food: 1 }` adds to the cell under the agent; `add: { Patch: { food: 1 } }` names the layer. */
+  private applyAdd(row: number, add: Record<string, unknown>): void {
+    const c = this.cols
+    const named = this.host.worlds().filter((w) => w.patches).map((w) => w.patches!)
+    const plain: Record<string, number> = {}
+    for (const [k, v] of Object.entries(add)) {
+      if (v && typeof v === 'object') {
+        const layer = named.find((l) => l.name === k)
+        if (!layer) this.host.fail('decide', new Error(`add: there is no layer called "${k}" (layers: ${named.map((l) => l.name).join(', ') || 'none'})`))
+        else layer.addAt(c.px[row], c.py[row], c.pz[row], v as Record<string, number>)
+      } else plain[k] = Number(v)
+    }
+    if (Object.keys(plain).length) {
+      const layer = named[0]
+      if (!layer) this.host.fail('decide', new Error('add: the scene has no lattice for agents to add to'))
+      else layer.addAt(c.px[row], c.py[row], c.pz[row], plain)
+    }
   }
 
   private writeState(row: number, state: Record<string, unknown>): void {
@@ -101,6 +135,16 @@ export class AgentWorld implements World {
       const col = this.table.cols[name]
       for (let k = 0; k < f.length; k++) col[row * f.length + k] = vals[k]
     }
+  }
+
+  private makeGroupClass(): new (origin: Agent | null) => Agents {
+    class Group extends Agents {}
+    for (const f of this.extra)
+      Object.defineProperty(Group.prototype, f.name, {
+        get(this: Agents) { const out = new Nums(); for (const a of this) out.push((a as never)[f.name]); return out },
+        enumerable: true,
+      })
+    return Group
   }
 
   private initState(r: number): void {
@@ -119,8 +163,8 @@ export class AgentWorld implements World {
   }
 
   step(): void {
-    const { scene, params: p, script } = this.host
-    const def = scene.entities[0]
+    const { scene, params: p } = this.host
+    const def = this.host.def
     const n = this.table.size
     const c = this.cols
     const radius = resolve(def.sensors?.find((s) => s.type === 'neighbors')?.radius, p, 0)
@@ -130,14 +174,14 @@ export class AgentWorld implements World {
 
     // decide: controllers read state and write only the action columns
     const ctx = this.host.ctx()
-    const ctrl = script?.default
-    const writes: { row: number; state: Record<string, unknown> }[] = []
+    const ctrl = this.host.controller()
+    const writes: { row: number; state: Record<string, unknown>; add?: Record<string, unknown> }[] = []
     for (let i = 0; i < n; i++) {
       let ax = 0, ay = 0, az = 0
       if (ctrl) {
         try {
-          const out = ctrl.decide!({ self: this.handles[i], neighbors: this.neighborsOf(i, radius) }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown> } | void
-          if (out && out.state && typeof out.state === 'object') writes.push({ row: i, state: out.state })
+          const out = ctrl.decide!({ self: this.handles[i], neighbors: this.neighborsOf(i, radius) }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
+          if (out && ((out.state && typeof out.state === 'object') || (out.add && typeof out.add === 'object'))) writes.push({ row: i, state: out.state ?? {}, add: out.add })
           if (out && out.steer) {
             const s = toVec(out.steer)
             if (Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.z)) { ax = s.x; ay = s.y; az = s.z }
@@ -150,17 +194,18 @@ export class AgentWorld implements World {
     }
 
     // state returned by decide lands now, after every agent has read the old values
-    for (const w of writes) this.writeState(w.row, w.state)
+    for (const w of writes) { this.writeState(w.row, w.state); if (w.add) this.applyAdd(w.row, w.add) }
 
     // act: integrate steering into velocity, with entity-level limits
     const maxSpeed = resolve(def.motion?.maxSpeed, p, Infinity)
     const minSpeed = resolve(def.motion?.minSpeed, p, 0)
     const maxAccel = resolve(def.motion?.maxAccel, p, Infinity)
+    const flat = def.motion?.plane === 'xz'
     for (let i = 0; i < n; i++) {
       let ax = c.ax[i], ay = c.ay[i], az = c.az[i]
       const am = Math.hypot(ax, ay, az)
       if (am > maxAccel) { const k = maxAccel / am; ax *= k; ay *= k; az *= k }
-      let vx = c.vx[i] + ax * DT, vy = c.vy[i] + ay * DT, vz = c.vz[i] + az * DT
+      let vx = c.vx[i] + ax * DT, vy = flat ? 0 : c.vy[i] + ay * DT, vz = c.vz[i] + az * DT
       const sp = Math.hypot(vx, vy, vz)
       if (sp > maxSpeed) { const k = maxSpeed / sp; vx *= k; vy *= k; vz *= k }
       else if (sp < minSpeed && sp > 1e-9) { const k = minSpeed / sp; vx *= k; vy *= k; vz *= k }
@@ -183,7 +228,7 @@ export class AgentWorld implements World {
     const clamp = mode === 'clamp'
     for (let i = 0; i < n; i++) {
       c.px[i] += c.vx[i] * DT
-      c.py[i] += c.vy[i] * DT
+      c.py[i] = flat ? 0 : c.py[i] + c.vy[i] * DT
       c.pz[i] += c.vz[i] * DT
       if (clamp) {
         if (Math.abs(c.px[i]) > size) { c.px[i] = Math.sign(c.px[i]) * size; c.vx[i] = -c.vx[i] }
@@ -217,7 +262,7 @@ export class AgentWorld implements World {
   }
 
   metricInput(): MetricInput {
-    const agents = new Agents(null)
+    const agents = new this.GroupClass(null)
     for (let i = 0; i < this.table.size; i++) agents.push(this.handles[i])
     return { agents, count: this.table.size, cols: this.table.cols }
   }
@@ -247,7 +292,7 @@ export class AgentWorld implements World {
   }
 
   private neighborsOf(i: number, radius: number): Agents {
-    const out = new Agents(this.handles[i])
+    const out = new this.GroupClass(this.handles[i])
     if (radius <= 0) return out
     const axis = this.gridN
     const c = this.cols

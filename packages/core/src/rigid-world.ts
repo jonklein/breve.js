@@ -106,7 +106,7 @@ export class RigidWorld implements World {
   private lastBody: BodyDef
 
   constructor(private host: Host, private engine: PhysicsEngine) {
-    this.lastBody = host.scene.entities[0].body!
+    this.lastBody = host.def.body!
     this.build()
   }
 
@@ -116,7 +116,7 @@ export class RigidWorld implements World {
 
   /** The body in the scene, or the last good one if an edit just removed it (a scene cannot change kind while running). */
   private get body(): BodyDef {
-    return this.host.scene.entities[0].body ?? this.lastBody
+    return this.host.def.body ?? this.lastBody
   }
 
   /** Everything that needs the creatures rebuilt when it changes: the terrain, the physics settings and the body's structure. */
@@ -151,10 +151,10 @@ export class RigidWorld implements World {
   }
 
   sceneChanged(fresh = false): void {
-    const edited = this.host.scene.entities[0].body
+    const edited = this.host.def.body
     if (edited) this.lastBody = edited
     if (!fresh && this.structureKey() !== this.key) return this.build()
-    const def = this.host.scene.entities[0]
+    const def = this.host.def
     const target = Math.max(0, Math.min(MAX_CREATURES, Math.round(resolve(def.count, this.host.params, 0))))
     while (this.table.size > target) {
       this.table.despawn(this.table.idAt(this.table.size - 1))
@@ -190,7 +190,7 @@ export class RigidWorld implements World {
   }
 
   step(): void {
-    const { scene, params: p, script } = this.host
+    const { scene, params: p } = this.host
     const n = this.table.size
     const J = this.joints.length
     const body = this.body
@@ -201,7 +201,7 @@ export class RigidWorld implements World {
     for (let i = 0; i < n; i++) this.arts[i].readAngles(this.angles, i * J)
 
     // oscillator settings, resolved once per tick so sliders act live
-    const freq = resolve(scene.entities[0].oscillator?.frequency, p, 1)
+    const freq = resolve(this.host.def.oscillator?.frequency, p, 1)
     const amp = new Float64Array(J), off = new Float64Array(J), pha = new Float64Array(J)
     const kp = new Float64Array(J), kd = new Float64Array(J)
     for (let j = 0; j < J; j++) {
@@ -220,7 +220,7 @@ export class RigidWorld implements World {
 
     // decide: a script may set any motor target by joint name; the rest follow the oscillator
     this.targets.set(this.gait)
-    const ctrl = script?.default
+    const ctrl = this.host.controller()
     if (ctrl) {
       const ctx = this.host.ctx()
       const none = new Creatures()

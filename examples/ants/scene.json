@@ -1,0 +1,39 @@
+{
+  "name": "ants",
+  "seed": 5,
+  "bounds": { "size": 20, "mode": "clamp" },
+  "world": { "sky": { "top": "#0e1a2b", "horizon": "#3c5a4a" }, "grid": false, "boundsColor": "#2c3a33" },
+  "params": {
+    "count": { "value": 70, "min": 5, "max": 300, "step": 5, "label": "ants" },
+    "speed": { "value": 5, "min": 1, "max": 12, "step": 0.5 },
+    "wander": { "value": 9, "min": 0, "max": 30, "step": 0.5, "label": "how much they wander" },
+    "pull": { "value": 20, "min": 1, "max": 60, "step": 1, "label": "how hard they steer" },
+    "laying": { "value": 1, "min": 0, "max": 4, "step": 0.1, "label": "scent laid per step" },
+    "evaporation": { "value": 0.97, "min": 0.8, "max": 1, "step": 0.005, "label": "scent kept per step" },
+    "spread": { "value": 0.25, "min": 0, "max": 1, "step": 0.05, "label": "how much scent spreads" }
+  },
+  "entities": [
+    {
+      "name": "ants",
+      "type": "Ant",
+      "controller": "ants.js",
+      "count": "$count",
+      "color": "#f2d088",
+      "motion": { "maxSpeed": "$speed", "minSpeed": 1.5, "maxAccel": 60, "plane": "xz" },
+      "state": { "carrying": "u8" }
+    },
+    {
+      "name": "ground",
+      "type": "Ground",
+      "every": 2,
+      "lattice": { "size": [40, 1, 40], "spacing": 1, "edges": "dead", "show": "mark", "color": "look", "colorMax": 1, "thickness": 0.12, "palette": ["#4f86f7", "#2f5a3c", "#7be495", "#ffd34a"] },
+      "state": { "food": "f32", "scent": "f32", "nest": "u8", "delivered": "f32", "mark": "u8", "look": "f32" },
+      "fill": [
+        { "field": "nest", "region": { "center": [-12, 0, 0], "radius": 2.5 } },
+        { "field": "food", "value": 5, "region": { "center": [11, 0, 8], "radius": 3 } },
+        { "field": "food", "value": 5, "region": { "center": [5, 0, -13], "radius": 2.5 } }
+      ]
+    }
+  ],
+  "metrics": ["delivered", "carrying"]
+}

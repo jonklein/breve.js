@@ -41,22 +41,51 @@ export interface LatticeDef {
   /** State field that tints drawn cells, scaled by `colorMax`. */
   color?: string
   colorMax?: number
+  /** Colors for the `color` field, low to high: two or more hex colors, blended in order. Default red to green. */
+  palette?: string[]
+  /** For a flat grid (size 1 on one axis): how thick the drawn cells are along that axis, as a fraction of their width. Default 1. */
+  thickness?: number
   /** Ease cells in and out over this fraction of a tick (0 = instant, the default; 1 = a whole tick). */
   fade?: number
 }
 
+/**
+ * Fill a state field at the start. `density` is the share of cells set (default 1); `within` limits it to the central
+ * fraction of the grid; `region` limits it to a ball in world units around `center`; `value` is what cells get (default 1).
+ */
+export interface FillDef {
+  field: string
+  density?: NumOrParam
+  within?: number
+  value?: number
+  region?: { center: [number, number, number]; radius: number }
+}
+
 export interface EntityDef {
   name: string
+  /** Which controller runs this set: the name of an export of the script. Leave it out to use `export default`. */
+  type?: string
+  /** Run this set only every n-th tick (default 1). */
+  every?: number
+  /** Draw color for free agents (overrides the world's agentColor). */
+  color?: string
   /** Free-moving agents. Use this or `lattice`. */
   count?: NumOrParam
   lattice?: LatticeDef
   /** Per-entity state: field name to storage type (lattice cells take plain types only). */
   state?: Record<string, StateDef>
   /** Fill a state field at the start: `density` of cells, within the central `within` fraction of the grid. */
-  fill?: { field: string; density: NumOrParam; within?: number }
-  controller: string
+  fill?: FillDef | FillDef[]
+  /** The script file for this project (the same file serves every set; list it once). */
+  controller?: string
   sensors?: SensorDef[]
-  motion?: { maxSpeed: NumOrParam; minSpeed?: NumOrParam; maxAccel?: NumOrParam }
+  motion?: {
+    maxSpeed: NumOrParam
+    minSpeed?: NumOrParam
+    maxAccel?: NumOrParam
+    /** "xz" keeps agents on the ground plane (y = 0), for 2D-style worlds. */
+    plane?: 'xz'
+  }
   /** An articulated physics body. Makes this entity set a group of creatures (use with `count`). */
   body?: BodyInput
   /** The built-in oscillator that drives joints with a `drive`. */
@@ -103,6 +132,24 @@ const numOrParam = {
 }
 
 const color = { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$' }
+
+const fillItem = {
+  type: 'object',
+  required: ['field'],
+  additionalProperties: false,
+  properties: {
+    field: { type: 'string' },
+    density: numOrParam,
+    within: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
+    value: { type: 'number' },
+    region: {
+      type: 'object',
+      required: ['center', 'radius'],
+      additionalProperties: false,
+      properties: { center: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }, radius: { type: 'number', exclusiveMinimum: 0 } },
+    },
+  },
+} as const
 
 export const sceneSchema = {
   $id: 'https://breve.dev/schema/scene.json',
@@ -197,10 +244,13 @@ export const sceneSchema = {
       minItems: 1,
       items: {
         type: 'object',
-        required: ['name', 'controller'],
+        required: ['name'],
         additionalProperties: false,
         properties: {
           name: { type: 'string' },
+          type: { type: 'string', pattern: '^[A-Za-z_$][A-Za-z0-9_$]*$' },
+          every: { type: 'integer', minimum: 1, maximum: 1000 },
+          color,
           count: numOrParam,
           lattice: {
             type: 'object',
@@ -214,6 +264,8 @@ export const sceneSchema = {
               show: { type: 'string' },
               color: { type: 'string' },
               colorMax: { type: 'number', exclusiveMinimum: 0 },
+              thickness: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
+              palette: { type: 'array', items: color, minItems: 2, maxItems: 8 },
               fade: { type: 'number', minimum: 0, maximum: 1 },
             },
           },
@@ -241,12 +293,7 @@ export const sceneSchema = {
               ],
             },
           },
-          fill: {
-            type: 'object',
-            required: ['field', 'density'],
-            additionalProperties: false,
-            properties: { field: { type: 'string' }, density: numOrParam, within: { type: 'number', exclusiveMinimum: 0, maximum: 1 } },
-          },
+          fill: { anyOf: [fillItem, { type: 'array', items: fillItem }] },
           controller: { type: 'string' },
           body: bodySchema,
           oscillator: {
@@ -268,7 +315,7 @@ export const sceneSchema = {
             type: 'object',
             required: ['maxSpeed'],
             additionalProperties: false,
-            properties: { maxSpeed: numOrParam, minSpeed: numOrParam, maxAccel: numOrParam },
+            properties: { maxSpeed: numOrParam, minSpeed: numOrParam, maxAccel: numOrParam, plane: { const: 'xz' } },
           },
         },
       },
@@ -313,7 +360,12 @@ export function validateScene(data: unknown): SceneResult {
   const check = (v: NumOrParam | undefined, where: string) => {
     if (typeof v === 'string' && !names.has(v.slice(1))) errors.push(`${where}: unknown param "${v}"`)
   }
-  if (scene.entities.length !== 1) errors.push('entities: this version supports exactly one entity set')
+  const seen = new Set<string>()
+  scene.entities.forEach((e, i) => {
+    if (seen.has(e.name)) errors.push(`entities.${i}.name: another set is already called "${e.name}"`)
+    seen.add(e.name)
+  })
+  if (scene.entities.length > 1 && scene.entities.some((e) => e.body)) errors.push('entities: creatures (a set with a "body") cannot be mixed with other sets yet')
   scene.entities.forEach((e, i) => {
     if (!e.lattice === (e.count === undefined)) errors.push(`entities.${i}: give either "count" (free agents) or "lattice" (a grid of cells)`)
     if (e.lattice) {
@@ -321,8 +373,10 @@ export function validateScene(data: unknown): SceneResult {
       if (!fields.length) errors.push(`entities.${i}.state: a lattice needs at least one state field`)
       if (!fields.includes(e.lattice.show)) errors.push(`entities.${i}.lattice.show: "${e.lattice.show}" is not a state field`)
       if (e.lattice.color && !fields.includes(e.lattice.color)) errors.push(`entities.${i}.lattice.color: "${e.lattice.color}" is not a state field`)
-      if (e.fill && !fields.includes(e.fill.field)) errors.push(`entities.${i}.fill.field: "${e.fill.field}" is not a state field`)
-      check(e.fill?.density, `entities.${i}.fill.density`)
+      for (const [k, f] of fillList(e.fill).entries()) {
+        if (!fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)
+        check(f.density, `entities.${i}.fill.density`)
+      }
       for (const [k, d] of Object.entries(e.state ?? {}))
         if (typeof d !== 'string') errors.push(`entities.${i}.state.${k}: lattice cells hold one plain number per field, like "u8"`)
     }
@@ -352,6 +406,10 @@ export function validateScene(data: unknown): SceneResult {
 export function stateFields(state: Record<string, StateDef> | undefined): { name: string; type: StateType; length: number; array: boolean; init?: StateInit }[] {
   return Object.entries(state ?? {}).map(([name, d]) =>
     typeof d === 'string' ? { name, type: d, length: 1, array: false } : { name, type: d.type, length: d.length ?? 1, array: d.length !== undefined, init: d.init })
+}
+
+export function fillList(f: FillDef | FillDef[] | undefined): FillDef[] {
+  return f === undefined ? [] : Array.isArray(f) ? f : [f]
 }
 
 export function paramValues(scene: Scene): Params {

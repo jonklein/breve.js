@@ -16,7 +16,7 @@ const chatty: ScriptModule = {
     decide({ self, neighbors }, p, ctx) {
       if (self.row === 0 && ctx.tick === 5) ctx.send('hello', { tick: ctx.tick })
       const calm = ctx.inbox.some((m: Message) => m.topic === 'calm')
-      return calm ? { steer: [0, 0, 0] } : flock.default.decide!({ self, neighbors }, p, ctx)
+      return calm ? { steer: [0, 0, 0] } : flock.default!.decide!({ self, neighbors }, p, ctx)
     },
   },
 }

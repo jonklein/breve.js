@@ -21,16 +21,28 @@ export interface SensorDef {
   name?: string
 }
 
-export type StateType = 'u8' | 'i32' | 'f32'
+/** How a number is stored. Scenes rarely need to say: a plain number is a `f64`. */
+export type StateType = 'u8' | 'i32' | 'f32' | 'f64' | 'str'
+
+/** What a field holds, as scripts see it. */
+export type StateKind = 'number' | 'boolean' | 'string'
 
 /** How a state field starts: a constant, or random draws from the seeded RNG. */
-export type StateInit = number | { normal: number } | { uniform: [number, number] }
+export type StateInit = number | boolean | string | { normal: number } | { uniform: [number, number] }
 
 /**
- * A per-entity state field. Just a type (`"f32"`) for one number, or an object for an array per entity,
- * such as network weights (`length: 24`), with an optional starting value.
+ * A per-entity state field. Say what it starts as and the type follows: `"energy": 10` is a number,
+ * `"hungry": false` a boolean, `"mood": "calm"` a string. An object makes an array of numbers per entity
+ * (network weights: `{ "length": 24, "init": { "normal": 0.5 } }`) or spells out a type
+ * (`"int"`, `"float"`, `"boolean"`, `"string"`; the small storage types `"u8"`, `"i32"` and `"f32"` also work).
  */
-export type StateDef = StateType | { type: StateType; length?: number; init?: StateInit }
+export type StateDef = number | boolean | string | { type?: string; length?: number; init?: StateInit }
+
+const TYPE_WORDS: Record<string, { type: StateType; kind: StateKind }> = {
+  u8: { type: 'u8', kind: 'number' }, i32: { type: 'i32', kind: 'number' }, f32: { type: 'f32', kind: 'number' },
+  int: { type: 'i32', kind: 'number' }, float: { type: 'f64', kind: 'number' }, number: { type: 'f64', kind: 'number' },
+  boolean: { type: 'u8', kind: 'boolean' }, string: { type: 'str', kind: 'string' },
+}
 
 /** A 3D grid of cells with implicit neighbors. Each cell is an entity. */
 export interface LatticeDef {
@@ -264,7 +276,7 @@ export const sceneSchema = {
             required: ['size', 'show'],
             additionalProperties: false,
             properties: {
-              size: { type: 'array', items: { type: 'integer', minimum: 1, maximum: 128 }, minItems: 3, maxItems: 3 },
+              size: { type: 'array', items: { type: 'integer', minimum: 1, maximum: 2048 }, minItems: 3, maxItems: 3 },
               spacing: { type: 'number', exclusiveMinimum: 0 },
               edges: { enum: ['dead', 'wrap'] },
               neighborhood: { enum: ['moore', 'von-neumann'] },
@@ -280,17 +292,16 @@ export const sceneSchema = {
             type: 'object',
             additionalProperties: {
               anyOf: [
-                { enum: ['u8', 'i32', 'f32'] },
+                { type: ['number', 'boolean', 'string'] },
                 {
                   type: 'object',
-                  required: ['type'],
                   additionalProperties: false,
                   properties: {
-                    type: { enum: ['u8', 'i32', 'f32'] },
+                    type: { enum: Object.keys(TYPE_WORDS) },
                     length: { type: 'integer', minimum: 1, maximum: 4096 },
                     init: {
                       anyOf: [
-                        { type: 'number' },
+                        { type: ['number', 'boolean', 'string'] },
                         { type: 'object', required: ['normal'], additionalProperties: false, properties: { normal: { type: 'number' } } },
                         { type: 'object', required: ['uniform'], additionalProperties: false, properties: { uniform: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } } },
                       ],
@@ -385,7 +396,7 @@ export function validateScene(data: unknown): SceneResult {
         check(f.density, `entities.${i}.fill.density`)
       }
       for (const [k, d] of Object.entries(e.state ?? {}))
-        if (typeof d !== 'string') errors.push(`entities.${i}.state.${k}: lattice cells hold one plain number per field, like "u8"`)
+        if (typeof d === 'object' && d.length !== undefined) errors.push(`entities.${i}.state.${k}: lattice cells hold one value per field, not an array`)
     }
     check(e.count, `entities.${i}.count`)
     if (e.body) {
@@ -416,10 +427,31 @@ export function validateScene(data: unknown): SceneResult {
   return errors.length ? { ok: false, errors } : { ok: true, scene }
 }
 
-/** Every state field of an entity set in one shape: a name, a storage type, how many numbers, and how it starts. */
-export function stateFields(state: Record<string, StateDef> | undefined): { name: string; type: StateType; length: number; array: boolean; init?: StateInit }[] {
-  return Object.entries(state ?? {}).map(([name, d]) =>
-    typeof d === 'string' ? { name, type: d, length: 1, array: false } : { name, type: d.type, length: d.length ?? 1, array: d.length !== undefined, init: d.init })
+export interface StateField {
+  name: string
+  /** How it is stored. */
+  type: StateType
+  /** What scripts see: a number, a boolean (stored 0/1) or a string. */
+  kind: StateKind
+  /** Values per entity: 1 unless the field is an array. */
+  length: number
+  array: boolean
+  init?: StateInit
+}
+
+/** Every state field of an entity set in one shape: a name, how it is stored, what it holds, and how it starts. */
+export function stateFields(state: Record<string, StateDef> | undefined): StateField[] {
+  return Object.entries(state ?? {}).map(([name, d]): StateField => {
+    if (typeof d === 'number') return { name, type: 'f64', kind: 'number', length: 1, array: false, init: d }
+    if (typeof d === 'boolean') return { name, type: 'u8', kind: 'boolean', length: 1, array: false, init: d }
+    if (typeof d === 'string') {
+      const w = TYPE_WORDS[d]
+      return w ? { name, ...w, length: 1, array: false } : { name, type: 'str', kind: 'string', length: 1, array: false, init: d }
+    }
+    const init = d.init
+    const w = d.type ? TYPE_WORDS[d.type] : typeof init === 'boolean' ? TYPE_WORDS.boolean : typeof init === 'string' ? TYPE_WORDS.string : TYPE_WORDS.float
+    return { name, ...(w ?? TYPE_WORDS.float), length: d.length ?? 1, array: d.length !== undefined, init }
+  })
 }
 
 export function fillList(f: FillDef | FillDef[] | undefined): FillDef[] {

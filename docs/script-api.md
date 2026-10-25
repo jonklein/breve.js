@@ -44,7 +44,7 @@ Colors are hex only: `#rgb` or `#rrggbb`. Anywhere a number is expected in an en
 
 Agents live in continuous 3D space. Each tick every agent's `decide` is called and returns a steering acceleration; the engine integrates it, enforces the speed limits, and applies the bounds.
 
-**Per-agent state (memory, brains).** Free agents may declare `state`: extra numbers each agent carries. A plain type (`"energy": "f32"`) is one number; an object gives an array and how it starts: `"weights": { "type": "f32", "length": 108, "init": { "normal": 0.7 } }` (`init` can be a number, `{ "normal": spread }` or `{ "uniform": [low, high] }`, drawn from the seeded generator). In `decide`, `self.energy` is a number and `self.weights` is a read-only array. To change state, return it: `{ steer, state: { energy: self.energy - 1, memory: [..5 numbers..] } }`. Like everything else, new state is applied after all agents have decided. State is saved by snapshots and copied by forks.
+**Per-agent state (memory, brains).** Free agents may declare `state`: extra numbers each agent carries. Say what a field starts as and its type follows: `"energy": 10` is a number, `"hungry": false` a boolean, `"mood": "calm"` text. An object makes an array of numbers and says how it starts: `"weights": { "length": 108, "init": { "normal": 0.7 } }`. To spell a type out, use `"int"`, `"float"`, `"boolean"` or `"string"` (`{ "type": "int", "init": 3 }`) (`init` can be a number, `{ "normal": spread }` or `{ "uniform": [low, high] }`, drawn from the seeded generator). In `decide`, `self.energy` is a number (or boolean, or text, as declared) and `self.weights` is a read-only array. To change state, return it: `{ steer, state: { energy: self.energy - 1, memory: [..5 numbers..] } }`. Like everything else, new state is applied after all agents have decided. State is saved by snapshots and copied by forks.
 
 `ctx.mlp([11, 5, 8])` makes a small neural network (tanh layers) whose `run(weights, inputs)` returns the outputs; the weights for that shape are 11×5+5 + 5×8+8 = 108 numbers. See `examples/neural`.
 
@@ -63,7 +63,7 @@ Agents live in continuous 3D space. Each tick every agent's `decide` is called a
     "colorMax": 20,                       // value that maps to the end of the color range (low = red, high = green)
     "fade": 0                             // optional: ease cells in and out over this fraction of a tick (0 = instant, 1 = a whole tick)
   },
-  "state": { "alive": "u8", "age": "u8" },   // per-cell fields. Types: "u8" (0..255), "i32", "f32"
+  "state": { "alive": 0, "age": 0 },   // per-cell fields; the starting value gives the type (numbers, true/false, text)
   "fill": { "field": "alive", "density": "$density", "within": 1 },  // random start: density of cells, within the central fraction (default 1 = everywhere)
   "controller": "life.js"
 }

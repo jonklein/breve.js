@@ -24,3 +24,28 @@ test('mlp: counts weights, checks sizes, and computes a known case', () => {
   assert.ok(Math.abs(one.run([2, 0.5], [1])[0] - Math.tanh(2.5)) < 1e-12)
   assert.throws(() => new Mlp([3]), /at least two/)
 })
+
+test('state types are inferred from what a field starts as', async () => {
+  const { stateFields, Sim, parseScene } = await import('../src/index')
+  const f = Object.fromEntries(stateFields({ energy: 10, hungry: false, mood: 'calm', n: 'int', w: { length: 3, init: 1 }, label: { type: 'string', init: 'x' } }).map((x) => [x.name, x]))
+  assert.deepEqual([f.energy.kind, f.energy.type], ['number', 'f64'])
+  assert.equal(f.hungry.kind, 'boolean')
+  assert.deepEqual([f.mood.kind, f.mood.init], ['string', 'calm'])
+  assert.equal(f.n.type, 'i32')
+  assert.deepEqual([f.w.kind, f.w.array, f.w.length], ['number', true, 3])
+  assert.equal(f.label.kind, 'string')
+
+  const r = parseScene(JSON.stringify({ seed: 1, params: {}, bounds: { size: 5 }, entities: [{ name: 'a', count: 3, state: { energy: 10, hungry: false, mood: 'calm' } }], metrics: [] }))
+  assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
+  const seen: unknown[] = []
+  const sim = new Sim(r.ok ? r.scene : (null as never), {
+    default: { decide: ({ self }) => { seen.push([self.energy, self.hungry, self.mood]); return { state: { energy: self.energy - 1, hungry: true, mood: 'tense' } } } },
+  })
+  sim.step(); sim.step()
+  assert.deepEqual(seen[0], [10, false, 'calm'])
+  assert.deepEqual(seen[3], [9, true, 'tense'])
+  const snap = sim.snapshot()
+  sim.step()
+  sim.restore(snap)
+  assert.equal(sim.table.cols.mood[0], 'tense')
+})

@@ -16,14 +16,14 @@ export const Ant = {
     if (self.carrying) {
       const toNest = ctx.vec(...NEST).minus(self.position)
       if (toNest.length() < 2.5) {
-        return { steer: wobble, state: { carrying: 0 }, add: { delivered: 1 } } // drop it off
+        return { steer: wobble, state: { carrying: false }, add: { delivered: 1 } } // drop it off
       }
       return { steer: toNest.normalized().times(p.pull).plus(wobble), add: { scent: p.laying } }
     }
 
     // standing on food: take a piece and turn around
     if (self.patch && self.patch.food > 0) {
-      return { steer: self.velocity.reversed(), state: { carrying: 1 }, add: { food: -1 } }
+      return { steer: self.velocity.reversed(), state: { carrying: true }, add: { food: -1 } }
     }
 
     // looking for food: sniff three spots ahead and lean toward the strongest scent

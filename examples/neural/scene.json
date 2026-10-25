@@ -17,8 +17,8 @@
       "sensors": [{ "type": "neighbors", "radius": "$radius" }],
       "motion": { "maxSpeed": "$maxSpeed", "minSpeed": 2, "maxAccel": 40 },
       "state": {
-        "weights": { "type": "f32", "length": 108, "init": { "normal": 0.7 } },
-        "memory": { "type": "f32", "length": 5 }
+        "weights": { "length": 108, "init": { "normal": 0.7 } },
+        "memory": { "length": 5 }
       }
     }
   ],

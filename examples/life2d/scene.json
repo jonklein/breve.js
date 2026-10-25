@@ -14,7 +14,7 @@
     {
       "name": "cell",
       "lattice": { "size": [96, 96, 1], "spacing": 1, "edges": "wrap", "show": "alive", "color": "age", "colorMax": 30 },
-      "state": { "alive": "u8", "age": "u8" },
+      "state": { "alive": 0, "age": 0 },
       "fill": { "field": "alive", "density": "$density" },
       "controller": "life.js"
     }

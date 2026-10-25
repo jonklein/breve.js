@@ -39,7 +39,7 @@ export class AgentWorld implements World {
     this.extra = stateFields(host.def.state)
     const schema: Record<string, ColumnType> = { ...SCHEMA }
     const strides: Record<string, number> = {}
-    for (const f of this.extra) { schema[f.name] = f.type; strides[f.name] = f.length }
+    for (const f of this.extra) { schema[f.name] = f.type as ColumnType; strides[f.name] = f.length }
     this.table = new Table(schema, 256, strides)
     this.AgentClass = this.makeClass()
     this.GroupClass = this.makeGroupClass()
@@ -95,7 +95,11 @@ export class AgentWorld implements World {
     for (const f of this.extra) {
       const n = f.length
       Object.defineProperty(Stateful.prototype, f.name, {
-        get(this: Agent) { return f.array ? table.cols[f.name].subarray(this.row * n, (this.row + 1) * n) : table.cols[f.name][this.row] },
+        get(this: Agent) {
+          const col = table.cols[f.name]
+          if (f.array) return col.subarray(this.row * n, (this.row + 1) * n)
+          return f.kind === 'boolean' ? col[this.row] !== 0 : col[this.row]
+        },
         enumerable: true,
       })
     }
@@ -131,13 +135,15 @@ export class AgentWorld implements World {
     for (const [name, v] of Object.entries(state)) {
       const f = this.extra.find((x) => x.name === name)
       if (!f) { this.host.fail('decide', new Error(`state "${name}" is not declared in the scene's "state"`)); continue }
+      const col = this.table.cols[name]
+      if (f.kind === 'string') { (col as unknown as string[])[row] = String(v); continue }
+      if (f.kind === 'boolean') { col[row] = v ? 1 : 0; continue }
       const vals = typeof v === 'number' ? [v] : Array.isArray(v) || ArrayBuffer.isView(v) ? Array.from(v as ArrayLike<number>) : null
       if (!vals || vals.length !== f.length || vals.some((x) => !Number.isFinite(x))) {
         this.host.fail('decide', new Error(`state "${name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`))
         continue
       }
-      const col = this.table.cols[name]
-      for (let k = 0; k < f.length; k++) col[row * f.length + k] = vals[k]
+      for (let k = 0; k < f.length; k++) col[row * f.length + k] = f.type === 'i32' ? Math.round(vals[k]) : vals[k]
     }
   }
 
@@ -155,11 +161,13 @@ export class AgentWorld implements World {
     const rng = this.host.rng
     for (const f of this.extra) {
       const col = this.table.cols[f.name]
+      const init = f.init
+      if (init === undefined) continue
       for (let k = 0; k < f.length; k++) {
         const i = r * f.length + k
-        const init = f.init
-        if (init === undefined) continue
         if (typeof init === 'number') col[i] = init
+        else if (typeof init === 'boolean') col[i] = init ? 1 : 0
+        else if (typeof init === 'string') (col as unknown as string[])[i] = init
         else if ('normal' in init) col[i] = init.normal * Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next())
         else col[i] = rng.range(init.uniform[0], init.uniform[1])
       }

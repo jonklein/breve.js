@@ -1,15 +1,19 @@
-import { Table, type Column, type ColumnType, type TableSnapshot } from './store'
-import { fillList, resolve, type Params, type StateType } from './scene'
+import { StrColumn, Table, type Column, type ColumnType, type TableSnapshot } from './store'
+import { fillList, resolve, stateFields, type Params, type StateField, type StateType } from './scene'
 import { Field, type NeighborTable } from './field'
 import { Nums, Vec3, Vecs } from './vec'
 import type { Ctx, FrameData, Host, MetricInput, PatchLayer, World } from './world'
 
-const CTORS = { u8: Uint8Array, i32: Int32Array, f32: Float32Array } as const
+const CTORS = { u8: Uint8Array, i32: Int32Array, f32: Float32Array, f64: Float64Array, str: StrColumn } as const
 
-function coerce(type: StateType, v: number): number {
-  if (type === 'u8') return Math.max(0, Math.min(255, Math.round(v)))
-  if (type === 'i32') return Math.round(v)
-  return v
+/** Turn whatever a rule returned into what the field stores (numbers keep their value; booleans become 0/1; text stays text). */
+function coerce(f: StateField, v: unknown): number | string {
+  if (f.kind === 'string') return String(v)
+  if (f.kind === 'boolean') return v ? 1 : 0
+  const x = Number(v)
+  if (f.type === 'u8') return Math.max(0, Math.min(255, Math.round(x)))
+  if (f.type === 'i32') return Math.round(x)
+  return x
 }
 
 /**
@@ -26,7 +30,8 @@ export class LatticeWorld implements World, PatchLayer {
   private dims: [number, number, number]
   private n: number
   private fields: string[]
-  private types: Record<string, StateType>
+  private fieldOf: Record<string, StateField> = {}
+  private types: Record<string, StateType> = {}
   private next: Record<string, Column> = {}
   private offsets: [number, number, number][] = []
   /** Neighbor rows for every cell, `stride` slots per cell, and how many of them are real. */
@@ -44,11 +49,16 @@ export class LatticeWorld implements World, PatchLayer {
     const L = def.lattice!
     this.dims = L.size
     this.n = L.size[0] * L.size[1] * L.size[2]
-    this.types = (def.state ?? {}) as Record<string, StateType>
-    this.fields = Object.keys(this.types)
+    const sf = stateFields(def.state)
+    for (const f of sf) { this.fieldOf[f.name] = f; this.types[f.name] = f.type }
+    this.fields = sf.map((f) => f.name)
     this.table = new Table<string>(this.types as Record<string, ColumnType>, this.n)
     for (let i = 0; i < this.n; i++) this.table.spawn()
-    for (const f of this.fields) this.next[f] = new CTORS[this.types[f]](this.n)
+    for (const f of sf) {
+      this.next[f.name] = new CTORS[f.type](this.n) as unknown as Column
+      // a field that says what it starts as starts that way in every cell
+      if (f.init !== undefined && typeof f.init !== 'object') this.table.cols[f.name].fill((typeof f.init === 'boolean' ? (f.init ? 1 : 0) : f.init) as never)
+    }
 
     for (let dk = -1; dk <= 1; dk++)
       for (let dj = -1; dj <= 1; dj++)
@@ -99,7 +109,7 @@ export class LatticeWorld implements World, PatchLayer {
     if (!this.pending) return
     for (const f of Object.keys(this.pending)) {
       const col = this.table.cols[f], add = this.pending[f]
-      for (let r = 0; r < this.n; r++) if (add[r] !== 0) col[r] = coerce(this.types[f], col[r] + add[r])
+      for (let r = 0; r < this.n; r++) if (add[r] !== 0) col[r] = coerce(this.fieldOf[f], col[r] + add[r]) as number
     }
     this.pending = null
   }
@@ -133,8 +143,9 @@ export class LatticeWorld implements World, PatchLayer {
       get position(): Vecs { return Vecs.from(this, (c) => c.position) as Vecs }
       isEmpty(): boolean { return this.length === 0 }
     }
+    const isBool = Object.fromEntries(this.fields.map((f) => [f, this.fieldOf[f].kind === 'boolean']))
     for (const f of this.fields) {
-      Object.defineProperty(Cell.prototype, f, { get(this: Cell) { return table.cols[f][this.row] }, set: readOnly, enumerable: true })
+      Object.defineProperty(Cell.prototype, f, { get(this: Cell) { const v = table.cols[f][this.row]; return isBool[f] ? v !== 0 : v }, set: readOnly, enumerable: true })
       Object.defineProperty(Cells.prototype, f, {
         get(this: Cells) { const out = new Nums(); for (const c of this) out.push((c as never)[f]); return out },
         enumerable: true,
@@ -219,7 +230,7 @@ export class LatticeWorld implements World, PatchLayer {
       const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
       if (!data || data.length !== this.n) { this.host.fail('update', new Error(`"${f}" must be a field with ${this.n} cells`)); continue }
       const dst = cols[f]
-      for (let r = 0; r < this.n; r++) dst[r] = coerce(this.types[f], Number(data[r]))
+      for (let r = 0; r < this.n; r++) dst[r] = coerce(this.fieldOf[f], data[r]) as number
     }
   }
 
@@ -243,8 +254,8 @@ export class LatticeWorld implements World, PatchLayer {
       for (const f of this.fields) {
         let v = cols[f][row]
         if (o && f in o) {
-          const x = Number(o[f])
-          if (Number.isFinite(x)) v = coerce(this.types[f], x)
+          const x = o[f]
+          if (this.fieldOf[f].kind !== 'number' || Number.isFinite(Number(x))) v = coerce(this.fieldOf[f], x) as number
         }
         this.next[f][row] = v
       }

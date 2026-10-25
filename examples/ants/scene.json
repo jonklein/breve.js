@@ -21,14 +21,14 @@
       "color": "#f2d088",
       "size": 2.2,
       "motion": { "maxSpeed": "$speed", "minSpeed": 1.5, "maxAccel": 60, "plane": "xz" },
-      "state": { "carrying": "u8" }
+      "state": { "carrying": false }
     },
     {
       "name": "ground",
       "type": "Ground",
       "every": 2,
       "lattice": { "size": [40, 1, 40], "spacing": 1, "edges": "dead", "show": "mark", "color": "look", "colorMax": 1, "thickness": 0.12, "palette": ["#4f86f7", "#2f5a3c", "#7be495", "#ffd34a"] },
-      "state": { "food": "f32", "scent": "f32", "nest": "u8", "delivered": "f32", "mark": "u8", "look": "f32" },
+      "state": { "food": 0, "scent": 0, "nest": false, "delivered": 0, "mark": 0, "look": 0 },
       "fill": [
         { "field": "nest", "region": { "center": [-12, 0, 0], "radius": 2.5 } },
         { "field": "food", "value": 5, "region": { "center": [11, 0, 8], "radius": 3 } },

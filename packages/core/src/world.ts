@@ -21,8 +21,15 @@ export interface Controller {
    * Lattice cells get `{ self, neighbors }` and return their new state, e.g. `{ alive: 1 }`.
    * Creatures (scenes with a `body`) get `{ self, neighbors }` and may return `{ joints: { 'FL.hip': 0.3 } }`: target angles by joint name.
    */
+  /**
+   * Lattices only, instead of `decide`: get each state field as a whole (`{ alive }`) and return the new
+   * fields, e.g. `{ alive: alive.zip(alive.neighborSum(), rule) }`. Runs once per tick, not once per cell,
+   * so it handles a million cells.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  decide(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
+  update?(fields: any, params: Params, ctx: Ctx): unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  decide?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
 }
 
 export interface MetricInput {
@@ -87,6 +94,9 @@ export interface World {
   metricInput(): MetricInput
   /** A fingerprint of everything that affects the future, when the columns alone do not cover it (physics engines). */
   hash?(): string
+  /** Copy all state that affects the future (worlds that cannot yet do this leave it out). */
+  snapshot?(): unknown
+  restore?(s: unknown): void
   /** Release engine resources (physics worlds live in wasm memory). */
   dispose?(): void
 }

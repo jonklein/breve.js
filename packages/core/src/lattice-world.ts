@@ -1,7 +1,8 @@
-import { Table, type Column, type ColumnType } from './store'
-import { resolve, type StateType } from './scene'
+import { Table, type Column, type ColumnType, type TableSnapshot } from './store'
+import { resolve, type Params, type StateType } from './scene'
+import { Field, type NeighborTable } from './field'
 import { Nums, Vec3, Vecs } from './vec'
-import type { FrameData, Host, MetricInput, World } from './world'
+import type { Ctx, FrameData, Host, MetricInput, World } from './world'
 
 const CTORS = { u8: Uint8Array, i32: Int32Array, f32: Float32Array } as const
 
@@ -29,11 +30,12 @@ export class LatticeWorld implements World {
   private nbrCount = new Uint8Array(0)
   private stride = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private handles: any[] = []
+  private made: any[] | null = null
+  private Cell!: new (row: number) => unknown
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private Cells: new () => any[]
 
-  constructor(private host: Host) {
+  constructor(private host: Host, from?: LatticeWorld) {
     const def = host.scene.entities[0]
     const L = def.lattice!
     this.dims = L.size
@@ -48,15 +50,25 @@ export class LatticeWorld implements World {
       for (let dj = -1; dj <= 1; dj++)
         for (let di = -1; di <= 1; di++) {
           if (!di && !dj && !dk) continue
+          if ((di && this.dims[0] === 1) || (dj && this.dims[1] === 1) || (dk && this.dims[2] === 1)) continue // a flat grid has no neighbors "above"
           if (L.neighborhood === 'von-neumann' && Math.abs(di) + Math.abs(dj) + Math.abs(dk) !== 1) continue
           this.offsets.push([di, dj, dk])
         }
 
-    this.buildNeighbors()
+    if (from && from.nbr.length) { this.nbr = from.nbr; this.nbrCount = from.nbrCount; this.stride = from.stride } else this.buildNeighbors()
     const { Cell, Cells } = this.makeTypes()
     this.Cells = Cells
-    for (let r = 0; r < this.n; r++) this.handles.push(new Cell(r))
-    this.fill()
+    this.Cell = Cell
+    if (!from) this.fill() // a fork gets its cells from the snapshot
+  }
+
+  /** One readable handle per cell, made the first time a per-cell rule or metric needs them (whole-grid rules never do). */
+  private get handles(): any[] {
+    if (!this.made) {
+      this.made = new Array(this.n)
+      for (let r = 0; r < this.n; r++) this.made[r] = new this.Cell(r)
+    }
+    return this.made
   }
 
   private makeTypes() {
@@ -135,8 +147,36 @@ export class LatticeWorld implements World {
     return out
   }
 
+  /**
+   * The whole-lattice rule: `update(fields, params, ctx)` gets every state field as a `Field` and returns the
+   * new fields (any it leaves out stay as they are). It is the fast path for big grids.
+   */
+  private stepFields(update: (f: Record<string, Field>, p: Params, ctx: Ctx) => unknown): void {
+    const table: NeighborTable = { nbr: this.nbr, count: this.nbrCount, stride: this.stride }
+    const cols = this.table.cols
+    const fields: Record<string, Field> = {}
+    for (const f of this.fields) fields[f] = new Field(cols[f], table)
+    let out: Record<string, unknown> | null = null
+    try {
+      const r = update(fields, this.host.params, this.host.ctx())
+      out = r && typeof r === 'object' ? (r as Record<string, unknown>) : null
+    } catch (e) {
+      this.host.fail('update', e)
+    }
+    if (!out) return
+    for (const f of this.fields) {
+      const v = out[f]
+      if (v === undefined) continue
+      const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
+      if (!data || data.length !== this.n) { this.host.fail('update', new Error(`"${f}" must be a field with ${this.n} cells`)); continue }
+      const dst = cols[f]
+      for (let r = 0; r < this.n; r++) dst[r] = coerce(this.types[f], Number(data[r]))
+    }
+  }
+
   step(): void {
     const ctrl = this.host.script?.default
+    if (ctrl?.update) return this.stepFields(ctrl.update)
     const ctx = this.host.ctx()
     const { params } = this.host
     const cols = this.table.cols
@@ -144,7 +184,7 @@ export class LatticeWorld implements World {
       let out: unknown
       if (ctrl) {
         try {
-          out = ctrl.decide({ self: this.handles[row], neighbors: this.neighborsOf(row) }, params, ctx)
+          out = ctrl.decide!({ self: this.handles[row], neighbors: this.neighborsOf(row) }, params, ctx)
         } catch (e) {
           this.host.fail('decide', e)
         }
@@ -186,6 +226,14 @@ export class LatticeWorld implements World {
       attr,
       lattice: { dims: [nx, ny, nz], spacing: sp, show, fade: L.fade ?? 0 },
     }
+  }
+
+  snapshot(): unknown {
+    return this.table.snapshot()
+  }
+
+  restore(s: unknown): void {
+    this.table.restore(s as TableSnapshot)
   }
 
   metricInput(): MetricInput {

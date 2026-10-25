@@ -226,7 +226,7 @@ export class RigidWorld implements World {
       const none = new Creatures()
       for (let i = 0; i < n; i++) {
         try {
-          const out = ctrl.decide({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number> } | void
+          const out = ctrl.decide!({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number> } | void
           if (out && out.joints) {
             for (const [name, v] of Object.entries(out.joints)) {
               const j = this.jointIndex.get(name)

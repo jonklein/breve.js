@@ -1,5 +1,30 @@
 [
-  { "id": "boids", "name": "Boids", "description": "Flocking birds in 3D: cohesion, alignment, separation.", "scene": "scene.json", "script": "flock.js" },
-  { "id": "life3d", "name": "3D Life", "description": "Conway-style cellular automaton on a 3D grid.", "scene": "scene.json", "script": "life.js" },
-  { "id": "creature", "name": "Creatures", "description": "Four-legged walkers on bumpy Perlin terrain: a JSON body, joint motors and an oscillator.", "scene": "scene.json", "script": "creature.js" }
+  {
+    "id": "boids",
+    "name": "Boids",
+    "description": "Flocking birds in 3D: cohesion, alignment, separation.",
+    "scene": "scene.json",
+    "script": "flock.js"
+  },
+  {
+    "id": "life3d",
+    "name": "3D Life",
+    "description": "Conway-style cellular automaton on a 3D grid.",
+    "scene": "scene.json",
+    "script": "life.js"
+  },
+  {
+    "id": "creature",
+    "name": "Creatures",
+    "description": "Four-legged walkers on bumpy Perlin terrain: a JSON body, joint motors and an oscillator.",
+    "scene": "scene.json",
+    "script": "creature.js"
+  },
+  {
+    "id": "life2d",
+    "name": "2D Life (fast path)",
+    "description": "Conway's Life on a flat grid using whole-grid field operations instead of a per-cell rule.",
+    "scene": "scene.json",
+    "script": "life.js"
+  }
 ]

@@ -1,6 +1,6 @@
 import { Agent, Agents } from './agents'
 import { resolve } from './scene'
-import { Table } from './store'
+import { Table, type TableSnapshot } from './store'
 import { toVec } from './vec'
 import type { FrameData, Host, MetricInput, World } from './world'
 
@@ -83,7 +83,7 @@ export class AgentWorld implements World {
       let ax = 0, ay = 0, az = 0
       if (ctrl) {
         try {
-          const out = ctrl.decide({ self: this.handles[i], neighbors: this.neighborsOf(i, radius) }, p, ctx) as { steer?: Parameters<typeof toVec>[0] } | void
+          const out = ctrl.decide!({ self: this.handles[i], neighbors: this.neighborsOf(i, radius) }, p, ctx) as { steer?: Parameters<typeof toVec>[0] } | void
           if (out && out.steer) {
             const s = toVec(out.steer)
             if (Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.z)) { ax = s.x; ay = s.y; az = s.z }
@@ -148,6 +148,15 @@ export class AgentWorld implements World {
       vel: interleave(n, c.vx, c.vy, c.vz),
       attr: null,
     }
+  }
+
+  snapshot(): unknown {
+    return this.table.snapshot()
+  }
+
+  restore(s: unknown): void {
+    this.table.restore(s as TableSnapshot)
+    while (this.handles.length < this.table.size) this.handles.push(new Agent(this.cols, this.handles.length))
   }
 
   metricInput(): MetricInput {

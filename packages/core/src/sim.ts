@@ -7,6 +7,8 @@ import type { PhysicsEngine } from './physics/types'
 import { paramValues, type Params, type Scene } from './scene'
 import type { Ctx, FrameData, Host, ScriptModule, World } from './world'
 
+export interface SimSnapshot { tick: number; rng: number; world: unknown }
+
 export type { Ctx, Controller, FrameData, MetricInput, ScriptModule } from './world'
 
 const DT = 1 / 60
@@ -33,13 +35,13 @@ export class Sim implements Host {
     return new Sim(scene, script, { physics })
   }
 
-  constructor(scene: Scene, script?: ScriptModule, opts: { physics?: PhysicsEngine } = {}) {
+  constructor(scene: Scene, script?: ScriptModule, opts: { physics?: PhysicsEngine; from?: Sim } = {}) {
     this.scene = scene
     this.params = paramValues(scene)
     this.rng = new Rng(scene.seed)
     if (script) this.script = script
     if (scene.entities[0].body && !opts.physics) throw new Error('this scene has a physics body: build it with `await Sim.create(scene, script)`')
-    this.world = scene.entities[0].lattice ? new LatticeWorld(this)
+    this.world = scene.entities[0].lattice ? new LatticeWorld(this, opts.from?.world instanceof LatticeWorld && sameGrid(opts.from.scene, scene) ? opts.from.world : undefined)
       : scene.entities[0].body ? new RigidWorld(this, opts.physics!)
       : new AgentWorld(this)
   }
@@ -113,8 +115,41 @@ export class Sim implements Host {
     this.errors.set(m, (this.errors.get(m) ?? 0) + 1)
   }
 
+  /**
+   * A copy of everything that affects the future: the columns, the RNG and the clock. Cheap enough to take
+   * every few ticks. Not available yet for physics scenes, whose engine state lives in wasm.
+   */
+  snapshot(): SimSnapshot {
+    if (!this.world.snapshot) throw new Error('this kind of world cannot be snapshotted yet (physics scenes keep their state inside the engine)')
+    return { tick: this.tick, rng: this.rng.getState(), world: this.world.snapshot() }
+  }
+
+  /** Go back to a snapshot taken from this sim, or from any sim built from the same scene. */
+  restore(s: SimSnapshot): void {
+    if (!this.world.restore) throw new Error('this kind of world cannot be restored yet')
+    this.tick = s.tick
+    this.rng.setState(s.rng)
+    this.world.restore(s.world)
+  }
+
+  /**
+   * An independent copy that carries on from this exact moment. Pass an edited scene to ask "what if" from here,
+   * for example the same flock with one param changed. The scene must have the same shape (entities, lattice size).
+   */
+  fork(scene: Scene = this.scene): Sim {
+    const copy = new Sim(structuredClone(scene), this.script ?? undefined, { from: this })
+    copy.restore(this.snapshot())
+    return copy
+  }
+
   /** Fingerprint of all state that affects the future: columns plus RNG. */
   hash(): string {
     return `${this.world.hash?.() ?? this.table.hash()}:${this.rng.getState().toString(16)}:${this.tick}`
   }
+}
+
+/** Forks can share the neighbor tables when the grid is the same shape. */
+function sameGrid(a: Scene, b: Scene): boolean {
+  const x = a.entities[0].lattice, y = b.entities[0].lattice
+  return !!x && !!y && x.size.join() === y.size.join() && x.edges === y.edges && x.neighborhood === y.neighborhood
 }

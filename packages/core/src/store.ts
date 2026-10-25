@@ -10,6 +10,26 @@ const CTORS = {
   u8: Uint8Array,
 } as const
 
+export interface TableSnapshot {
+  size: number
+  nextSlot: number
+  freeSlots: number[]
+  cols: Record<string, Column>
+  rowToSlot: Uint32Array
+  slotToRow: Int32Array
+  slotGen: Uint32Array
+}
+
+export interface TableSnapshot {
+  size: number
+  nextSlot: number
+  freeSlots: number[]
+  cols: Record<string, Column>
+  rowToSlot: Uint32Array
+  slotToRow: Int32Array
+  slotGen: Uint32Array
+}
+
 const SLOT_BITS = 20
 const SLOT_MASK = (1 << SLOT_BITS) - 1
 
@@ -101,6 +121,39 @@ export class Table<K extends string = string> {
     this.freeSlots.push(slot)
     this.size--
     return true
+  }
+
+  /** A copy of everything the table holds, ids included, so a restored table hands out the same ids as the original would have. */
+  snapshot(): TableSnapshot {
+    const cols: Record<string, Column> = {}
+    for (const k of Object.keys(this.schema)) cols[k] = (this.cols[k as K] as Float64Array).slice(0, this.size)
+    return {
+      size: this.size,
+      nextSlot: this.nextSlot,
+      freeSlots: [...this.freeSlots],
+      cols,
+      rowToSlot: this.rowToSlot.slice(0, this.size),
+      slotToRow: this.slotToRow.slice(0, this.nextSlot),
+      slotGen: this.slotGen.slice(0, this.nextSlot),
+    }
+  }
+
+  restore(s: TableSnapshot): void {
+    while (this.capacity < Math.max(s.size, s.nextSlot)) this.grow()
+    for (const k of Object.keys(this.schema) as K[]) {
+      const col = this.cols[k] as Float64Array
+      col.fill(0)
+      col.set(s.cols[k] as Float64Array)
+    }
+    this.rowToSlot.fill(0)
+    this.rowToSlot.set(s.rowToSlot)
+    this.slotToRow.fill(-1)
+    this.slotToRow.set(s.slotToRow)
+    this.slotGen.fill(0)
+    this.slotGen.set(s.slotGen)
+    this.size = s.size
+    this.nextSlot = s.nextSlot
+    this.freeSlots = [...s.freeSlots]
   }
 
   /** FNV-1a over the live part of every column, for determinism tests. */

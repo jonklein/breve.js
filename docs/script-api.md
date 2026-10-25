@@ -168,6 +168,17 @@ export const metrics = {
 
 `self` has `x, y, z` (grid coordinates), `position` (a vector), and every state field as a number: `self.alive`.
 
+**Big grids: `update` instead of `decide`.** A script may export `update(fields, params)` instead. It runs once per tick, gets every state field as a whole (`{ alive, age }`) and returns the new fields. Fields have `neighborSum()`, `neighborMax()`, `map(fn)`, `zip(other, fn)`, `sum()` and `average()`; each makes a new field and none changes the original. Use it for grids above about 50,000 cells (a 1000×1000 flat grid works). A lattice with a dimension of 1, like `[200, 200, 1]`, is flat and its cells have no neighbors along that axis.
+
+```js
+export default {
+  update({ alive }) {
+    const crowd = alive.neighborSum()           // live neighbors of every cell
+    return { alive: alive.zip(crowd, (a, n) => (a ? n === 2 || n === 3 : n === 3) ? 1 : 0) }
+  },
+}
+```
+
 ### Creatures
 
 `decide` receives `self` (the creature) and `neighbors` (always an empty group for now). By default it can return nothing and the oscillator drives the legs. It may return `{ joints: { 'FL.hip': 0.3, ... } }`: target angles in radians by joint name, which replace the oscillator for those joints only (targets are clamped to the joint's `limits`; an unknown name is an error).
@@ -206,4 +217,4 @@ Names listed in the scene's `"metrics"` must exist in the script's exported `met
 
 ## Examples
 
-Three complete examples live in `examples/`: `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.
+Four complete examples live in `examples/` (a fifth, `life2d`, shows the whole-grid `update` rule): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.

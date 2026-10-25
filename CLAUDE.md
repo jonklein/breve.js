@@ -43,6 +43,7 @@ Instructions for Claude Code working on this repository. Read `SPEC.md` and `MIL
 packages/
   server/        local API server for the LLM assistant (holds the API key, never the browser)
   core/          sim kernel: storage, clock, scenes, Sim, no DOM
+  stdlib/        the standard library scripts use (Vec3, Vecs, Nums, Agents, Field, Mlp): no engine code, no DOM; docs/stdlib.md is generated from its comments (`npm run docs`)
   render/        renderer reading world state
   physics-*/     adapters (for now: packages/core/src/physics/, Rapier loaded lazily)
   controllers/   built-in controllers
@@ -83,5 +84,5 @@ TypeScript, ES modules, a monorepo with workspaces.
 ## The assistant (LLM) integration
 
 - The Anthropic key lives only in `.env` (git-ignored) and is read by `packages/server`. Never send it to, or read it from, the browser, and never print or commit it.
-- Keep `docs/script-api.md` accurate: it is the assistant's reference. When scene fields or script APIs change, update it in the same change; the server tests check that examples validate.
+- Keep `docs/script-api.md` accurate (and regenerate `docs/stdlib.md` with `npm run docs` when stdlib comments change; a test checks it): it is the assistant's reference. When scene fields or script APIs change, update it in the same change; the server tests check that examples validate.
 - Model calls use the official SDK, adaptive thinking, and streaming. The default model is `claude-opus-5-5` unless `BREVE_MODEL` says otherwise.

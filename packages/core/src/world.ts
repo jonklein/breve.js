@@ -1,9 +1,9 @@
-import type { Mlp } from './nn'
+import type { Mlp } from '@breve/stdlib'
 import type { Rng } from './rng'
 import type { EntityDef, Params, Scene } from './scene'
 import type { Table } from './store'
-import type { Vec3 } from './vec'
-import type { Agents } from './agents'
+import type { Vec3 } from '@breve/stdlib'
+import type { Agents } from '@breve/stdlib'
 import type { RigidFrame } from './rigid-frame'
 
 /** A message between a sim and its parent. */

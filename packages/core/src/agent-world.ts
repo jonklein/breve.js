@@ -1,7 +1,8 @@
-import { Agent, Agents, type AgentCols } from './agents'
+import { Agent, type AgentCols } from './agents'
+import { Agents } from '@breve/stdlib'
 import { resolve, stateFields } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
-import { Nums, toVec } from './vec'
+import { Nums, toVec } from '@breve/stdlib'
 import type { FrameData, Host, MetricInput, World } from './world'
 
 const SCHEMA = {

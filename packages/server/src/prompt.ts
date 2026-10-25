@@ -38,6 +38,7 @@ export function systemPrompt(): string {
   return [
     INSTRUCTIONS,
     '<reference>\n' + read(join(root, 'docs', 'script-api.md')) + '\n</reference>',
+    '<stdlib>\n' + read(join(root, 'docs', 'stdlib.md')) + '\n</stdlib>',
     '<examples>\n' + examples() + '\n</examples>',
   ].join('\n\n')
 }

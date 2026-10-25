@@ -1,6 +1,6 @@
-import { Mlp } from './nn'
+import { Mlp } from '@breve/stdlib'
 import { Rng } from './rng'
-import { Vec3 } from './vec'
+import { Vec3 } from '@breve/stdlib'
 import { AgentWorld } from './agent-world'
 import { LatticeWorld } from './lattice-world'
 import { RigidWorld } from './rigid-world'

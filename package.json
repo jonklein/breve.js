@@ -7,8 +7,9 @@
   ],
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "docs": "node scripts/gen-docs.mjs",
     "build": "npm run build -w @breve/workbench",
-    "test": "npm test -w @breve/core && npm test -w @breve/server",
+    "test": "npm test -w @breve/stdlib && npm test -w @breve/core && npm test -w @breve/server",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {

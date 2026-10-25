@@ -1,4 +1,3 @@
-import type { Column } from './store'
 
 /** For each cell, the rows of its neighbors: `stride` slots per cell, `count[row]` of them real. */
 export interface NeighborTable {
@@ -7,7 +6,7 @@ export interface NeighborTable {
   stride: number
 }
 
-type Data = Column | Float64Array
+type Data = Float32Array | Float64Array | Int32Array | Uint32Array | Uint8Array
 
 /**
  * One state field of a whole lattice, as a single value: `alive.neighborSum()` is the number of live

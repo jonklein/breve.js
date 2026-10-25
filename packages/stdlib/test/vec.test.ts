@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { Vec3, Vecs, Agents, Agent } from '../src/index'
+import { Vec3, Vecs, Agents } from '../src/index'
+
+// anything with a position and velocity can be grouped
+class Agent {
+  constructor(private c: Record<string, Float32Array>, private i: number) {}
+  get position() { return new Vec3(this.c.px[this.i], this.c.py[this.i], this.c.pz[this.i]) }
+  get velocity() { return new Vec3(this.c.vx[this.i], this.c.vy[this.i], this.c.vz[this.i]) }
+}
 
 const v = (x: number, y: number, z: number) => new Vec3(x, y, z)
 

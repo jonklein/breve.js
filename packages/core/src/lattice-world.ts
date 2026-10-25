@@ -1,7 +1,7 @@
 import { StrColumn, Table, type Column, type ColumnType, type TableSnapshot } from './store'
 import { fillList, resolve, stateFields, type Params, type StateField, type StateType } from './scene'
-import { Field, type NeighborTable } from './field'
-import { Nums, Vec3, Vecs } from './vec'
+import { Field, type NeighborTable } from '@breve/stdlib'
+import { Nums, Vec3, Vecs } from '@breve/stdlib'
 import type { Ctx, FrameData, Host, MetricInput, PatchLayer, World } from './world'
 
 const CTORS = { u8: Uint8Array, i32: Int32Array, f32: Float32Array, f64: Float64Array, str: StrColumn } as const

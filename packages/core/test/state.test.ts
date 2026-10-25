@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Table } from '../src/index'
-import { Mlp } from '../src/nn'
+import { Mlp } from '@breve/stdlib'
 
 test('strided columns hold an array per row, and move whole on despawn, snapshot and restore', () => {
   const t = new Table({ w: 'f32', n: 'i32' }, 2, { w: 3 })

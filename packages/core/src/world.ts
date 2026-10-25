@@ -78,6 +78,9 @@ export interface MetricInput {
   /** Every lattice cell, as a group: `cells.alive.sum()`. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   cells?: any
+  /** Every node of a network, as a group: `nodes.status.sum()`. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  nodes?: any
   /** Every creature in a physics scene, as a group: `creatures.travelled.average()`. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   creatures?: any
@@ -118,7 +121,7 @@ export interface FrameData {
   color?: string
   /** Drawing scale for agents. */
   scale?: number
-  kind: 'agents' | 'lattice' | 'bodies'
+  kind: 'agents' | 'lattice' | 'bodies' | 'graph'
   /** Number of things to draw. */
   count: number
   /** Half the width of the world's bounding box. */
@@ -136,6 +139,8 @@ export interface FrameData {
   attr: Float32Array | null
   /** Lattices send every cell (1 = drawn), so the renderer can animate cells coming and going. */
   lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number }
+  /** Networks (`kind: 'graph'`): the links as pairs of node numbers (redrawn when `version` changes), and how to color and size nodes. `pos` holds the layout. */
+  graph?: { edges: Uint32Array; version: number; palette?: string[]; nodeSize: number }
   /** Physics bodies (`kind: 'bodies'`): one pose per part, plus the terrain on the first frame. */
   rigid?: RigidFrame
 }

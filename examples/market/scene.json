@@ -1,0 +1,24 @@
+{
+  "name": "market",
+  "seed": 4,
+  "clock": { "rate": 15 },
+  "world": { "sky": { "top": "#0d0b16", "horizon": "#2a2140" }, "grid": false },
+  "params": {
+    "produceEvery": { "value": 5, "min": 2, "max": 20, "step": 1, "label": "a producer makes a good every n ticks" },
+    "consumeEvery": { "value": 14, "min": 2, "max": 20, "step": 1, "label": "everyone uses a good every n ticks" },
+    "wages": { "value": 0.6, "min": 0, "max": 3, "step": 0.05, "label": "wages per tick (non-producers)" },
+    "costs": { "value": 1.2, "min": 0, "max": 4, "step": 0.1, "label": "running costs per tick (producers)" },
+    "worth": { "value": 30, "min": 5, "max": 80, "step": 1, "label": "most anyone will pay" }
+  },
+  "entities": [
+    {
+      "name": "traders",
+      "count": 80,
+      "controller": "market.js",
+      "network": { "topology": "scalefree", "degree": 4, "layout": "force", "radius": 24, "color": "ask", "colorMax": 40, "palette": ["#4da3ff", "#ffd24d", "#ff5a4d"], "size": 1.2 },
+      "state": { "cash": 60, "goods": 2, "ask": 10, "bought": 0, "used": 0 }
+    }
+  ],
+  "metrics": ["averagePrice", "priceSpread", "averageCash", "unmetNeed"],
+  "charts": [{ "title": "prices", "metrics": ["averagePrice", "priceSpread"] }]
+}

@@ -213,3 +213,103 @@ export class CellLayer {
     if (this.cells) this.cells.animating = true
   }
 }
+
+/** A network: nodes as small spheres where the layout put them, links as thin lines. */
+export class GraphLayer {
+  private mesh: THREE.InstancedMesh | null = null
+  private lines: THREE.LineSegments | null = null
+  private version = -1
+  private capacity = 0
+  private m = new THREE.Matrix4()
+  private q = new THREE.Quaternion()
+  private p = new THREE.Vector3()
+  private s = new THREE.Vector3()
+  private c = new THREE.Color()
+  selected = -1
+
+  constructor(private scene: THREE.Scene) {}
+
+  setVisible(on: boolean): void {
+    if (this.mesh) this.mesh.visible = on
+    if (this.lines) this.lines.visible = on
+  }
+
+  pick(ray: THREE.Raycaster): { row: number; distance: number } | null {
+    if (!this.mesh) return null
+    this.mesh.boundingSphere = null
+    const hit = ray.intersectObject(this.mesh)[0]
+    return hit && hit.instanceId !== undefined ? { row: hit.instanceId, distance: hit.distance } : null
+  }
+
+  update(f: WorldFrame, fixed: THREE.Color | null): void {
+    const g = f.graph
+    if (!g) return
+    const n = f.count
+    if (!this.mesh || this.capacity < n) {
+      this.disposeNodes()
+      this.capacity = n
+      this.mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 14, 10), new THREE.MeshLambertMaterial(), Math.max(1, n))
+      this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, n) * 3), 3)
+      this.mesh.frustumCulled = false
+      this.scene.add(this.mesh)
+    }
+    this.mesh.visible = true
+    this.mesh.count = n
+    const pal = (g.palette ?? ['#ff4d4d', '#4dff88']).map((x) => color(x))
+    const base = (f.scale ?? 1) * g.nodeSize * 0.9
+    for (let i = 0; i < n; i++) {
+      this.p.set(f.pos[i * 3], f.pos[i * 3 + 1], f.pos[i * 3 + 2])
+      const big = this.selected === i ? 1.8 : 1
+      this.s.setScalar(base * big)
+      this.m.compose(this.p, this.q, this.s)
+      this.mesh.setMatrixAt(i, this.m)
+      if (this.selected === i) this.c.set('#ffffff')
+      else if (f.attr) {
+        const x = Math.min(1, Math.max(0, f.attr[i])) * (pal.length - 1)
+        const k = Math.min(pal.length - 2, Math.floor(x))
+        this.c.copy(pal[k]).lerp(pal[k + 1], x - k)
+      } else this.c.copy(fixed ?? pal[0])
+      this.mesh.setColorAt(i, this.c)
+    }
+    this.mesh.instanceMatrix.needsUpdate = true
+    this.mesh.instanceColor!.needsUpdate = true
+    if (g.version !== this.version) this.drawLinks(f)
+    if (this.lines) this.lines.visible = true
+  }
+
+  private drawLinks(f: WorldFrame): void {
+    this.version = f.graph!.version
+    this.disposeLines()
+    const e = f.graph!.edges
+    const pos = new Float32Array(e.length * 3)
+    for (let i = 0; i < e.length; i++) pos.set([f.pos[e[i] * 3], f.pos[e[i] * 3 + 1], f.pos[e[i] * 3 + 2]], i * 3)
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    this.lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#6b7a99', transparent: true, opacity: 0.35 }))
+    this.lines.frustumCulled = false
+    this.scene.add(this.lines)
+  }
+
+  private disposeNodes(): void {
+    if (!this.mesh) return
+    this.scene.remove(this.mesh)
+    this.mesh.geometry.dispose()
+    ;(this.mesh.material as THREE.Material).dispose()
+    this.mesh.dispose()
+    this.mesh = null
+  }
+
+  private disposeLines(): void {
+    if (!this.lines) return
+    this.scene.remove(this.lines)
+    this.lines.geometry.dispose()
+    ;(this.lines.material as THREE.Material).dispose()
+    this.lines = null
+  }
+
+  dispose(): void {
+    this.disposeNodes()
+    this.disposeLines()
+    this.version = -1
+  }
+}

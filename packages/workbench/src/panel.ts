@@ -79,59 +79,104 @@ export class ParamsPanel {
   }
 }
 
-/** One sparkline per metric the sim reports. */
+const LINE_COLORS = ['#5aa9ff', '#ff6b6b', '#7bd88f', '#ffd24d', '#c792ea', '#ffa657']
+
+interface Chart {
+  title: string
+  names: string[]
+  values: Map<string, number[]>
+  canvas: HTMLCanvasElement
+  legend: Map<string, HTMLElement>
+}
+
+/**
+ * Line charts for the metrics the sim reports. Each metric gets its own chart, unless the scene's `charts`
+ * puts several on one (sharing a scale, with a legend).
+ */
 export class MetricsPanel {
-  private series = new Map<string, { values: number[]; canvas: HTMLCanvasElement; now: HTMLElement }>()
+  private charts = new Map<string, Chart>()
+  private groups: { title?: string; metrics: string[] }[] = []
 
   constructor(private root: HTMLElement) {}
 
+  /** Tell the panel how the scene groups metrics; takes effect for charts made from now on. */
+  setGroups(groups: { title?: string; metrics: string[] }[] | undefined): void {
+    const next = groups ?? []
+    if (JSON.stringify(next) === JSON.stringify(this.groups)) return
+    this.groups = next
+    this.clear()
+  }
+
+  private chartFor(metric: string): Chart {
+    const group = this.groups.find((g) => g.metrics.includes(metric))
+    const key = group ? `group:${this.groups.indexOf(group)}` : `metric:${metric}`
+    let c = this.charts.get(key)
+    if (c) return c
+    const wrap = document.createElement('div')
+    wrap.className = 'metric'
+    const row = document.createElement('div')
+    row.className = 'row'
+    const title = document.createElement('span')
+    title.textContent = group?.title ?? metric
+    const legendBox = document.createElement('span')
+    legendBox.className = 'mono legend'
+    row.append(title, legendBox)
+    const canvas = document.createElement('canvas')
+    canvas.width = 440
+    canvas.height = 96
+    wrap.append(row, canvas)
+    this.root.appendChild(wrap)
+    c = { title: group?.title ?? metric, names: group ? group.metrics : [metric], values: new Map(), canvas, legend: new Map() }
+    c.names.forEach((n, i) => {
+      const item = document.createElement('span')
+      item.style.color = LINE_COLORS[i % LINE_COLORS.length]
+      item.style.marginLeft = '10px'
+      legendBox.appendChild(item)
+      c!.legend.set(n, item)
+    })
+    this.charts.set(key, c)
+    return c
+  }
+
   push(metrics: Record<string, number>): void {
+    const touched = new Set<Chart>()
     for (const [name, v] of Object.entries(metrics)) {
-      let s = this.series.get(name)
-      if (!s) {
-        const wrap = document.createElement('div')
-        wrap.className = 'metric'
-        const row = document.createElement('div')
-        row.className = 'row'
-        const title = document.createElement('span')
-        title.textContent = name
-        const now = document.createElement('span')
-        now.className = 'mono'
-        row.append(title, now)
-        const canvas = document.createElement('canvas')
-        canvas.width = 440
-        canvas.height = 96
-        wrap.append(row, canvas)
-        this.root.appendChild(wrap)
-        s = { values: [], canvas, now }
-        this.series.set(name, s)
-      }
-      s.values.push(v)
-      if (s.values.length > 300) s.values.shift()
-      s.now.textContent = v.toFixed(3)
-      this.draw(s.values, s.canvas)
+      const c = this.chartFor(name)
+      const list = c.values.get(name) ?? []
+      list.push(v)
+      if (list.length > 300) list.shift()
+      c.values.set(name, list)
+      const item = c.legend.get(name)
+      if (item) item.textContent = `${c.names.length > 1 ? name + ' ' : ''}${Number.isInteger(v) ? v : v.toFixed(3)}`
+      touched.add(c)
     }
+    for (const c of touched) this.draw(c)
   }
 
   clear(): void {
-    this.series.clear()
+    this.charts.clear()
     this.root.replaceChildren()
   }
 
-  private draw(values: number[], canvas: HTMLCanvasElement): void {
-    const c = canvas.getContext('2d')!
-    const { width: w, height: h } = canvas
+  private draw(chart: Chart): void {
+    const c = chart.canvas.getContext('2d')!
+    const { width: w, height: h } = chart.canvas
     c.clearRect(0, 0, w, h)
-    if (values.length < 2) return
-    const lo = Math.min(0, ...values), hi = Math.max(1, ...values)
-    c.strokeStyle = '#5aa9ff'
+    const all = [...chart.values.values()].flat()
+    if (all.length < 2) return
+    const lo = Math.min(0, ...all), hi = Math.max(1, ...all)
     c.lineWidth = 2
-    c.beginPath()
-    values.forEach((v, i) => {
-      const x = (i / 299) * w, y = h - 6 - ((v - lo) / (hi - lo)) * (h - 12)
-      if (i) c.lineTo(x, y)
-      else c.moveTo(x, y)
+    chart.names.forEach((name, k) => {
+      const values = chart.values.get(name) ?? []
+      if (values.length < 2) return
+      c.strokeStyle = LINE_COLORS[k % LINE_COLORS.length]
+      c.beginPath()
+      values.forEach((v, i) => {
+        const x = (i / 299) * w, y = h - 6 - ((v - lo) / (hi - lo)) * (h - 12)
+        if (i) c.lineTo(x, y)
+        else c.moveTo(x, y)
+      })
+      c.stroke()
     })
-    c.stroke()
   }
 }

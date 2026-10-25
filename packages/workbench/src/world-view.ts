@@ -1,12 +1,12 @@
 import * as THREE from 'three'
 import type { RigidFrame } from '@breve/core'
 import { RigidView } from './rigid-view'
-import { AgentLayer, CellLayer } from './layers'
+import { AgentLayer, CellLayer, GraphLayer } from './layers'
 
 /** What the view needs from a simulation frame. */
 export interface WorldFrame {
   rigid?: RigidFrame
-  kind: 'agents' | 'lattice' | 'bodies'
+  kind: 'agents' | 'lattice' | 'bodies' | 'graph'
   count: number
   size: number
   unit: number
@@ -14,6 +14,7 @@ export interface WorldFrame {
   vel: Float32Array | null
   attr: Float32Array | null
   lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number }
+  graph?: { edges: Uint32Array; version: number; palette?: string[]; nodeSize: number }
   /** Per-set color for free agents. */
   color?: string
   scale?: number
@@ -47,7 +48,7 @@ export class WorldView {
   /** Where the camera looks. The single view hands in its OrbitControls; tiles use this stand-in. */
   readonly controls: { target: THREE.Vector3 }
   /** One layer per entity set, in scene order. */
-  private layers: (AgentLayer | CellLayer | null)[] = []
+  private layers: (AgentLayer | CellLayer | GraphLayer | null)[] = []
   private rigid: RigidView
   private box: THREE.LineSegments | null = null
   private boxSize = 0
@@ -194,7 +195,7 @@ export class WorldView {
 
   /** Mark the agent being inspected (or none). */
   select(sel: { set: number; row: number } | null): void {
-    this.layers.forEach((l, i) => { if (l instanceof AgentLayer) l.selected = sel && sel.set === i ? sel.row : -1 })
+    this.layers.forEach((l, i) => { if (l instanceof AgentLayer || l instanceof GraphLayer) l.selected = sel && sel.set === i ? sel.row : -1 })
   }
 
   update(frames: WorldFrame[]): void {
@@ -214,7 +215,7 @@ export class WorldView {
     }
     this.setBounds(Math.max(...frames.map((f) => f.size)))
     frames.forEach((f, i) => {
-      const want = f.kind === 'lattice' ? CellLayer : AgentLayer
+      const want = f.kind === 'lattice' ? CellLayer : f.kind === 'graph' ? GraphLayer : AgentLayer
       let layer = this.layers[i]
       if (!layer || !(layer instanceof want)) {
         layer?.dispose()

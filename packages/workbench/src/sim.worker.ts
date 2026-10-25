@@ -27,7 +27,7 @@ export interface WorldFrameMsg {
   name?: string
   color?: string
   scale?: number
-  kind: 'agents' | 'lattice' | 'bodies'
+  kind: 'agents' | 'lattice' | 'bodies' | 'graph'
   count: number
   size: number
   unit: number
@@ -36,6 +36,7 @@ export interface WorldFrameMsg {
   attr: Float32Array | null
   lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number }
   rigid?: RigidFrame
+  graph?: { edges: Uint32Array; version: number; palette?: string[]; nodeSize: number }
 }
 
 export type FromWorker =
@@ -96,7 +97,7 @@ let lastPosted = -1
 let stepMs = 0 // smoothed time one tick takes, shown in the stats line
 
 function transfers(f: WorldFrameMsg): ArrayBuffer[] {
-  return [f.pos.buffer as ArrayBuffer, ...(f.vel ? [f.vel.buffer as ArrayBuffer] : []), ...(f.attr ? [f.attr.buffer as ArrayBuffer] : []), ...(f.lattice ? [f.lattice.show.buffer as ArrayBuffer] : []), ...(f.rigid ? [f.rigid.poses.buffer as ArrayBuffer] : [])]
+  return [f.pos.buffer as ArrayBuffer, ...(f.vel ? [f.vel.buffer as ArrayBuffer] : []), ...(f.attr ? [f.attr.buffer as ArrayBuffer] : []), ...(f.lattice ? [f.lattice.show.buffer as ArrayBuffer] : []), ...(f.rigid ? [f.rigid.poses.buffer as ArrayBuffer] : []), ...(f.graph ? [f.graph.edges.buffer as ArrayBuffer] : [])]
 }
 
 let groupTick = -1

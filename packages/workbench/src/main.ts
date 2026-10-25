@@ -67,6 +67,7 @@ async function main(): Promise<void> {
     try {
       const scene = JSON.parse(text) as { params?: unknown; world?: WorldLook; entities?: { controller?: string }[] }
       params.render(scene.params)
+      metrics.setGroups((scene as { charts?: { title?: string; metrics: string[] }[] }).charts)
       viewport.setWorld(scene.world)
       tiles.setWorld(scene.world)
       $('script-tab').textContent = scene.entities?.[0]?.controller ?? 'script.js'
@@ -321,7 +322,7 @@ async function main(): Promise<void> {
         const tps = Math.max(0, ((m.tick - lastTick) * 1000) / (now - lastTime))
         lastTick = m.tick
         lastTime = now
-        $('stats').textContent = `tick ${m.tick} · ${m.frames.map((f) => `${f.count} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'bodies' ? 'creatures' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
+        $('stats').textContent = `tick ${m.tick} · ${m.frames.map((f) => `${f.count} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
       }
     } else if (m.type === 'tiles') {
       if (sweeping) tiles.update(m.tiles, '')

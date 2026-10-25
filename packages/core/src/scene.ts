@@ -66,6 +66,31 @@ export interface LatticeDef {
 }
 
 /**
+ * Nodes and the links between them. `count` of the set is the number of nodes. The neighbors a node's script
+ * sees are the nodes it is linked to. Positions come from `layout` and are only for drawing.
+ */
+export interface NetworkDef {
+  /** How links are made. Default `smallworld`. `edges` uses the list given in `edges`. */
+  topology?: 'smallworld' | 'random' | 'scalefree' | 'ring' | 'complete' | 'edges'
+  /** Average number of links per node (default 4). */
+  degree?: number
+  /** For small worlds: the share of links rewired to random nodes (default 0.1). */
+  rewire?: number
+  /** Explicit links as pairs of node numbers, for topology `edges`. */
+  edges?: [number, number][]
+  /** How to place nodes for drawing (default `force`). */
+  layout?: 'force' | 'circle' | 'sphere'
+  /** Size of the drawn layout in world units (default 20). */
+  radius?: number
+  /** State field that tints nodes, scaled by `colorMax` (default 1), through `palette` (default red to green). */
+  color?: string
+  colorMax?: number
+  palette?: string[]
+  /** How big nodes are drawn, as a multiple of the default. */
+  size?: number
+}
+
+/**
  * Fill a state field at the start. `density` is the share of cells set (default 1); `within` limits it to the central
  * fraction of the grid; `region` limits it to a ball in world units around `center`; `value` is what cells get (default 1).
  */
@@ -73,6 +98,8 @@ export interface FillDef {
   field: string
   density?: NumOrParam
   within?: number
+  /** Set exactly this many randomly chosen entities (networks and lattices). */
+  count?: number
   value?: number
   region?: { center: [number, number, number]; radius: number }
 }
@@ -115,6 +142,8 @@ export interface EntityDef {
   /** Free-moving agents. Use this or `lattice`. */
   count?: NumOrParam
   lattice?: LatticeDef
+  /** Nodes joined by links, instead of free agents or a grid. Use with `count`. */
+  network?: NetworkDef
   /** Per-entity state: field name to storage type (lattice cells take plain types only). */
   state?: Record<string, StateDef>
   /** Fill a state field at the start: `density` of cells, within the central `within` fraction of the grid. */
@@ -164,6 +193,8 @@ export interface Scene {
   params: Record<string, number | ParamDef>
   entities: EntityDef[]
   metrics?: string[]
+  /** Draw several metrics on one chart: `[{ "title": "SIR", "metrics": ["susceptible", "infected"] }]`. Metrics not listed in any chart get their own. */
+  charts?: { title?: string; metrics: string[] }[]
 }
 
 export type Params = Record<string, number>
@@ -184,6 +215,7 @@ const fillItem = {
     field: { type: 'string' },
     density: numOrParam,
     within: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
+    count: { type: 'integer', minimum: 0 },
     value: { type: 'number' },
     region: {
       type: 'object',
@@ -301,6 +333,22 @@ export const sceneSchema = {
           color,
           size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
           count: numOrParam,
+          network: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              topology: { enum: ['smallworld', 'random', 'scalefree', 'ring', 'complete', 'edges'] },
+              degree: { type: 'number', minimum: 0 },
+              rewire: { type: 'number', minimum: 0, maximum: 1 },
+              edges: { type: 'array', items: { type: 'array', items: { type: 'integer', minimum: 0 }, minItems: 2, maxItems: 2 } },
+              layout: { enum: ['force', 'circle', 'sphere'] },
+              radius: { type: 'number', exclusiveMinimum: 0 },
+              color: { type: 'string' },
+              colorMax: { type: 'number', exclusiveMinimum: 0 },
+              palette: { type: 'array', items: color, minItems: 2, maxItems: 8 },
+              size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
+            },
+          },
           lattice: {
             type: 'object',
             required: ['size', 'show'],
@@ -369,6 +417,7 @@ export const sceneSchema = {
       },
     },
     metrics: { type: 'array', items: { type: 'string' } },
+    charts: { type: 'array', items: { type: 'object', required: ['metrics'], additionalProperties: false, properties: { title: { type: 'string' }, metrics: { type: 'array', items: { type: 'string' }, minItems: 1 } } } },
   },
 } as const
 
@@ -408,6 +457,7 @@ export function validateScene(data: unknown): SceneResult {
   const check = (v: NumOrParam | undefined, where: string) => {
     if (typeof v === 'string' && !names.has(v.slice(1))) errors.push(`${where}: unknown param "${v}"`)
   }
+  scene.charts?.forEach((c, i) => c.metrics.forEach((m) => { if (!(scene.metrics ?? []).includes(m)) errors.push(`charts.${i}.metrics: "${m}" is not one of the scene's metrics`) }))
   const seen = new Set<string>()
   scene.entities.forEach((e, i) => {
     if (seen.has(e.name)) errors.push(`entities.${i}.name: another set is already called "${e.name}"`)
@@ -427,6 +477,15 @@ export function validateScene(data: unknown): SceneResult {
       }
       for (const [k, d] of Object.entries(e.state ?? {}))
         if (typeof d === 'object' && d.length !== undefined) errors.push(`entities.${i}.state.${k}: lattice cells hold one value per field, not an array`)
+    }
+    if (e.network) {
+      if (e.lattice || e.body) errors.push(`entities.${i}.network: a set is a network, a lattice or creatures, not several`)
+      if (e.count === undefined) errors.push(`entities.${i}.count: a network needs "count", the number of nodes`)
+      const fields = stateFields(e.state).map((f) => f.name)
+      if (e.network.color && !fields.includes(e.network.color)) errors.push(`entities.${i}.network.color: "${e.network.color}" is not a state field`)
+      if (e.network.topology === 'edges' && !e.network.edges) errors.push(`entities.${i}.network.edges: topology "edges" needs the list of links`)
+      for (const [k, f] of fillList(e.fill).entries())
+        if (!fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)
     }
     if (e.spawn?.at && e.spawn.box) errors.push(`entities.${i}.spawn: give "at" or "box", not both`)
     if (e.spawn?.spread !== undefined && !e.spawn.at) errors.push(`entities.${i}.spawn.spread: "spread" scatters entities around "at"`)

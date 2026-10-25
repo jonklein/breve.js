@@ -86,6 +86,8 @@ Acceptance:
 
 ## M5 — Abstract worlds
 
+Status: done except `via` sensors and `transform.meaning` (a network's links are its neighbors, and the layout is display-only, which covered the demos). Networks (small-world, random, scale-free, ring, complete, explicit), a force layout through d3-force-3d behind a thin adapter, atomic `exchange` trades, a graph view, multi-series charts, `npm run run -- <example>` for headless runs. Epidemic and grid-epidemic share one script file.
+
 - Declared relations (explicit edges), `via` neighbor sensors, `transform.meaning = "layout"`.
 - Graph view with layout; chart views.
 - Headless-only operation with no renderer.

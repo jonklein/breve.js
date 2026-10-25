@@ -13,6 +13,7 @@
   "dependencies": {
     "@breve/stdlib": "*",
     "@dimforge/rapier3d-deterministic-compat": "^0.21.0",
-    "ajv": "^8.20.0"
+    "ajv": "^8.20.0",
+    "d3-force-3d": "^3.0.6"
   }
 }

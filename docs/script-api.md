@@ -30,6 +30,8 @@ A project is two files: `scene.json` (data: what exists and how it looks) and on
 
 Colors are hex only: `#rgb` or `#rrggbb`. Anywhere a number is expected in an entity, you can write `"$name"` to use the param called `name`, so sliders drive the simulation live.
 
+**Charts.** Every name in `metrics` gets a line chart. To draw several on one chart: `"charts": [{ "title": "who is what", "metrics": ["susceptible", "infected", "recovered"] }]`.
+
 ### Entity set: free agents
 
 ```jsonc
@@ -88,6 +90,29 @@ export default {
 ```
 
 Grid shape, fill, and seed only take effect when the simulation is reset. Params (rule numbers, etc.) apply live.
+
+### Entity set: network of nodes
+
+```jsonc
+{
+  "name": "people",
+  "count": 300,                           // number of nodes
+  "network": {
+    "topology": "smallworld",             // "smallworld" (default), "random", "scalefree", "ring", "complete", or "edges" with an explicit list
+    "degree": 6,                          // average links per node
+    "rewire": 0.08,                       // small worlds: share of links rewired at random
+    "layout": "force",                    // how nodes are placed for drawing: "force", "circle" or "sphere"
+    "radius": 24,                         // size of the drawn layout
+    "color": "status", "colorMax": 2, "palette": ["#6aa7ff", "#ff5b5b", "#7bd88f"]   // tint nodes by a state field
+  },
+  "state": { "status": 0, "timer": 0 },
+  "fill": { "field": "status", "value": 1, "count": 3 }   // exactly 3 random nodes start with status 1
+}
+```
+
+A node's `neighbors` are the nodes it is linked to. `decide` works exactly as it does for lattice cells: it reads `self` and `neighbors` (`neighbors.status` is a list of numbers) and returns the node's **new state**, applied for everyone at once. That is why one script can run on a grid and on a graph (see `examples/epidemic` and `examples/epidemic-grid`). `self.degree` is the number of links. Positions come from the layout and are only for drawing.
+
+**Trading.** A node may also return `exchange: [{ with: neighbor, give: { goods: 1 }, get: { cash: 3 } }]`: give some of its own number fields to a linked node and take some of that node's. A trade is made whole or not at all: if either side could not pay (a field would drop below zero), nothing moves. Trades are made in an order shuffled from the seed, so nobody gets an edge from their position. See `examples/market`.
 
 ### Entity set: creatures (physics bodies)
 
@@ -238,7 +263,7 @@ Names listed in the scene's `"metrics"` must exist in the script's exported `met
 
 ## Examples
 
-Five complete examples live in `examples/` (`life2d` shows the whole-grid `update` rule and `neural` per-agent neural networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.
+Examples in `examples/` (`life2d` shows the whole-grid `update` rule, `neural` per-agent neural networks, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.
 
 ## experiment.json
 

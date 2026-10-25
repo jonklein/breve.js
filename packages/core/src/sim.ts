@@ -4,6 +4,7 @@ import { Vec3 } from '@breve/stdlib'
 import { AgentWorld } from './agent-world'
 import { LatticeWorld } from './lattice-world'
 import { RigidWorld } from './rigid-world'
+import { NetworkWorld } from './network-world'
 import type { PhysicsEngine } from './physics/types'
 import { paramValues, stateFields, type EntityDef, type Params, type Scene } from './scene'
 import { blend } from './blend'
@@ -13,7 +14,7 @@ import type { Controller, Ctx, FrameData, Host, MetricInput, Message, ScriptModu
 export interface Inspected {
   set: string
   index: number
-  kind: 'agent' | 'cell' | 'creature'
+  kind: 'agent' | 'cell' | 'creature' | 'node'
   row: number
   id: number
   controller: string
@@ -91,7 +92,8 @@ export class Sim {
       const host = new SetHost(this, i)
       const old = opts.from?.worlds[i]
       this.worlds.push(
-        e.lattice ? new LatticeWorld(host, old instanceof LatticeWorld && sameGrid(opts.from!.scene.entities[i], e) ? old : undefined)
+        e.network ? new NetworkWorld(host, old instanceof NetworkWorld ? old : undefined)
+          : e.lattice ? new LatticeWorld(host, old instanceof LatticeWorld && sameGrid(opts.from!.scene.entities[i], e) ? old : undefined)
           : e.body ? new RigidWorld(host, opts.physics!)
           : new AgentWorld(host),
       )
@@ -118,7 +120,7 @@ export class Sim {
   /** Apply an edited scene to a running sim. Seed, grid shape and fill only change on reset. */
   setScene(scene: Scene): void {
     const old = this.scene.entities
-    const same = old.length === scene.entities.length && old.every((e, i) => !!e.lattice === !!scene.entities[i].lattice && !!e.body === !!scene.entities[i].body)
+    const same = old.length === scene.entities.length && old.every((e, i) => !!e.lattice === !!scene.entities[i].lattice && !!e.network === !!scene.entities[i].network && !!e.body === !!scene.entities[i].body)
     if (!same) throw new Error('adding, removing or changing the kind of an entity set needs a reset')
     this.scene = scene
     this.params = paramValues(scene)
@@ -206,7 +208,7 @@ export class Sim {
       const get = (i: number) => (f?.kind === 'boolean' ? col[i] !== 0 : col[i])
       fields[k] = stride === 1 ? (get(row) as number) : Array.from({ length: Math.min(stride, 64) }, (_, j) => Number(col[row * stride + j]))
     }
-    return { set: def.name, index: set, kind: def.lattice ? 'cell' : def.body ? 'creature' : 'agent', row, id: table.idAt(row), controller: def.type ?? 'default', fields }
+    return { set: def.name, index: set, kind: def.lattice ? 'cell' : def.network ? 'node' : def.body ? 'creature' : 'agent', row, id: table.idAt(row), controller: def.type ?? 'default', fields }
   }
 
   /** Change one value of one entity (an inspector edit). Creatures live in the physics engine, so they cannot be edited yet. */
@@ -249,7 +251,7 @@ export class Sim {
     const parts = this.worlds.map((w) => w.metricInput())
     const merged: MetricInput = Object.assign({ count: 0, cols: {} }, ...parts)
     const sets: Record<string, unknown> = {}
-    this.scene.entities.forEach((e, i) => { sets[e.name] = parts[i].agents ?? parts[i].cells ?? parts[i].creatures })
+    this.scene.entities.forEach((e, i) => { sets[e.name] = parts[i].agents ?? parts[i].cells ?? parts[i].nodes ?? parts[i].creatures })
     merged.sets = sets
     return merged
   }

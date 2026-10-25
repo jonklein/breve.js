@@ -1,0 +1,22 @@
+{
+  "name": "epidemic",
+  "seed": 8,
+  "clock": { "rate": 10 },
+  "world": { "sky": { "top": "#070b14", "horizon": "#162238" }, "grid": false },
+  "params": {
+    "infectiousness": { "value": 0.05, "min": 0, "max": 0.5, "step": 0.01, "label": "chance per sick neighbor" },
+    "recoveryTime": { "value": 14, "min": 2, "max": 50, "step": 1, "label": "ticks until recovered" }
+  },
+  "entities": [
+    {
+      "name": "people",
+      "count": 300,
+      "controller": "contagion.js",
+      "network": { "topology": "smallworld", "degree": 6, "rewire": 0.08, "layout": "force", "radius": 24, "color": "status", "colorMax": 2, "palette": ["#6aa7ff", "#ff5b5b", "#7bd88f"], "size": 1.3 },
+      "state": { "status": 0, "timer": 0 },
+      "fill": { "field": "status", "value": 1, "count": 3 }
+    }
+  ],
+  "metrics": ["susceptible", "infected", "recovered"],
+  "charts": [{ "title": "who is what", "metrics": ["susceptible", "infected", "recovered"] }]
+}

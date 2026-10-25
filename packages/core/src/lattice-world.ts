@@ -164,6 +164,7 @@ export class LatticeWorld implements World, PatchLayer {
       const value = f.value ?? 1
       const col = this.table.cols[f.field]
       const inside = (v: number, n: number) => Math.abs(v - (n - 1) / 2) <= (within * n) / 2
+      const eligible: number[] = []
       for (let r = 0; r < this.n; r++) {
         const i = r % nx, j = Math.floor(r / nx) % ny, k = Math.floor(r / (nx * ny))
         if (!(inside(i, nx) && inside(j, ny) && inside(k, nz))) continue
@@ -171,7 +172,17 @@ export class LatticeWorld implements World, PatchLayer {
           const d = Math.hypot((i - (nx - 1) / 2) * sp - f.region.center[0], (j - (ny - 1) / 2) * sp - f.region.center[1], (k - (nz - 1) / 2) * sp - f.region.center[2])
           if (d > f.region.radius) continue
         }
-        if (density >= 1 || this.host.rng.next() < density) col[r] = value
+        eligible.push(r)
+      }
+      if (f.count !== undefined) {
+        // exactly `count` distinct cells: a partial shuffle driven by the seed
+        for (let i = 0; i < Math.min(f.count, eligible.length); i++) {
+          const j = i + Math.floor(this.host.rng.next() * (eligible.length - i))
+          ;[eligible[i], eligible[j]] = [eligible[j], eligible[i]]
+          col[eligible[i]] = value
+        }
+      } else {
+        for (const r of eligible) if (density >= 1 || this.host.rng.next() < density) col[r] = value
       }
     }
   }

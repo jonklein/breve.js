@@ -50,5 +50,26 @@
     "description": "Drive the dog with W A S D and herd sheep. Two sets of agents, a cross-set sensor, ctx.blend, and keyboard input.",
     "scene": "scene.json",
     "script": "herding.js"
+  },
+  {
+    "id": "epidemic",
+    "name": "Epidemic on a network",
+    "description": "S-I-R contagion across a small-world graph of people.",
+    "scene": "scene.json",
+    "script": "contagion.js"
+  },
+  {
+    "id": "epidemic-grid",
+    "name": "Epidemic on a grid",
+    "description": "The very same contagion script, now running on a grid of cells.",
+    "scene": "scene.json",
+    "script": "../epidemic/contagion.js"
+  },
+  {
+    "id": "market",
+    "name": "Market on a network",
+    "description": "Traders with cash and goods buy from the cheapest neighbor; trades are atomic exchanges, prices adapt.",
+    "scene": "scene.json",
+    "script": "market.js"
   }
 ]

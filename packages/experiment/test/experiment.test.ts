@@ -113,3 +113,21 @@ test('sampleCandidates picks an even spread of a grid for watching, and plannedR
   assert.equal(sampleCandidates({ ...spec, strategy: { type: 'random', runs: 4 } }, scene, 12).length, 4)
   assert.equal(plannedRuns({ ...spec, strategy: { type: 'cmaes' } }, scene), 60)
 })
+
+test('morphology: a search can change body shape because geometry may use params', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { pathToFileURL } = await import('node:url')
+  const dir = new URL('../../../examples/morphology/', import.meta.url)
+  const p = parseScene(readFileSync(new URL('scene.json', dir), 'utf8'))
+  assert.ok(p.ok, p.ok ? '' : p.errors.join('\n'))
+  const scene = p.ok ? p.scene : (null as never)
+  scene.params.count = 2
+  const script = (await import(pathToFileURL(new URL('../creature/creature.js', dir).pathname).href)) as ScriptModule
+  const spec = JSON.parse(readFileSync(new URL('experiment.json', dir), 'utf8'))
+  const parsed = parseExperiment(spec, scene)
+  assert.ok(parsed.ok, parsed.ok ? '' : parsed.errors.join('\n'))
+  const r = await runExperiment({ ...spec, strategy: { type: 'random', runs: 3 }, ticks: 120 }, { scene, script })
+  assert.equal(r.trials.length, 3)
+  assert.ok(new Set(r.trials.map((t) => t.params.legLength)).size >= 2, 'runs had different leg lengths')
+  assert.ok(r.trials.every((t) => Number.isFinite(t.value)))
+})

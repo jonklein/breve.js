@@ -78,5 +78,20 @@
     "description": "A four-legged robot converted from a URDF file (robot.urdf) and walked by a script.",
     "scene": "scene.json",
     "script": "urdf-bot.js"
+  },
+  {
+    "id": "llm-wanderers",
+    "name": "Characters that ask a language model",
+    "description": "Each character's slow think() asks Claude where to go; answers are logged and replayable. Needs ANTHROPIC_API_KEY.",
+    "scene": "scene.json",
+    "script": "wanderers.js"
+  },
+  {
+    "id": "morphology",
+    "name": "Creature body search",
+    "description": "Leg length is a param used inside the body's geometry, so an experiment can search body shape and gait together.",
+    "scene": "scene.json",
+    "script": "../creature/creature.js",
+    "experiment": "experiment.json"
   }
 ]

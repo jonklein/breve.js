@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import Anthropic from '@anthropic-ai/sdk'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { chat, configured, MODEL, type Turn } from './llm'
+import { chat, configured, decide, DECIDE_MODEL, MODEL, type Turn } from './llm'
 
 // the pages shown in the workbench's Docs tab, read fresh so edits show up on reload
 const DOCS: Record<string, { title: string; file: string }> = {
@@ -51,6 +51,12 @@ const server = createServer(async (req, res) => {
     if (page && DOCS[page]) {
       res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8' })
       return void res.end(readFileSync(fileURLToPath(new URL(DOCS[page].file, docsDir)), 'utf8'))
+    }
+    if (req.method === 'POST' && req.url === '/api/decide') {
+      if (!configured()) return send(res, 503, { error: 'No API key. Put ANTHROPIC_API_KEY=... in .env at the project root and restart `npm run dev`.' })
+      const body = JSON.parse(await readBody(req)) as { prompt?: unknown; json?: unknown }
+      if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 20000) return send(res, 400, { error: 'expected { prompt: string, json?: boolean }' })
+      return send(res, 200, { text: await decide(body.prompt, body.json === true), model: DECIDE_MODEL })
     }
     if (req.method === 'POST' && req.url === '/api/chat') {
       if (!configured()) return send(res, 503, { error: 'No API key. Put ANTHROPIC_API_KEY=... in .env at the project root and restart `npm run dev`.' })

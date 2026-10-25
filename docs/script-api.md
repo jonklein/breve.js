@@ -116,7 +116,7 @@ A node's `neighbors` are the nodes it is linked to. `decide` works exactly as it
 
 ### Entity set: creatures (physics bodies)
 
-Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy terrain. A **body** is data, not code: rigid parts joined by joints with motors. Use `count` (not `lattice`) plus `body`. Creatures collide with the terrain and, by default, with each other (`physics.collide: false` lets them walk through one another); a creature never collides with its own parts.
+Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy terrain. A **body** is data, not code: rigid parts joined by joints with motors. Sizes, positions, masses, anchors, axes and limits may be arithmetic on params, like `"$legLength / 2"` or `"-3 * $legLength / 4"`; the creatures are rebuilt when such a param changes, which also lets an experiment search body shape (`examples/morphology`). A robot described in a URDF file converts with `npm run urdf -- robot.urdf` (`examples/urdf-bot`). Use `count` (not `lattice`) plus `body`. Creatures collide with the terrain and, by default, with each other (`physics.collide: false` lets them walk through one another); a creature never collides with its own parts.
 
 ```jsonc
 {
@@ -224,6 +224,12 @@ export default {
   },
 }
 ```
+
+### Slow thinking: asking a language model
+
+A controller may also have an async `think(obs, p, ctx)`, run for each entity every `think.every` ticks (set on the entity set: `"think": { "every": 120 }`). It looks around, may `await ctx.ask(prompt, { json: true })` (a language model, reached through the local server and `ANTHROPIC_API_KEY`), and returns a decision of any JSON shape. The fast `decide` reads it as `self.decision` (undefined until the first answer). In the workbench thinking runs beside the clock, so a slow model never stalls the sim; answers land when they arrive.
+
+Every decision is logged with the tick it took effect (`sim.decisionLog`). `sim.replay(log)` reruns without the model: each decision lands on the same tick, so the run is identical. See `examples/llm-wanderers`.
 
 ### Creatures
 

@@ -1,0 +1,37 @@
+// Five characters that let a language model decide where to go.
+//
+// Every 120 ticks each wanderer's `think` runs. It describes what the character can see in plain words,
+// asks the model with ctx.ask, and returns the model's answer. The fast `decide` then steers by that answer
+// until the next one arrives. Thinking runs beside the simulation, so a slow model never freezes it.
+//
+// The model is reached through the local server (it needs ANTHROPIC_API_KEY in .env). Without one, the
+// wanderers just drift. Every answer is logged with the tick it landed on, so a run can be replayed
+// without asking the model again (see "decisionLog" and "replay" in docs/script-api.md).
+const FOOD = [14, 0, 0]
+
+export const Wanderer = {
+  async think({ self }, p, ctx) {
+    const toFood = ctx.vec(...FOOD).minus(self.position)
+    const reply = await ctx.ask(
+      `You are a hungry creature in a flat field, 40 steps wide. You stand at x=${self.x.toFixed(0)}, z=${self.z.toFixed(0)}. ` +
+        `There is food ${toFood.length().toFixed(0)} steps away, ${toFood.x >= 0 ? 'east' : 'west'} and ${toFood.z >= 0 ? 'south' : 'north'} of you. ` +
+        `Pick a direction to walk. Answer with JSON like {"dx": 1, "dz": 0} where dx is east (+) or west (-) and dz is south (+) or north (-), each between -1 and 1.`,
+      { json: true },
+    )
+    const answer = JSON.parse(reply)
+    return { dx: Number(answer.dx) || 0, dz: Number(answer.dz) || 0 }
+  },
+
+  decide({ self }, p, ctx) {
+    const advice = self.decision // what the model last said, or undefined before the first answer
+    if (!advice) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10) }
+    return { steer: ctx.vec(advice.dx, 0, advice.dz).times(p.push) }
+  },
+}
+
+export const Food = { decide: () => ({}) }
+
+export const metrics = {
+  // how far the wanderers are from the food, on average (the food stands still at x = 14)
+  distanceToFood: ({ sets }) => sets.wanderers.position.minus(sets.food.position.average()).lengths().average(),
+}

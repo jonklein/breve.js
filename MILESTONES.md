@@ -99,7 +99,9 @@ Acceptance:
 
 ## M6 — Bodies and physics
 
-Status: first slice done. The spike chose Rapier (`docs/decisions/physics.md`); body schema, physics adapter, terrain, oscillator drive and the `creature` example exist (a walker loaded from scene JSON stands, walks under the oscillator and renders). Not done: MuJoCo comparison, URDF/MJCF importers, glTF, mutation utilities, snapshot/fork of physics state.
+Status: mostly done. Added since the first slice: snapshot, restore and fork of physics state, `$param` expressions in body geometry (morphology search), a URDF importer (box/sphere/cylinder, revolute/continuous/fixed, no rotated frames) with `examples/urdf-bot`. Not done: the MuJoCo comparison, MJCF, glTF, annotated mutation/crossover utilities (a search over geometry params covers morphology for now).
+
+First slice: The spike chose Rapier (`docs/decisions/physics.md`); body schema, physics adapter, terrain, oscillator drive and the `creature` example exist (a walker loaded from scene JSON stands, walks under the oscillator and renders). Not done: MuJoCo comparison, URDF/MJCF importers, glTF, mutation utilities, snapshot/fork of physics state.
 
 - **Physics spike first.** One 4-legged articulated body defined as JSON, with motors, simulated in both Rapier and MuJoCo WASM. Compare stability, determinism across runs and browsers, steps per second at 1 and 100 bodies, bundle size, and joint motor quality. Output: a short recommendation in `docs/decisions/physics.md` and a draft physics adapter interface. The adapter interface is designed from this result, not before.
 - Body JSON schema, part/joint/sensor/actuator declarations.
@@ -113,6 +115,8 @@ Acceptance:
 - Replicate runs of the same seed are identical.
 
 ## M7 — Learning and language models
+
+Status: partly done. `think()` with `ctx.ask`, lockstep and realtime modes, a decision log with exact replay, the `/api/decide` endpoint and `examples/llm-wanderers`; the authoring assistant (validated diffs, accept/reject/undo) from earlier; per-agent MLP weights as columns (`ctx.mlp`, `examples/neural`); a morphology search through the experiment layer (`examples/morphology`). Not done: ONNX/WebGPU inference, Hugging Face model loading, camera sensors for a VLM controller.
 
 - Neural controller: ONNX/WebGPU, weights as columns or assets, batched inference for populations.
 - Hugging Face Hub model loading into the asset store.

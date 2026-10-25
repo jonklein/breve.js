@@ -128,3 +128,17 @@ export async function chat(history: Turn[], request: string, project: ProjectFil
     })
   }
 }
+
+/** The small, fast model that answers `ctx.ask` from simulated characters. Override with BREVE_DECIDE_MODEL. */
+export const DECIDE_MODEL = process.env.BREVE_DECIDE_MODEL || 'claude-haiku-5-5'
+
+/** One short question from a script's `think`: returns the model's reply as text. */
+export async function decide(prompt: string, json: boolean): Promise<string> {
+  const msg = await client().messages.create({
+    model: DECIDE_MODEL,
+    max_tokens: 400,
+    system: 'You decide what one character in a simulation does next. Answer briefly and exactly in the form the question asks for.' + (json ? ' Reply with a single JSON value and nothing else.' : ''),
+    messages: [{ role: 'user', content: prompt }],
+  })
+  return msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('').trim()
+}

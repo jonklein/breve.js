@@ -102,6 +102,8 @@ export class AgentWorld implements World {
     const table = this.table
     const world = this
     class Stateful extends Agent {
+      /** What the controller's last `think` decided for this agent (anything JSON), or undefined before the first. */
+      get decision(): unknown { return world.decisions.get(table.idAt(this.row)) }
       /** True while beyond the set's `fence`. */
       get outside(): boolean { return table.cols.out[this.row] !== 0 }
       /** Put it back at its starting place and state. Happens at the end of the tick. */
@@ -332,12 +334,32 @@ export class AgentWorld implements World {
     }
   }
 
+  /** What each agent was last told to do by a `think` (keyed by agent id so it follows the agent when rows move). */
+  readonly decisions = new Map<number, unknown>()
+
+  /** The agents a `think` is due for right now, with what each should see. Empty when the controller does not think. */
+  thinkers(): { row: number; obs: { self: unknown; neighbors: unknown } }[] {
+    const ctrl = this.host.controller()
+    const every = this.host.def.think?.every ?? 60
+    if (!ctrl?.think || this.host.tick % every !== 0) return []
+    const radius = resolve(this.host.def.sensors?.find((s) => !s.of)?.radius, this.host.params, 0)
+    this.ensureGrid(radius)
+    return Array.from({ length: this.table.size }, (_, row) => ({ row, obs: { self: this.handles[row], neighbors: this.neighborsOf(row, radius) } }))
+  }
+
+  setDecision(row: number, decision: unknown): void {
+    if (row < this.table.size) this.decisions.set(this.table.idAt(row), decision)
+  }
+
   snapshot(): unknown {
-    return this.table.snapshot()
+    return { table: this.table.snapshot(), decisions: [...this.decisions] }
   }
 
   restore(s: unknown): void {
-    this.table.restore(s as TableSnapshot)
+    const x = s as { table: TableSnapshot; decisions: [number, unknown][] }
+    this.table.restore(x.table)
+    this.decisions.clear()
+    for (const [k, v] of x.decisions) this.decisions.set(k, structuredClone(v))
     this.moved++
     while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(this.cols, this.handles.length))
   }

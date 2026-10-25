@@ -1,0 +1,34 @@
+{
+  "name": "llm-wanderers",
+  "seed": 9,
+  "bounds": { "size": 20, "mode": "clamp" },
+  "world": { "sky": { "top": "#10172b", "horizon": "#44536f" }, "grid": true },
+  "params": {
+    "speed": { "value": 4, "min": 1, "max": 10, "step": 0.5 },
+    "push": { "value": 12, "min": 1, "max": 30, "step": 1, "label": "how hard they follow the model's advice" }
+  },
+  "entities": [
+    {
+      "name": "wanderers",
+      "type": "Wanderer",
+      "controller": "wanderers.js",
+      "count": 5,
+      "color": "#ffcf6b",
+      "size": 3,
+      "spawn": { "box": [[-16, 0, -16], [-6, 0, 16]] },
+      "think": { "every": 120 },
+      "motion": { "maxSpeed": "$speed", "minSpeed": 0, "maxAccel": 40, "plane": "xz" }
+    },
+    {
+      "name": "food",
+      "type": "Food",
+      "controller": "wanderers.js",
+      "count": 1,
+      "color": "#7be495",
+      "size": 4,
+      "spawn": { "at": [14, 0, 0] },
+      "motion": { "maxSpeed": 0, "plane": "xz" }
+    }
+  ],
+  "metrics": ["distanceToFood"]
+}

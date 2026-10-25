@@ -133,6 +133,8 @@ export interface EntityDef {
   fence?: FenceDef
   /** Where entities start (free agents and creatures). */
   spawn?: SpawnDef
+  /** How often the controller's slow `think` runs (it may call a language model). */
+  think?: { every?: number }
   /** Run this set only every n-th tick (default 1). */
   every?: number
   /** Draw color for free agents (overrides the world's agentColor). */
@@ -329,6 +331,7 @@ export const sceneSchema = {
               velocity: vec3,
             },
           },
+          think: { type: 'object', additionalProperties: false, properties: { every: { type: 'integer', minimum: 1 } } },
           every: { type: 'integer', minimum: 1, maximum: 1000 },
           color,
           size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },

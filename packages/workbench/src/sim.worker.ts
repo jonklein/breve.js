@@ -84,10 +84,19 @@ async function applyScript(code: string): Promise<void> {
 
 // async because scenes with a physics body wait for the physics engine to load
 let builds = 0
+/** `ctx.ask` goes through the local server, which holds the API key. */
+async function askModel(prompt: string, options?: { json?: boolean }): Promise<string> {
+  const r = await fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, json: options?.json === true }) })
+  const body = (await r.json()) as { text?: string; error?: string }
+  if (!r.ok || body.text === undefined) throw new Error(body.error ?? `the model request failed (${r.status})`)
+  return body.text
+}
+
 async function rebuild(): Promise<void> {
   if (!scene) return
   const mine = ++builds
   const next = await Sim.create(scene, script ?? undefined)
+  next.provider = askModel
   if (mine !== builds) return next.dispose() // a newer rebuild started while this one loaded
   sim?.dispose()
   sim = next
@@ -149,7 +158,7 @@ setInterval(() => {
     while (budget >= 1) {
       const t0 = performance.now()
       if (group) group.step()
-      else sim!.step()
+      else { sim!.thinkInBackground(); sim!.step() } // slow thoughts (model calls) run beside the clock and land when they arrive
       stepMs = stepMs * 0.8 + (performance.now() - t0) * 0.2
       budget--
       if (performance.now() - frameStart > FRAME_BUDGET_MS) { budget = Math.min(budget, 1); break }

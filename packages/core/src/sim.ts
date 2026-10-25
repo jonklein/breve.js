@@ -140,6 +140,13 @@ export class Sim {
   }
 
   step(): void {
+    if (this.replaying) {
+      while (this.replaying.length && this.replaying[0].tick <= this.tick) {
+        const d = this.replaying.shift()!
+        this.worlds[d.set].setDecision?.(d.row, structuredClone(d.decision))
+        this.decisionLog.push({ ...d, decision: structuredClone(d.decision) })
+      }
+    }
     this.inbox = this.waiting
     this.waiting = []
     this.worlds.forEach((w, i) => {
@@ -238,6 +245,70 @@ export class Sim {
     return Object.entries(this.script ?? {}).filter(([k, v]) => k !== 'metrics' && isController(v)).map(([k]) => k)
   }
 
+  /** How `ctx.ask` reaches a language model. Set by whatever hosts the sim (the workbench's server connection, or a test double). */
+  provider: ((prompt: string, options?: { json?: boolean }) => Promise<string>) | null = null
+  /** Every decision a `think` produced, with the tick it took effect. Feed it back with `replay` to rerun without the model. */
+  readonly decisionLog: { tick: number; set: number; row: number; decision: unknown }[] = []
+  private replaying: { tick: number; set: number; row: number; decision: unknown }[] | null = null
+  private thinking = false
+
+  private decide(set: number, row: number, decision: unknown): void {
+    this.worlds[set].setDecision?.(row, decision)
+    this.decisionLog.push({ tick: this.tick, set, row, decision: structuredClone(decision) })
+  }
+
+  /**
+   * Lockstep: run every `think` that is due this tick, wait for all the answers, and apply them (in row order, so the
+   * result does not depend on which answer came back first). Call it before `step()`; when nothing is due it returns at once.
+   */
+  async think(): Promise<void> {
+    if (this.replaying) return
+    const jobs = this.dueThoughts()
+    const results = await Promise.all(jobs.map((j) => j.run()))
+    jobs.forEach((j, i) => { if (results[i].ok) this.decide(j.set, j.row, results[i].value) })
+  }
+
+  /**
+   * Realtime: start the due thoughts but do not wait. Each answer is applied (and logged) at whatever tick the sim has reached
+   * when it arrives. Thoughts still running are not started again.
+   */
+  thinkInBackground(): void {
+    if (this.replaying || this.thinking) return
+    const jobs = this.dueThoughts()
+    if (!jobs.length) return
+    this.thinking = true
+    void Promise.all(jobs.map(async (j) => ({ j, r: await j.run() }))).then((all) => {
+      for (const { j, r } of all) if (r.ok) this.decide(j.set, j.row, r.value)
+    }).finally(() => { this.thinking = false })
+  }
+
+  private dueThoughts() {
+    const jobs: { set: number; row: number; run: () => Promise<{ ok: true; value: unknown } | { ok: false }> }[] = []
+    this.worlds.forEach((w, set) => {
+      const ctrl = new SetControllerLookup(this, set).get()
+      for (const t of w.thinkers?.() ?? []) {
+        jobs.push({
+          set, row: t.row,
+          run: async () => {
+            try {
+              const ask = (prompt: string, options?: { json?: boolean }) => (this.provider ? this.provider(prompt, options) : Promise.reject(new Error('no language model is connected: ctx.ask needs one')))
+              return { ok: true as const, value: await ctrl!.think!(t.obs as never, this.params, { ...this.ctx(), ask }) }
+            } catch (e) {
+              this.fail('think', e)
+              return { ok: false as const }
+            }
+          },
+        })
+      }
+    })
+    return jobs
+  }
+
+  /** Run again from a decision log: the model is never asked, and each decision lands on the tick it did the first time. */
+  replay(log: { tick: number; set: number; row: number; decision: unknown }[]): void {
+    this.replaying = [...log].sort((a, b) => a.tick - b.tick)
+  }
+
   /** Names of the entity sets whose controller depends on something outside the sim (a person, a model), so forking or replay may not reproduce it. */
   nondeterministic(): string[] {
     const out: string[] = []
@@ -323,6 +394,16 @@ export class Sim {
   /** Fingerprint of all state that affects the future: columns plus RNG. */
   hash(): string {
     return `${this.worlds.map((w) => w.hash?.() ?? w.table.hash()).join('+')}:${this.rng.getState().toString(16)}:${this.tick}`
+  }
+}
+
+/** Finds the controller object a set is bound to (the same rule `SetHost.controller` uses, without its error reporting). */
+class SetControllerLookup {
+  constructor(private sim: Sim, private set: number) {}
+  get(): Controller | undefined {
+    const script = this.sim.script as (ScriptModule & Record<string, unknown>) | null
+    const c = script?.[this.sim.scene.entities[this.set].type ?? 'default'] as Controller | undefined
+    return c && typeof c === 'object' ? c : undefined
   }
 }
 

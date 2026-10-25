@@ -1,0 +1,19 @@
+{
+  "name": "find a body that walks far (CMA-ES over leg length and gait)",
+  "strategy": {
+    "type": "cmaes",
+    "runs": 20,
+    "population": 5,
+    "sigma": 0.3
+  },
+  "space": [
+    "legLength",
+    "frequency",
+    "stride"
+  ],
+  "objective": {
+    "metric": "distance",
+    "goal": "max"
+  },
+  "ticks": 300
+}

@@ -1,0 +1,279 @@
+{
+  "name": "morphology",
+  "seed": 11,
+  "world": {
+    "sky": {
+      "top": "#16233f",
+      "horizon": "#7fa6c9"
+    }
+  },
+  "terrain": {
+    "size": 80,
+    "resolution": 64,
+    "amplitude": 0.6,
+    "frequency": 0.07,
+    "color": "#4f7a46"
+  },
+  "params": {
+    "count": {
+      "value": 12,
+      "min": 1,
+      "max": 60,
+      "step": 1,
+      "label": "creatures"
+    },
+    "frequency": {
+      "value": 3,
+      "min": 0.5,
+      "max": 4,
+      "step": 0.1,
+      "label": "step rate (Hz)"
+    },
+    "stride": {
+      "value": 0.7,
+      "min": 0,
+      "max": 0.9,
+      "step": 0.05,
+      "label": "stride (rad)"
+    },
+    "lift": {
+      "value": 0.8,
+      "min": 0,
+      "max": 0.9,
+      "step": 0.05,
+      "label": "foot lift (rad)"
+    },
+    "diagonal": {
+      "value": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "label": "phase: diagonal legs"
+    },
+    "hindOffset": {
+      "value": 0,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "label": "phase: hind legs"
+    },
+    "kneeLag": {
+      "value": 0.4,
+      "min": 0,
+      "max": 1,
+      "step": 0.025,
+      "label": "phase: knee lag"
+    },
+    "strength": {
+      "value": 100,
+      "min": 20,
+      "max": 300,
+      "step": 5,
+      "label": "muscle strength"
+    },
+    "steering": {
+      "value": 1.5,
+      "min": 0,
+      "max": 4,
+      "step": 0.1
+    },
+    "wander": {
+      "value": 1,
+      "min": 0,
+      "max": 3,
+      "step": 0.1
+    },
+    "radius": {
+      "value": 24,
+      "min": 5,
+      "max": 36,
+      "step": 1,
+      "label": "stay within"
+    },
+    "legLength": {
+      "value": 0.5,
+      "min": 0.25,
+      "max": 0.8,
+      "step": 0.01,
+      "label": "leg length"
+    }
+  },
+  "entities": [
+    {
+      "name": "walker",
+      "count": "$count",
+      "fence": {
+        "floor": -20
+      },
+      "controller": "../creature/creature.js",
+      "oscillator": {
+        "frequency": "$frequency"
+      },
+      "body": {
+        "motor": {
+          "stiffness": "$strength",
+          "damping": 8
+        },
+        "parts": [
+          {
+            "name": "torso",
+            "shape": "box",
+            "size": [
+              0.9,
+              0.25,
+              0.45
+            ],
+            "mass": 4,
+            "position": [
+              0,
+              "$legLength + 0.12",
+              0
+            ]
+          }
+        ],
+        "templates": {
+          "leg": {
+            "args": {
+              "phase": 0
+            },
+            "parts": [
+              {
+                "name": "upper",
+                "shape": "capsule",
+                "size": [
+                  "$legLength / 2",
+                  0.06
+                ],
+                "mass": 0.4,
+                "position": [
+                  0,
+                  "-$legLength / 4",
+                  0
+                ]
+              },
+              {
+                "name": "lower",
+                "shape": "capsule",
+                "size": [
+                  "$legLength / 2",
+                  0.05
+                ],
+                "mass": 0.3,
+                "position": [
+                  0,
+                  "-3 * $legLength / 4",
+                  0
+                ]
+              }
+            ],
+            "joints": [
+              {
+                "name": "hip",
+                "parent": "^",
+                "child": "upper",
+                "anchor": [
+                  0,
+                  0,
+                  0
+                ],
+                "limits": [
+                  -0.9,
+                  0.9
+                ],
+                "drive": {
+                  "amplitude": "$stride",
+                  "phase": "@phase"
+                }
+              },
+              {
+                "name": "knee",
+                "parent": "upper",
+                "child": "lower",
+                "anchor": [
+                  0,
+                  "-$legLength / 2",
+                  0
+                ],
+                "limits": [
+                  -1.6,
+                  0.1
+                ],
+                "drive": {
+                  "amplitude": "$lift",
+                  "offset": -0.9,
+                  "phase": "@phase",
+                  "lag": "$kneeLag"
+                }
+              }
+            ]
+          }
+        },
+        "attach": [
+          {
+            "template": "leg",
+            "name": "FL",
+            "at": [
+              0.32,
+              -0.07,
+              -0.27
+            ],
+            "args": {
+              "phase": 0
+            }
+          },
+          {
+            "template": "leg",
+            "name": "FR",
+            "at": [
+              0.32,
+              -0.07,
+              0.27
+            ],
+            "args": {
+              "phase": "$diagonal"
+            }
+          },
+          {
+            "template": "leg",
+            "name": "HL",
+            "at": [
+              -0.32,
+              -0.07,
+              -0.27
+            ],
+            "args": {
+              "phase": "$diagonal"
+            }
+          },
+          {
+            "template": "leg",
+            "name": "HR",
+            "at": [
+              -0.32,
+              -0.07,
+              0.27
+            ],
+            "args": {
+              "phase": "$hindOffset"
+            }
+          }
+        ],
+        "sensors": [
+          {
+            "type": "pose"
+          },
+          {
+            "type": "joints"
+          },
+          {
+            "type": "touch"
+          }
+        ]
+      }
+    }
+  ],
+  "metrics": [
+    "distance",
+    "speed"
+  ]
+}

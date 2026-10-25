@@ -37,6 +37,12 @@ export interface Ctx {
   vec(x?: number, y?: number, z?: number): Vec3
 }
 
+/** What `think` gets: everything in `ctx`, plus a way to ask a model. */
+export interface ThinkCtx extends Ctx {
+  /** Ask a language model. Resolves to its text reply; rejects when no model is connected. */
+  ask(prompt: string, options?: { json?: boolean }): Promise<string>
+}
+
 export interface Controller {
   spec?: {
     observe?: string[]
@@ -61,6 +67,12 @@ export interface Controller {
    * `{ position, velocity, state }` to say where it starts and what it starts as.
    */
   init?(obs: { index: number; count: number }, params: Params, ctx: Ctx): unknown
+  /**
+   * A slow, asynchronous step for each entity, every `think.every` ticks: look around, maybe ask a language model
+   * (`await ctx.ask('...')`), and return a decision. The decision is stored and the fast `decide` reads it as
+   * `self.decision`. Every decision is logged with the tick it took effect, so a run can be replayed without asking again.
+   */
+  think?(obs: { self: any; neighbors: any }, params: Params, ctx: ThinkCtx): Promise<unknown>
   /**
    * Called once when an entity crosses the set's `fence`. Do something about it here, usually `self.reset()`.
    */
@@ -166,6 +178,9 @@ export interface World {
   /** A fingerprint of everything that affects the future, when the columns alone do not cover it (physics engines). */
   hash?(): string
   /** Copy all state that affects the future (worlds that cannot yet do this leave it out). */
+  /** Entities due for a slow `think` this tick (agents only). */
+  thinkers?(): { row: number; obs: { self: unknown; neighbors: unknown } }[]
+  setDecision?(row: number, decision: unknown): void
   snapshot?(): unknown
   restore?(s: unknown): void
   /** Release engine resources (physics worlds live in wasm memory). */

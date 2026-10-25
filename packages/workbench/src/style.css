@@ -80,3 +80,15 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 .chat-input { flex: 1; resize: none; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
 .chat-input:focus { outline: none; border-color: var(--accent); }
 .chat-send:disabled, .chat-input:disabled { opacity: 0.5; cursor: default; }
+
+#viewport.hidden, #tiles.hidden { display: none; }
+#tiles { flex: 1; min-height: 300px; position: relative; }
+#tiles > canvas { display: block; width: 100%; height: 100%; }
+.tile { position: absolute; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 6px 8px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 4px; color: var(--text, #dfe6f2); cursor: pointer; text-align: left; font: inherit; }
+.tile:hover { border-color: #7fb8ff; background: rgba(127, 184, 255, 0.06); }
+.tile-title, .tile-reading { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tile-title { font-size: 12px; text-shadow: 0 1px 3px #000; }
+.tile-reading { font-size: 11px; text-shadow: 0 1px 3px #000; }
+.tile-spark { width: 100%; height: 28px; pointer-events: none; }
+#sweepbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--border); font-size: 12px; }
+#sweepbar input { width: 70px; }

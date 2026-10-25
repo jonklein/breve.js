@@ -30,6 +30,8 @@ Not in M0: lattices, relations, Sim snapshot and fork, multiple sims, bodies, ph
 
 ## M1 — Kernel hardening
 
+Status: done except relation tables and the object-column fallback (moved to M5, where the first relation-based sims need them). Snapshot/restore/fork work for agent and lattice worlds; physics scenes cannot be snapshotted yet. A 1000×1000 Life tick is ~80 ms, over the 30 ms placeholder (see `docs/perf.md`).
+
 Make the M0 kernel match the spec, now that the experience exists to test it against.
 
 - Lattice shape (implicit adjacency), relation tables, spatial hash index, object-column fallback.
@@ -44,6 +46,8 @@ Acceptance:
 - Snapshot round-trip test: restore gives identical column bytes.
 
 ## M2 — Sim as a value
+
+Status: done except a multi-worker pool. `SimGroup` (core) holds sims, forks, sweeps and routes parent-mediated messages with a replayable log; the workbench has a Sweep mode (tiled view on one shared renderer, per-tile metric lines, click a tile to continue from it). One worker runs the whole group with a per-frame time budget. Per-agent state arrays and `ctx.mlp` cover the strided-weights acceptance (`examples/neural`).
 
 - `Sim.create / step / run / snapshot / fork / dispose`, worker-hosted, headless by default.
 - Worker pool and budget-aware scheduler.

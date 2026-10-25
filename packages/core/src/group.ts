@@ -46,12 +46,12 @@ export class SimGroup {
   }
 
   /**
-   * The same scene started once per value of one param: `SimGroup.sweep(scene, script, 'separation', [0, 5, 10])`.
+   * The same scene started once per value of one param: `await SimGroup.sweep(scene, script, 'separation', [0, 5, 10])`.
    * Every sim keeps the scene's seed, so differences are down to the param alone.
    */
-  static sweep(scene: Scene, script: ScriptModule | undefined, param: string, values: number[]): SimGroup {
+  static async sweep(scene: Scene, script: ScriptModule | undefined, param: string, values: number[]): Promise<SimGroup> {
     const g = new SimGroup()
-    for (const v of values) g.add(`${param}=${v}`, new Sim(withParams(scene, { [param]: v }), script))
+    for (const v of values) g.add(`${param}=${v}`, await Sim.create(withParams(scene, { [param]: v }), script))
     return g
   }
 

@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import type { PartShape, RigidFrame, TerrainMesh } from '@breve/core'
 
 const MAX_CREATURES = 256
@@ -20,7 +19,7 @@ export class RigidView {
   private framed = 0
   private shadows = false
 
-  constructor(scene: THREE.Scene, private camera: THREE.PerspectiveCamera, private controls: OrbitControls) {
+  constructor(scene: THREE.Scene, private camera: THREE.PerspectiveCamera, private controls: { target: THREE.Vector3 }) {
     this.group.visible = false
     scene.add(this.group)
   }

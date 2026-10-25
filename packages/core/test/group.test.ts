@@ -23,11 +23,11 @@ const chatty: ScriptModule = {
 
 const small = () => { const s = structuredClone(scene); s.params.count = 30; return s }
 
-test('a sweep gives each sim its own param value and the same seed', () => {
-  const g = SimGroup.sweep(small(), flock, 'separation', [0, 10, 20])
+test('a sweep gives each sim its own param value and the same seed', async () => {
+  const g = await SimGroup.sweep(small(), flock, 'separation', [0, 10, 20])
   assert.deepEqual([...g.sims.keys()], ['separation=0', 'separation=10', 'separation=20'])
   assert.equal(g.get('separation=10').params.separation, 10)
-  assert.throws(() => SimGroup.sweep(small(), flock, 'nope', [1]), /there is no param "nope"/)
+  await assert.rejects(() => SimGroup.sweep(small(), flock, 'nope', [1]), /there is no param "nope"/)
   for (let i = 0; i < 30; i++) g.step()
   const hashes = new Set([...g.sims.values()].map((s) => s.hash()))
   assert.equal(hashes.size, 3, 'different params, different futures')

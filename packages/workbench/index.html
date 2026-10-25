@@ -17,6 +17,7 @@
       <button id="play" title="Play or pause">Pause</button>
       <button id="step" title="Advance one tick">Step</button>
       <button id="reset" title="Restart from the seed">Reset</button>
+      <button id="sweep" title="Run many copies of this scene side by side, each with a different value of one param">Sweep</button>
       <span id="stats" class="muted mono"></span>
       <button id="restore" title="Discard your edits and reload the example">Restore example</button>
     </header>
@@ -34,7 +35,16 @@
         <ul id="problems" class="problems"></ul>
       </section>
       <section id="right">
+        <div id="sweepbar" class="hidden">
+          <label>Vary <select id="sweep-param"></select></label>
+          <label>from <input id="sweep-from" type="number" step="any" /></label>
+          <label>to <input id="sweep-to" type="number" step="any" /></label>
+          <label>in <select id="sweep-count"><option>4</option><option>6</option><option selected>9</option><option>12</option></select> runs</label>
+          <button id="sweep-run">Run</button>
+          <button id="sweep-exit" class="hidden">Back to one run</button>
+        </div>
         <div id="viewport"></div>
+        <div id="tiles" class="hidden"></div>
         <div id="panel">
           <div id="params"></div>
           <div id="metrics"></div>

@@ -1,5 +1,5 @@
 import Ajv from 'ajv'
-import { bodySchema, checkBody, expandBody, type BodyInput } from './body'
+import { bodySchema, buildBody, type BodyInput } from './body'
 import type { TerrainDef } from './terrain'
 
 export type NumOrParam = number | string // a number, or "$paramName"
@@ -494,13 +494,8 @@ export function validateScene(data: unknown): SceneResult {
     check(e.count, `entities.${i}.count`)
     if (e.body) {
       if (e.lattice) errors.push(`entities.${i}.body: a lattice cannot have a body`)
-      // the compact form (templates, attach) becomes the flat body the engine uses; the editor text keeps what you wrote
-      const x = expandBody(e.body, `entities.${i}.body`)
-      errors.push(...x.errors)
-      if (!x.errors.length) {
-        e.body = x.body
-        errors.push(...checkBody(x.body, `entities.${i}.body`, names))
-      }
+      // check the body as it comes out at the params' starting values; the engine rebuilds it whenever params change
+      errors.push(...buildBody(e.body, paramValues(scene), `entities.${i}.body`, names).errors)
       check(e.oscillator?.frequency, `entities.${i}.oscillator.frequency`)
     } else if (e.oscillator) errors.push(`entities.${i}.oscillator: needs a "body" with joint drives`)
     e.sensors?.forEach((s, j) => {

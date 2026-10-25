@@ -1,5 +1,6 @@
 import Ajv from 'ajv'
-import type { NumOrParam } from './scene'
+import { evalNumber } from './expr'
+import type { NumOrParam, Params } from './scene'
 
 export type ShapeKind = 'box' | 'sphere' | 'capsule' | 'cylinder'
 export type Vec3Tuple = [number, number, number]
@@ -101,7 +102,9 @@ export const MOTOR_DEFAULTS = { stiffness: 100, damping: 8 }
 const numOrParam = { anyOf: [{ type: 'number' }, { type: 'string', pattern: '^\\$[A-Za-z_][A-Za-z0-9_]*$' }] }
 /** Like numOrParam, but a body's templates may also use "@name" placeholders that each attach fills in. */
 const numOrParamOrArg = { anyOf: [{ type: 'number' }, { type: 'string', pattern: '^[$@][A-Za-z_][A-Za-z0-9_]*$' }] }
-const vec3 = { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }
+/** A number, or text with a `$param` in it that is worked out when the creature is built: `"$legLength * 0.5"`. */
+const expr = { anyOf: [{ type: 'number' }, { type: 'string', pattern: '\\$' }] }
+const vec3 = { type: 'array', items: expr, minItems: 3, maxItems: 3 }
 const colorSchema = { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$' }
 
 const partItem = {
@@ -111,8 +114,8 @@ const partItem = {
   properties: {
     name: { type: 'string', minLength: 1 },
     shape: { enum: ['box', 'sphere', 'capsule', 'cylinder'] },
-    size: { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 1, maxItems: 3 },
-    mass: { type: 'number', exclusiveMinimum: 0 },
+    size: { type: 'array', items: expr, minItems: 1, maxItems: 3 },
+    mass: expr,
     position: vec3,
     color: colorSchema,
     friction: { type: 'number', minimum: 0 },
@@ -130,7 +133,7 @@ const jointItem = {
     child: { type: 'string' },
     anchor: vec3,
     axis: vec3,
-    limits: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+    limits: { type: 'array', items: expr, minItems: 2, maxItems: 2 },
     motor: {
       type: 'object',
       additionalProperties: false,
@@ -177,7 +180,7 @@ export const bodySchema = {
           name: { type: 'string', minLength: 1 },
           to: { type: 'string' },
           at: vec3,
-          yaw: { type: 'number' },
+          yaw: expr,
           args: { type: 'object', additionalProperties: numOrParam },
         },
       },
@@ -260,7 +263,7 @@ const validate = ajv.compile(bodySchema)
 export type BodyResult = { ok: true; body: BodyDef } | { ok: false; errors: string[] }
 
 /** Validate a standalone body document (the same checks run for `body` inside a scene). */
-export function validateBody(data: unknown): BodyResult {
+export function validateBody(data: unknown, params: Params = {}): BodyResult {
   if (!validate(data)) {
     return {
       ok: false,
@@ -274,9 +277,8 @@ export function validateBody(data: unknown): BodyResult {
         }),
     }
   }
-  const expanded = expandBody(data as BodyInput, 'body')
-  const errors = [...expanded.errors, ...(expanded.errors.length ? [] : checkBody(expanded.body, 'body', null))]
-  return errors.length ? { ok: false, errors } : { ok: true, body: expanded.body }
+  const built = buildBody(data as BodyInput, params, 'body', null)
+  return built.errors.length ? { ok: false, errors: built.errors } : { ok: true, body: built.body }
 }
 
 const round = (v: number) => Math.round(v * 1e9) / 1e9
@@ -335,4 +337,51 @@ export function expandBody(input: BodyInput, where: string): { body: BodyDef; er
   // a joint with a drive gets the default motor, so legs don't each repeat it
   for (const j of joints) if (j.drive && !j.motor) j.motor = { ...input.motor }
   return { body: { parts, joints, ...(input.sensors ? { sensors: input.sensors } : {}) }, errors }
+}
+
+/** Work out every `$param` expression in the body's geometry (sizes, positions, masses, anchors, axes, limits, attach points). Drive and motor fields are left for the engine to read live. */
+export function resolveGeometry(input: BodyInput, params: Params, where: string): BodyInput {
+  const n = (v: unknown, w: string) => evalNumber(v as number | string, params, w)
+  const vec = (v: unknown, w: string) => (v as unknown[]).map((x, i) => n(x, `${w}.${i}`)) as number[]
+  const part = (p: PartDef, w: string): PartDef => ({ ...p, size: vec(p.size, `${w}.size`), mass: n(p.mass, `${w}.mass`), position: vec(p.position, `${w}.position`) as Vec3Tuple })
+  const joint = (j: JointDef, w: string): JointDef => ({
+    ...j,
+    anchor: vec(j.anchor, `${w}.anchor`) as Vec3Tuple,
+    ...(j.axis ? { axis: vec(j.axis, `${w}.axis`) as Vec3Tuple } : {}),
+    ...(j.limits ? { limits: vec(j.limits, `${w}.limits`) as [number, number] } : {}),
+  })
+  const templates = input.templates && Object.fromEntries(Object.entries(input.templates).map(([k, t]) => [k, {
+    ...t,
+    parts: t.parts.map((p, i) => part(p, `${where}.templates.${k}.parts.${i}`)),
+    ...(t.joints ? { joints: t.joints.map((j, i) => joint(j, `${where}.templates.${k}.joints.${i}`)) } : {}),
+  }]))
+  return {
+    ...input,
+    parts: input.parts.map((p, i) => part(p, `${where}.parts.${i}`)),
+    ...(input.joints ? { joints: input.joints.map((j, i) => joint(j, `${where}.joints.${i}`)) } : {}),
+    ...(templates ? { templates } : {}),
+    ...(input.attach ? { attach: input.attach.map((a, i) => ({ ...a, ...(a.at ? { at: vec(a.at, `${where}.attach.${i}.at`) as Vec3Tuple } : {}), ...(a.yaw !== undefined ? { yaw: n(a.yaw, `${where}.attach.${i}.yaw`) } : {}) })) } : {}),
+  }
+}
+
+/**
+ * The flat body the physics engine builds, from what the scene wrote and the current param values:
+ * geometry expressions are worked out, templates are attached, and the result is checked.
+ */
+export function buildBody(input: BodyInput, params: Params, where: string, paramNames: Set<string> | null): { body: BodyDef; errors: string[] } {
+  let resolved: BodyInput
+  try {
+    resolved = resolveGeometry(input, params, where)
+  } catch (e) {
+    return { body: { parts: [] }, errors: [(e as Error).message] }
+  }
+  const x = expandBody(resolved, where)
+  if (x.errors.length) return { body: x.body, errors: x.errors }
+  const errors = checkBody(x.body, where, paramNames)
+  // sizes and masses must be positive once worked out
+  x.body.parts.forEach((p, i) => {
+    if (p.size.some((v) => !(v > 0))) errors.push(`${where}.parts.${i}.size: every size must be greater than zero (got ${p.size.join(', ')})`)
+    if (!(p.mass > 0)) errors.push(`${where}.parts.${i}.mass: must be greater than zero (got ${p.mass})`)
+  })
+  return { body: x.body, errors }
 }

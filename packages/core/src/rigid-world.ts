@@ -1,4 +1,4 @@
-import { MOTOR_DEFAULTS, type BodyDef, type PartDef } from './body'
+import { buildBody, MOTOR_DEFAULTS, type BodyDef, type PartDef } from './body'
 import { resolve } from './scene'
 import { spawnPosition } from './spawn'
 import { Table, type TableSnapshot } from './store'
@@ -112,9 +112,11 @@ export class RigidWorld implements World {
   private targets = new Float32Array(0)
   private leaves: number[] = []
   private lastBody: BodyDef
+  /** The flat body worked out from the scene's body and the current params, remembered until either changes. */
+  private builtFrom: { raw: unknown; params: string; body: BodyDef } | null = null
 
   constructor(private host: Host, private engine: PhysicsEngine) {
-    this.lastBody = host.def.body!
+    this.lastBody = this.body
     this.build()
   }
 
@@ -124,7 +126,17 @@ export class RigidWorld implements World {
 
   /** The body in the scene, or the last good one if an edit just removed it (a scene cannot change kind while running). */
   private get body(): BodyDef {
-    return this.host.def.body ?? this.lastBody
+    const raw = this.host.def.body
+    if (!raw) return this.lastBody
+    const params = JSON.stringify(this.host.params)
+    if (this.builtFrom?.raw === raw && this.builtFrom.params === params) return this.builtFrom.body
+    const built = buildBody(raw, this.host.params, 'body', null)
+    if (built.errors.length) {
+      this.host.fail('body', new Error(built.errors[0]))
+      return this.lastBody // a bad edit keeps the last good creature
+    }
+    this.builtFrom = { raw, params, body: built.body }
+    return built.body
   }
 
   /** Everything that needs the creatures rebuilt when it changes: the terrain, the physics settings and the body's structure. */
@@ -159,8 +171,7 @@ export class RigidWorld implements World {
   }
 
   sceneChanged(fresh = false): void {
-    const edited = this.host.def.body
-    if (edited) this.lastBody = edited
+    if (this.host.def.body) this.lastBody = this.body
     if (!fresh && this.structureKey() !== this.key) return this.build()
     const def = this.host.def
     const target = Math.max(0, Math.min(MAX_CREATURES, Math.round(resolve(def.count, this.host.params, 0))))

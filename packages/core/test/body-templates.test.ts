@@ -6,7 +6,10 @@ import { expandBody, parseScene, validateBody, type BodyDef, type BodyInput } fr
 const flat = JSON.parse(readFileSync(new URL('./fixtures/creature-flat-body.json', import.meta.url), 'utf8')) as BodyDef
 const scene = parseScene(readFileSync(new URL('../../../examples/creature/scene.json', import.meta.url), 'utf8'))
 assert.ok(scene.ok, scene.ok ? '' : scene.errors.join('\n'))
-const expanded = (scene.ok ? scene.scene.entities[0].body : null) as BodyDef
+const defaults = Object.fromEntries(Object.entries(scene.ok ? scene.scene.params : {}).map(([k, v]) => [k, typeof v === 'number' ? v : v.value]))
+const built = validateBody(scene.ok ? scene.scene.entities[0].body : null, defaults)
+assert.ok(built.ok)
+const expanded = (built.ok ? built.body : null) as BodyDef
 
 // the old hand-written names, from the new template names: "FL.upper" was "upperFL", "FL.hip" was "hipFL"
 const oldName = (n: string) => { const [leg, part] = n.split('.'); return part ? part + leg : n }
@@ -62,4 +65,38 @@ test('a drive without its own motor gets the body default, and a plain body pass
   const r = validateBody(body)
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
   assert.deepEqual(r.ok ? r.body.joints![0].motor : null, { stiffness: 50 })
+})
+
+test('geometry can be arithmetic on params, and the creature is rebuilt when a param changes', async () => {
+  const { Sim } = await import('../src/index')
+  const raw = JSON.parse(readFileSync(new URL('../../../examples/creature/scene.json', import.meta.url), 'utf8'))
+  raw.params.legLength = { value: 0.5, min: 0.2, max: 0.9 }
+  const tpl = raw.entities[0].body.templates.leg
+  tpl.parts[0].size = ['$legLength / 2', 0.06]
+  tpl.parts[0].position = [0, '-$legLength / 4', 0]
+  const r = parseScene(JSON.stringify(raw))
+  assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
+  const tall = validateBody(raw.entities[0].body, { ...defaults, legLength: 0.9 })
+  const short = validateBody(raw.entities[0].body, { ...defaults, legLength: 0.2 })
+  assert.ok(tall.ok && short.ok)
+  assert.equal(tall.ok && tall.body.parts.find((p) => p.name === 'FL.upper')!.size[0], 0.45)
+  assert.equal(short.ok && short.body.parts.find((p) => p.name === 'FL.upper')!.size[0], 0.1)
+  // an unknown param in an expression is reported where it was written
+  const bad = validateBody({ ...raw.entities[0].body, parts: [{ ...raw.entities[0].body.parts[0], mass: '$nope * 2' }] }, { ...defaults, legLength: 0.5 })
+  assert.equal(bad.ok, false)
+  assert.match(bad.ok ? '' : bad.errors.join('\n'), /unknown param "\$nope"/)
+  // live: editing the param on a running sim rebuilds the creatures
+  raw.params.count = 2
+  const scene = parseScene(JSON.stringify(raw))
+  assert.ok(scene.ok)
+  const sim = await Sim.create(scene.ok ? scene.scene : (null as never))
+  for (let i = 0; i < 20; i++) sim.step()
+  const before = sim.hash()
+  const next = structuredClone(scene.ok ? scene.scene : (null as never))
+  next.params.legLength = { value: 0.8, min: 0.2, max: 0.9 }
+  sim.setScene(next)
+  for (let i = 0; i < 5; i++) sim.step()
+  assert.equal(sim.takeErrors().length, 0)
+  assert.notEqual(sim.hash(), before)
+  sim.dispose()
 })

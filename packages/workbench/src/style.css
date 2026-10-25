@@ -124,3 +124,8 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 .exp-results tr.best td { color: #8be28b; }
 .exp-results tr { cursor: default; }
 #sweepbar { justify-content: space-between; }
+
+/* ?embed: just the simulation */
+.embed header, .embed #editors, .embed #panel, .embed #inspector, .embed #sweepbar { display: none !important; }
+.embed main { display: block; height: 100vh; }
+.embed #right { height: 100vh; }

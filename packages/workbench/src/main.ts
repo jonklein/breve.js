@@ -16,6 +16,8 @@ import type { FromWorker, ToWorker } from './sim.worker'
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
 async function main(): Promise<void> {
+  // `?embed` on the page address shows only the running simulation: no header, editors or sliders
+  if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('embed')
   const examples = await loadExamples()
   const exampleById = new Map(examples.map((e) => [e.id, e]))
   const isExample = (id: string) => exampleById.has(id)

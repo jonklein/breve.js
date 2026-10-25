@@ -16,6 +16,9 @@ export type ToWorker =
 
 /** One frame of one world. */
 export interface WorldFrameMsg {
+  name?: string
+  color?: string
+  scale?: number
   kind: 'agents' | 'lattice' | 'bodies'
   count: number
   size: number
@@ -23,14 +26,14 @@ export interface WorldFrameMsg {
   pos: Float32Array
   vel: Float32Array | null
   attr: Float32Array | null
-  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number }
+  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number }
   rigid?: RigidFrame
 }
 
 export type FromWorker =
-  | { type: 'tiles'; tick: number; rate: number; stepMs: number; tiles: (WorldFrameMsg & { name: string; value: number; metrics: Record<string, number> | null })[] }
+  | { type: 'tiles'; tick: number; rate: number; stepMs: number; tiles: { name: string; value: number; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
   | { type: 'focused'; param: string; value: number }
-  | { type: 'frame'; tick: number; kind: 'agents' | 'lattice' | 'bodies'; count: number; size: number; unit: number; pos: Float32Array; vel: Float32Array | null; attr: Float32Array | null; lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number }; rigid?: RigidFrame; rate: number; metrics: Record<string, number> | null; stepMs: number }
+  | { type: 'frame'; tick: number; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -49,8 +52,10 @@ async function compile(code: string): Promise<ScriptModule> {
   const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }))
   try {
     const mod = (await import(/* @vite-ignore */ url)) as ScriptModule
-    if (!mod.default || (typeof mod.default.decide !== 'function' && typeof mod.default.update !== 'function'))
-      throw new Error('the script must `export default { decide(obs, params, ctx) { ... } }` (or `update`, for lattices)')
+    // a controller is any exported object with a `decide` or `update` function: the default, or named kinds
+    const isController = (v: unknown) => !!v && typeof v === 'object' && (typeof (v as { decide?: unknown }).decide === 'function' || typeof (v as { update?: unknown }).update === 'function')
+    if (!Object.entries(mod).some(([k, v]) => k !== 'metrics' && isController(v)))
+      throw new Error('the script must export a controller: `export default { decide(obs, params, ctx) { ... } }` (lattices may use `update`), or named ones like `export const Ant = { decide() { ... } }`')
     return mod
   } finally {
     URL.revokeObjectURL(url)
@@ -105,8 +110,8 @@ function postGroup(): void {
   if (first && first.tick !== groupTick) {
     groupTick = first.tick
     const all = first.tick % 4 === 0 || first.rate < 30
-    const tiles = [...group.sims].map(([name, s]) => ({ name, value: Number(name.split('=')[1]), metrics: all ? s.metrics() : null, ...s.frame() }))
-    postMessage({ type: 'tiles', tick: first.tick, rate: first.rate, stepMs, tiles } satisfies FromWorker, tiles.flatMap(transfers))
+    const tiles = [...group.sims].map(([name, s]) => ({ name, value: Number(name.split('=')[1]), metrics: all ? s.metrics() : null, frames: s.frames() }))
+    postMessage({ type: 'tiles', tick: first.tick, rate: first.rate, stepMs, tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
   }
   const runtime = [...new Set([...group.sims.values()].flatMap((s) => s.takeErrors()))]
   const problems = JSON.stringify([sceneErrors, scriptErrors, runtime])
@@ -121,11 +126,10 @@ function post(): void {
   if (!sim) return
   if (sim.tick !== lastPosted) {
     lastPosted = sim.tick
-    const f = sim.frame()
+    const frames = sim.frames()
     const m = sim.tick % 4 === 0 || sim.rate < 30 ? sim.metrics() : null
-    const msg: FromWorker = { type: 'frame', tick: sim.tick, metrics: m, stepMs, rate: sim.rate, ...f }
-    const transfer = [f.pos.buffer, ...(f.vel ? [f.vel.buffer] : []), ...(f.attr ? [f.attr.buffer] : []), ...(f.lattice ? [f.lattice.show.buffer] : []), ...(f.rigid ? [f.rigid.poses.buffer] : [])]
-    postMessage(msg, transfer)
+    const msg: FromWorker = { type: 'frame', tick: sim.tick, metrics: m, stepMs, rate: sim.rate, frames }
+    postMessage(msg, frames.flatMap(transfers))
   }
   const runtime = sim.takeErrors()
   const problems = JSON.stringify([sceneErrors, scriptErrors, runtime])

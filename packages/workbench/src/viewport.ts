@@ -45,5 +45,5 @@ export class Viewport {
   }
 
   setWorld(w: WorldLook | undefined): void { this.view.setWorld(w) }
-  update(f: WorldFrame): void { this.view.update(f) }
+  update(frames: WorldFrame[]): void { this.view.update(frames) }
 }

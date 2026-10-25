@@ -100,6 +100,8 @@ export interface FrameData {
   /** The entity set this frame draws, and its color override. */
   name?: string
   color?: string
+  /** Drawing scale for agents. */
+  scale?: number
   kind: 'agents' | 'lattice' | 'bodies'
   /** Number of things to draw. */
   count: number

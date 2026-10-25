@@ -29,7 +29,7 @@ export function problemsWith(change: { scene?: string; script?: string }): strin
   if (change.script !== undefined) {
     const e = checkScript(change.script)
     if (e) out.push(`script: syntax error\n${e}`)
-    else if (!/export\s+default/.test(change.script)) out.push('script: it must `export default { decide(...) { ... } }` (lattices may use update)')
+    else if (!/export\s+(default|const\s+\w+\s*=\s*\{)/.test(change.script)) out.push('script: it must export a controller: `export default { decide(...) { ... } }` or named ones like `export const Ant = { decide() {} }`')
   }
   return out
 }

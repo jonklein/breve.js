@@ -274,14 +274,14 @@ async function main(): Promise<void> {
   worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     const m = ev.data
     if (m.type === 'frame') {
-      viewport.update(m)
+      viewport.update(m.frames.map((f) => ({ ...f, rate: m.rate })))
       if (m.metrics) metrics.push(m.metrics)
       const now = performance.now()
       if (now - lastTime > 500) {
         const tps = Math.max(0, ((m.tick - lastTick) * 1000) / (now - lastTime))
         lastTick = m.tick
         lastTime = now
-        $('stats').textContent = `tick ${m.tick} · ${m.count} ${m.kind === 'lattice' ? 'live cells' : 'agents'} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
+        $('stats').textContent = `tick ${m.tick} · ${m.frames.map((f) => `${f.count} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'bodies' ? 'creatures' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
       }
     } else if (m.type === 'tiles') {
       if (sweeping) tiles.update(m.tiles, '')

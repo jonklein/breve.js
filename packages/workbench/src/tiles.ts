@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { WorldView, type WorldFrame, type WorldLook } from './world-view'
 
-export interface Tile extends WorldFrame {
+export interface Tile {
+  frames: WorldFrame[]
   name: string
   value: number
   metrics: Record<string, number> | null
@@ -82,7 +83,7 @@ export class TileGrid {
     for (const t of tiles) {
       let s = this.slots.get(t.name)
       if (!s) { s = this.makeSlot(t); this.slots.set(t.name, s); added = true }
-      s.view.update(t)
+      s.view.update(t.frames)
       if (!s.base || !s.camera().position.equals(s.placed)) s.base = s.camera().position.clone() // the world moved the camera (new size): re-aim
       const v = this.metric ? t.metrics?.[this.metric] : undefined
       if (v !== undefined) {

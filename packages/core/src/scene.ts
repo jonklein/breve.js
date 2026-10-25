@@ -69,6 +69,8 @@ export interface EntityDef {
   every?: number
   /** Draw color for free agents (overrides the world's agentColor). */
   color?: string
+  /** How big free agents are drawn, as a multiple of the default (1). */
+  size?: number
   /** Free-moving agents. Use this or `lattice`. */
   count?: NumOrParam
   lattice?: LatticeDef
@@ -251,6 +253,7 @@ export const sceneSchema = {
           type: { type: 'string', pattern: '^[A-Za-z_$][A-Za-z0-9_$]*$' },
           every: { type: 'integer', minimum: 1, maximum: 1000 },
           color,
+          size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
           count: numOrParam,
           lattice: {
             type: 'object',

@@ -19,6 +19,7 @@
       "controller": "ants.js",
       "count": "$count",
       "color": "#f2d088",
+      "size": 2.2,
       "motion": { "maxSpeed": "$speed", "minSpeed": 1.5, "maxAccel": 60, "plane": "xz" },
       "state": { "carrying": "u8" }
     },

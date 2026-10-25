@@ -33,5 +33,12 @@
     "description": "Each agent has its own neural network brain, kept as per-agent state arrays: weights and a memory.",
     "scene": "scene.json",
     "script": "brain.js"
+  },
+  {
+    "id": "ants",
+    "name": "Ants",
+    "description": "Foraging ants lay scent on a ground layer: two entity sets (agents and cells) in one world, trails form by themselves.",
+    "scene": "scene.json",
+    "script": "ants.js"
   }
 ]

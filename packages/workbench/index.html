@@ -26,24 +26,33 @@
         <nav>
           <button class="tab active" data-tab="scene">scene.json</button>
           <button class="tab" data-tab="script" id="script-tab">script.js</button>
+          <button class="tab" data-tab="experiment">experiment.json</button>
           <button class="tab" data-tab="chat">Assistant</button>
           <button class="tab" data-tab="docs">Docs</button>
           <span id="status" class="status ok">ok</span>
         </nav>
         <div id="editor-scene" class="editor"></div>
         <div id="editor-script" class="editor hidden"></div>
+        <div id="exp" class="exp hidden">
+          <div id="editor-experiment" class="editor"></div>
+          <div class="exp-bar">
+            <button id="exp-run" title="Run every candidate to the end, one after another, and rank them">Run</button>
+            <button id="exp-watch" title="Show up to 12 of the runs side by side, live">Watch</button>
+            <button id="exp-stop" disabled>Stop</button>
+            <button id="exp-apply" disabled title="Put the best run's params into scene.json">Apply best</button>
+            <button id="exp-csv" disabled>Export CSV</button>
+            <span id="exp-status" class="muted mono"></span>
+          </div>
+          <div id="exp-results" class="exp-results"></div>
+        </div>
         <div id="chat" class="chat hidden"></div>
         <div id="docs" class="docs hidden"></div>
         <ul id="problems" class="problems"></ul>
       </section>
       <section id="right">
         <div id="sweepbar" class="hidden">
-          <label>Vary <select id="sweep-param"></select></label>
-          <label>from <input id="sweep-from" type="number" step="any" /></label>
-          <label>to <input id="sweep-to" type="number" step="any" /></label>
-          <label>in <select id="sweep-count"><option>4</option><option>6</option><option selected>9</option><option>12</option></select> runs</label>
-          <button id="sweep-run">Run</button>
-          <button id="sweep-exit" class="hidden">Back to one run</button>
+          <span class="muted">Watching the experiment's runs side by side. Click one to continue from it.</span>
+          <button id="sweep-exit">Back to one run</button>
         </div>
         <div id="viewport"></div>
         <div id="inspector" class="inspector hidden"></div>

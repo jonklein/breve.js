@@ -4,7 +4,8 @@
     "name": "Boids",
     "description": "Flocking birds in 3D: cohesion, alignment, separation.",
     "scene": "scene.json",
-    "script": "flock.js"
+    "script": "flock.js",
+    "experiment": "experiment.json"
   },
   {
     "id": "life3d",
@@ -18,7 +19,8 @@
     "name": "Creatures",
     "description": "Four-legged walkers on bumpy Perlin terrain: a JSON body, joint motors and an oscillator.",
     "scene": "scene.json",
-    "script": "creature.js"
+    "script": "creature.js",
+    "experiment": "experiment.json"
   },
   {
     "id": "life2d",
@@ -39,7 +41,8 @@
     "name": "Ants",
     "description": "Foraging ants lay scent on a ground layer: two entity sets (agents and cells) in one world, trails form by themselves.",
     "scene": "scene.json",
-    "script": "ants.js"
+    "script": "ants.js",
+    "experiment": "experiment.json"
   },
   {
     "id": "herding",

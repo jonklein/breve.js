@@ -1,0 +1,7 @@
+{
+  "name": "which settings make a flock fly together?",
+  "strategy": { "type": "grid", "steps": 4 },
+  "space": ["alignment", "cohesion"],
+  "objective": { "metric": "polarization", "goal": "max", "aggregate": "final" },
+  "ticks": 400
+}

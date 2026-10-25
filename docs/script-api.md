@@ -239,3 +239,21 @@ Names listed in the scene's `"metrics"` must exist in the script's exported `met
 ## Examples
 
 Five complete examples live in `examples/` (`life2d` shows the whole-grid `update` rule and `neural` per-agent neural networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.
+
+## experiment.json
+
+An experiment says what to vary, how to search, and what counts as good. It sits beside `scene.json` and runs headless in its own worker; the Experiment tab shows a ranked table, can apply the best params to the scene, export CSV, or **Watch** the candidates side by side (up to 12 live).
+
+```jsonc
+{
+  "name": "which settings make a flock fly together?",
+  "strategy": { "type": "grid", "steps": 4 },   // "grid", "random" (runs) or "cmaes" (runs, population, sigma)
+  "space": ["alignment", "cohesion"],           // params to vary, using the ranges the scene gives them
+  "objective": { "metric": "polarization", "goal": "max", "aggregate": "final" },
+  "ticks": 400,                                 // how long each run lasts
+  "replicates": 1,                              // runs per candidate (different seeds), averaged
+  "seed": 1                                     // seed for the search itself
+}
+```
+
+`space` can also be an object for finer control: `{ "separation": { "min": 0, "max": 30, "step": 0.5 }, "cohesion": [0.2, 0.8, 1.5] }` (a list is a set of values to choose from). `objective.metric` must be one of the scene's `metrics`; `aggregate` is how a run's samples become one number (`final`, `mean`, `max` or `min`). Strategies only propose points and learn from scores, so more can be added without touching the simulator.

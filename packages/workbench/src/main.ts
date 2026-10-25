@@ -10,6 +10,7 @@ import {
 import { ChatPanel } from './chat'
 import { DocsPanel } from './docs'
 import { InspectorPanel } from './inspector'
+import { ExperimentPanel, defaultExperiment } from './experiment-panel'
 import type { FromWorker, ToWorker } from './sim.worker'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -25,64 +26,22 @@ async function main(): Promise<void> {
   const viewport = new Viewport($('viewport'))
   const metrics = new MetricsPanel($('metrics'))
 
-  // ---- sweep: the same scene many times over, side by side ----
+  // ---- watching an experiment's runs side by side ----
   let sweeping = false
   const tiles = new TileGrid($('tiles'), (name) => send({ type: 'focus', name }))
-  const sweepParam = $<HTMLSelectElement>('sweep-param')
-  const sweepFrom = $<HTMLInputElement>('sweep-from')
-  const sweepTo = $<HTMLInputElement>('sweep-to')
-  const paramRange = (name: string) => {
-    try {
-      const v = (JSON.parse(sceneEditor.getText()).params ?? {})[name]
-      if (typeof v === 'number') return { min: Math.min(0, v * 2), max: Math.max(1, v * 2), step: 0 }
-      return { min: v.min ?? 0, max: v.max ?? v.value * 2, step: v.step ?? 0 }
-    } catch { return { min: 0, max: 1, step: 0 } }
-  }
-  const fillSweepBar = () => {
-    let names: string[] = []
-    try { names = Object.keys(JSON.parse(sceneEditor.getText()).params ?? {}) } catch { /* the scene is mid-edit */ }
-    const keep = sweepParam.value
-    sweepParam.replaceChildren(...names.map((n) => Object.assign(document.createElement('option'), { value: n, textContent: n })))
-    sweepParam.value = names.includes(keep) ? keep : names.find((n) => n !== 'count') ?? names[0] ?? ''
-    const r = paramRange(sweepParam.value)
-    sweepFrom.value = String(r.min)
-    sweepTo.value = String(r.max)
-  }
   const showSweep = (on: boolean) => {
     sweeping = on
     viewport.setVisible(!on)
     tiles.setVisible(on)
-    $('sweep-exit').classList.toggle('hidden', !on)
+    $('sweepbar').classList.toggle('hidden', !on)
   }
   const leaveSweep = () => {
     if (!sweeping) return
     showSweep(false)
     send({ type: 'single' })
   }
-  $('sweep').addEventListener('click', () => {
-    const bar = $('sweepbar')
-    const opening = bar.classList.contains('hidden')
-    bar.classList.toggle('hidden', !opening)
-    if (opening) fillSweepBar()
-    else leaveSweep()
-  })
-  sweepParam.addEventListener('change', () => {
-    const r = paramRange(sweepParam.value)
-    sweepFrom.value = String(r.min)
-    sweepTo.value = String(r.max)
-  })
-  $('sweep-run').addEventListener('click', () => {
-    const n = Number($<HTMLSelectElement>('sweep-count').value)
-    const lo = Number(sweepFrom.value), hi = Number(sweepTo.value)
-    const step = paramRange(sweepParam.value).step
-    const round = (v: number) => Number((step > 0 ? Math.round(v / step) * step : v).toPrecision(6))
-    const values = [...new Set(Array.from({ length: n }, (_, i) => round(n === 1 ? lo : lo + ((hi - lo) * i) / (n - 1))))]
-    tiles.clear()
-    try { tiles.setMetric(JSON.parse(sceneEditor.getText()).metrics?.[0] ?? '') } catch { tiles.setMetric('') }
-    showSweep(true)
-    send({ type: 'sweep', param: sweepParam.value, values })
-  })
   $('sweep-exit').addEventListener('click', leaveSweep)
+
   let current = ''
   let loading = false // true while we write to the editors ourselves, so edits aren't saved or echoed
   const timers: Record<string, number> = {}
@@ -92,7 +51,7 @@ async function main(): Promise<void> {
   }
 
   const projectName = () => exampleById.get(current)?.name ?? userProjects().find((p) => p.id === current)?.name ?? 'project'
-  const docNow = (): Doc => ({ scene: sceneEditor.getText(), script: scriptEditor.getText() })
+  const docNow = (): Doc => ({ scene: sceneEditor.getText(), script: scriptEditor.getText(), experiment: experimentEditor.getText() })
 
   const params = new ParamsPanel($('params'), (name, value) => {
     const next = setParamInText(sceneEditor.getText(), name, value)
@@ -124,6 +83,10 @@ async function main(): Promise<void> {
     if (loading) return
     saveDoc(current, docNow())
     debounce('script', () => send({ type: 'script', script: text }))
+  })
+  const experimentEditor = makeEditor($('editor-experiment'), '', 'json', () => {
+    if (loading) return
+    saveDoc(current, docNow())
   })
   Object.assign(window, { breve: { sceneEditor, scriptEditor, worker, viewport } }) // handle for poking at it from the console
 
@@ -177,7 +140,7 @@ async function main(): Promise<void> {
       sceneEditor.setText(doc.scene)
       scriptEditor.setText(doc.script)
       loading = false
-      saveDoc(current, doc)
+      saveDoc(current, { ...doc, experiment: experimentEditor.getText() })
       showScene(doc.scene)
       send({ type: 'scene', scene: doc.scene })
       send({ type: 'script', script: doc.script })
@@ -230,11 +193,12 @@ async function main(): Promise<void> {
     loading = true
     sceneEditor.setText(doc.scene)
     scriptEditor.setText(doc.script)
+    experimentEditor.setText(doc.experiment ?? defaultExperiment(doc.scene))
     loading = false
+    experiment.clear()
     metrics.clear()
     if (inspecting) stopInspecting()
     if (sweeping) showSweep(false)
-    $('sweepbar').classList.add('hidden')
     showScene(doc.scene)
     renderPicker()
     history.replaceState(null, '', '#' + id)
@@ -276,27 +240,7 @@ async function main(): Promise<void> {
     open(current)
   })
 
-  // ---- editor tabs and transport ----
-  document.querySelectorAll<HTMLButtonElement>('.tab').forEach((b) =>
-    b.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b))
-      $('editor-scene').classList.toggle('hidden', b.dataset.tab !== 'scene')
-      $('editor-script').classList.toggle('hidden', b.dataset.tab !== 'script')
-      $('chat').classList.toggle('hidden', b.dataset.tab !== 'chat')
-      $('docs').classList.toggle('hidden', b.dataset.tab !== 'docs')
-      if (b.dataset.tab === 'docs') void docs.show()
-    }),
-  )
-
-  let running = true
-  $('play').addEventListener('click', () => {
-    running = !running
-    $('play').textContent = running ? 'Pause' : 'Play'
-    send({ type: 'play', running })
-  })
-  $('step').addEventListener('click', () => send({ type: 'step' }))
-  $('reset').addEventListener('click', () => { metrics.clear(); tiles.resetHistory(); send({ type: 'reset' }) })
-
+  // ---- experiments ----
   const status = $('status')
   const problems = $('problems')
   const showProblems = (scene: string[], script: string[], runtime: string[]) => {
@@ -317,6 +261,52 @@ async function main(): Promise<void> {
     status.textContent = bad ? 'error · last good version still running' : 'ok · live'
     status.className = 'status ' + (bad ? 'bad' : 'ok')
   }
+  const experiment = new ExperimentPanel({
+    texts: () => ({ scene: sceneEditor.getText(), script: scriptEditor.getText(), experiment: experimentEditor.getText() }),
+    apply(params) {
+      let next = sceneEditor.getText()
+      for (const [name, value] of Object.entries(params)) next = setParamInText(next, name, value) ?? next
+      loading = true
+      sceneEditor.setText(next)
+      loading = false
+      saveDoc(current, docNow())
+      showScene(next)
+      send({ type: 'scene', scene: next })
+    },
+    watch(runs) {
+      tiles.clear()
+      try { tiles.setMetric(JSON.parse(sceneEditor.getText()).metrics?.[0] ?? '') } catch { tiles.setMetric('') }
+      showSweep(true)
+      send({ type: 'sweep', runs })
+    },
+    problems: (errors) => showProblems([], [], errors),
+  })
+
+  // ---- editor tabs and transport ----
+  document.querySelectorAll<HTMLButtonElement>('.tab').forEach((b) =>
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b))
+      $('editor-scene').classList.toggle('hidden', b.dataset.tab !== 'scene')
+      $('editor-script').classList.toggle('hidden', b.dataset.tab !== 'script')
+      $('exp').classList.toggle('hidden', b.dataset.tab !== 'experiment')
+      $('chat').classList.toggle('hidden', b.dataset.tab !== 'chat')
+      $('docs').classList.toggle('hidden', b.dataset.tab !== 'docs')
+      if (b.dataset.tab === 'docs') void docs.show()
+    }),
+  )
+
+  let running = true
+  $('play').addEventListener('click', () => {
+    running = !running
+    $('play').textContent = running ? 'Pause' : 'Play'
+    send({ type: 'play', running })
+  })
+  $('sweep').addEventListener('click', () => {
+    document.querySelector<HTMLButtonElement>('[data-tab=experiment]')!.click()
+    $('exp-watch').click()
+  })
+  $('step').addEventListener('click', () => send({ type: 'step' }))
+  $('reset').addEventListener('click', () => { metrics.clear(); tiles.resetHistory(); send({ type: 'reset' }) })
 
   let lastTick = 0
   let lastTime = performance.now()
@@ -345,17 +335,15 @@ async function main(): Promise<void> {
     } else if (m.type === 'controllers') {
       inspector.setControllers(m.names)
     } else if (m.type === 'focused') {
-      // continue from the picked tile: make its param value the scene's own, and go back to the big view
-      const next = setParamInText(sceneEditor.getText(), m.param, m.value)
-      if (next !== null) {
-        loading = true
-        sceneEditor.setText(next)
-        loading = false
-        saveDoc(current, docNow())
-        showScene(next)
-      }
+      // continue from the picked tile: make its param values the scene's own, and go back to the big view
+      let next = sceneEditor.getText()
+      for (const [name, value] of Object.entries(m.params)) next = setParamInText(next, name, value) ?? next
+      loading = true
+      sceneEditor.setText(next)
+      loading = false
+      saveDoc(current, docNow())
+      showScene(next)
       showSweep(false)
-      $('sweepbar').classList.add('hidden')
     } else if (m.type === 'problems') {
       showProblems(m.scene, m.script, m.runtime)
     }

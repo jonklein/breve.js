@@ -1,0 +1,8 @@
+{
+  "name": "scent that lasts: how much food reaches the nest?",
+  "strategy": { "type": "random", "runs": 12 },
+  "space": ["evaporation", "wander", "laying"],
+  "objective": { "metric": "delivered", "goal": "max", "aggregate": "final" },
+  "ticks": 900,
+  "seed": 3
+}

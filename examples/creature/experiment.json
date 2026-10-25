@@ -1,0 +1,7 @@
+{
+  "name": "evolve a faster gait (CMA-ES)",
+  "strategy": { "type": "cmaes", "runs": 16, "population": 4, "sigma": 0.3 },
+  "space": ["frequency", "stride", "lift"],
+  "objective": { "metric": "distance", "goal": "max", "aggregate": "final" },
+  "ticks": 300
+}

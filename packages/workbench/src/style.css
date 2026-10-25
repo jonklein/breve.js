@@ -115,3 +115,12 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 .insp-table input[type=number], .insp-table input[type=text] { width: 100%; min-width: 0; }
 .insp-arr { grid-column: 1 / -1; word-break: break-all; color: var(--text); }
 .insp-slot { width: 56px !important; }
+.exp { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.exp .editor { flex: 0 0 38%; min-height: 120px; }
+.exp-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 10px; border-block: 1px solid var(--border); background: var(--panel); }
+.exp-results { flex: 1; overflow: auto; font-size: 12px; }
+.exp-results table { width: 100%; border-collapse: collapse; }
+.exp-results th, .exp-results td { text-align: left; padding: 2px 8px; border-bottom: 1px solid var(--border); font-family: ui-monospace, Menlo, monospace; }
+.exp-results tr.best td { color: #8be28b; }
+.exp-results tr { cursor: default; }
+#sweepbar { justify-content: space-between; }

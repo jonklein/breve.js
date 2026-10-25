@@ -4,7 +4,7 @@ import { WorldView, type WorldFrame, type WorldLook } from './world-view'
 export interface Tile {
   frames: WorldFrame[]
   name: string
-  value: number
+  params: Record<string, number>
   metrics: Record<string, number> | null
 }
 
@@ -149,7 +149,7 @@ export class TileGrid {
     for (const s of this.slots.values()) {
       s.title.textContent = ''
       const [name] = [...this.slots].find(([, v]) => v === s)!
-      s.title.textContent = name.replace('=', ' = ')
+      s.title.textContent = name.replace(/=/g, ' = ')
       const g = s.spark.getContext('2d')!
       g.clearRect(0, 0, s.spark.width, s.spark.height)
       if (s.history.length < 2) continue

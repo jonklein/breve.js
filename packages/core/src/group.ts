@@ -50,8 +50,13 @@ export class SimGroup {
    * Every sim keeps the scene's seed, so differences are down to the param alone.
    */
   static async sweep(scene: Scene, script: ScriptModule | undefined, param: string, values: number[]): Promise<SimGroup> {
+    return SimGroup.fromRuns(scene, script, values.map((v) => ({ name: `${param}=${v}`, params: { [param]: v } })))
+  }
+
+  /** One sim per run, each with its own param values (any number of params at once), as an experiment's candidates. */
+  static async fromRuns(scene: Scene, script: ScriptModule | undefined, runs: { name: string; params: Params }[]): Promise<SimGroup> {
     const g = new SimGroup()
-    for (const v of values) g.add(`${param}=${v}`, await Sim.create(withParams(scene, { [param]: v }), script))
+    for (const r of runs) g.add(r.name, await Sim.create(withParams(scene, r.params), script))
     return g
   }
 

@@ -4,11 +4,14 @@ export interface ExampleInfo {
   description: string
   scene: string
   script: string
+  experiment?: string
 }
 
 export interface Doc {
   scene: string
   script: string
+  /** An optional experiment.json: what to search over and how. */
+  experiment?: string
 }
 
 export interface UserProject {
@@ -42,11 +45,12 @@ export async function loadExamples(): Promise<ExampleInfo[]> {
 }
 
 export async function fetchExample(e: ExampleInfo): Promise<Doc> {
-  const [scene, script] = await Promise.all([
+  const [scene, script, experiment] = await Promise.all([
     fetch(`/${e.id}/${e.scene}`).then((r) => r.text()),
     fetch(`/${e.id}/${e.script}`).then((r) => r.text()),
+    e.experiment ? fetch(`/${e.id}/${e.experiment}`).then((r) => r.text()) : Promise.resolve(undefined),
   ])
-  return { scene, script }
+  return { scene, script, experiment }
 }
 
 export const userProjects = (): UserProject[] => read<UserProject[]>(INDEX_KEY) ?? []

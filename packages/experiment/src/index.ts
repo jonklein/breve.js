@@ -1,0 +1,6 @@
+export { parseExperiment, type ExperimentSpec, type StrategySpec, type SpecResult } from './spec'
+export { makeDims, type Dim, type SpaceSpec } from './space'
+export type { Strategy } from './strategy'
+export { GridStrategy, RandomStrategy, CmaStrategy } from './strategies'
+export { CmaEs } from './cmaes'
+export { runExperiment, evaluate, makeStrategy, toCsv, sampleCandidates, plannedRuns, runName, type Trial, type ExperimentResult } from './runner'

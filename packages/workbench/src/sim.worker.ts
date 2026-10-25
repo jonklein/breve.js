@@ -1,3 +1,4 @@
+import { compile } from './script-load'
 import { Sim, SimGroup, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
 
 export type ToWorker =
@@ -15,7 +16,7 @@ export type ToWorker =
   /** Edit one value of one entity. */
   | { type: 'poke'; set: number; row: number; field: string; value: number | boolean | string; index?: number }
   /** Run the scene once per value of one param, side by side. */
-  | { type: 'sweep'; param: string; values: number[] }
+  | { type: 'sweep'; runs: { name: string; params: Record<string, number> }[] }
   /** Leave the sweep. */
   | { type: 'single' }
   /** Continue from one sweep tile as the single sim. */
@@ -38,8 +39,8 @@ export interface WorldFrameMsg {
 }
 
 export type FromWorker =
-  | { type: 'tiles'; tick: number; rate: number; stepMs: number; tiles: { name: string; value: number; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
-  | { type: 'focused'; param: string; value: number }
+  | { type: 'tiles'; tick: number; rate: number; stepMs: number; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
+  | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
   | { type: 'frame'; tick: number; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
@@ -55,21 +56,7 @@ let lastSent = ''
 let selection: { set: number; row: number } | null = null
 // sweep mode: many sims in one group, ticking together
 let group: SimGroup | null = null
-let sweepParam = ''
-
-async function compile(code: string): Promise<ScriptModule> {
-  const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }))
-  try {
-    const mod = (await import(/* @vite-ignore */ url)) as ScriptModule
-    // a controller is any exported object with a `decide` or `update` function: the default, or named kinds
-    const isController = (v: unknown) => !!v && typeof v === 'object' && (typeof (v as { decide?: unknown }).decide === 'function' || typeof (v as { update?: unknown }).update === 'function')
-    if (!Object.entries(mod).some(([k, v]) => k !== 'metrics' && isController(v)))
-      throw new Error('the script must export a controller: `export default { decide(obs, params, ctx) { ... } }` (lattices may use `update`), or named ones like `export const Ant = { decide() { ... } }`')
-    return mod
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
+let sweepRuns = new Map<string, Record<string, number>>()
 
 function applyScene(text: string): void {
   sceneText = text
@@ -78,7 +65,7 @@ function applyScene(text: string): void {
     scene = r.scene
     sceneErrors = []
     sim?.setScene(r.scene)
-    if (group) for (const [name, s] of group.sims) s.setScene(withParams(r.scene, { [sweepParam]: Number(name.split('=')[1]) }))
+    if (group) for (const [name, s] of group.sims) s.setScene(withParams(r.scene, sweepRuns.get(name) ?? {}))
   } else {
     sceneErrors = r.errors
   }
@@ -120,7 +107,7 @@ function postGroup(): void {
   if (first && first.tick !== groupTick) {
     groupTick = first.tick
     const all = first.tick % 4 === 0 || first.rate < 30
-    const tiles = [...group.sims].map(([name, s]) => ({ name, value: Number(name.split('=')[1]), metrics: all ? s.metrics() : null, frames: s.frames() }))
+    const tiles = [...group.sims].map(([name, s]) => ({ name, params: sweepRuns.get(name) ?? {}, metrics: all ? s.metrics() : null, frames: s.frames() }))
     postMessage({ type: 'tiles', tick: first.tick, rate: first.rate, stepMs, tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
   }
   const runtime = [...new Set([...group.sims.values()].flatMap((s) => s.takeErrors()))]
@@ -222,9 +209,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       try {
         group?.dispose()
         group = null
-        const g = await SimGroup.sweep(scene, script ?? undefined, m.param, m.values)
+        const g = await SimGroup.fromRuns(scene, script ?? undefined, m.runs)
         group = g
-        sweepParam = m.param
+        sweepRuns = new Map(m.runs.map((r) => [r.name, r.params]))
         groupTick = -1
         lastSent = ''
       } catch (e) {
@@ -238,21 +225,20 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'focus': {
       if (!group || !group.sims.has(m.name)) break
-      const value = Number(m.name.split('=')[1])
-      const param = sweepParam
+      const params = sweepRuns.get(m.name) ?? {}
       let copy: Sim
       try {
         copy = group.get(m.name).fork()
       } catch {
         // physics scenes cannot be forked yet: start a fresh run with that param value instead
-        copy = await Sim.create(withParams(scene!, { [param]: value }), script ?? undefined)
+        copy = await Sim.create(withParams(scene!, params), script ?? undefined)
       }
       group?.dispose()
       group = null
       sim?.dispose()
       sim = copy
       lastPosted = -1
-      postMessage({ type: 'focused', param, value } satisfies FromWorker)
+      postMessage({ type: 'focused', params } satisfies FromWorker)
       break
     }
     case 'reset':
@@ -260,7 +246,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       if (group && scene) {
         const names = [...group.sims.keys()]
         group.dispose()
-        group = await SimGroup.sweep(scene, script ?? undefined, sweepParam, names.map((n) => Number(n.split('=')[1])))
+        group = await SimGroup.fromRuns(scene, script ?? undefined, names.map((n) => ({ name: n, params: sweepRuns.get(n) ?? {} })))
         groupTick = -1
       } else await rebuild()
       break

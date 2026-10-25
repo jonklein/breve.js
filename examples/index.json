@@ -1,0 +1,5 @@
+[
+  { "id": "boids", "name": "Boids", "description": "Flocking birds in 3D: cohesion, alignment, separation.", "scene": "scene.json", "script": "flock.js" },
+  { "id": "life3d", "name": "3D Life", "description": "Conway-style cellular automaton on a 3D grid.", "scene": "scene.json", "script": "life.js" },
+  { "id": "creature", "name": "Creatures", "description": "Four-legged walkers on bumpy Perlin terrain: a JSON body, joint motors and an oscillator.", "scene": "scene.json", "script": "creature.js" }
+]

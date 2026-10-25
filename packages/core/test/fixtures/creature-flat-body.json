@@ -1,0 +1,328 @@
+{
+  "parts": [
+    {
+      "name": "torso",
+      "shape": "box",
+      "size": [
+        0.9,
+        0.25,
+        0.45
+      ],
+      "mass": 4,
+      "position": [
+        0,
+        0.62,
+        0
+      ]
+    },
+    {
+      "name": "upperFL",
+      "shape": "capsule",
+      "size": [
+        0.25,
+        0.06
+      ],
+      "mass": 0.4,
+      "position": [
+        0.32,
+        0.425,
+        -0.27
+      ]
+    },
+    {
+      "name": "lowerFL",
+      "shape": "capsule",
+      "size": [
+        0.25,
+        0.05
+      ],
+      "mass": 0.3,
+      "position": [
+        0.32,
+        0.175,
+        -0.27
+      ]
+    },
+    {
+      "name": "upperFR",
+      "shape": "capsule",
+      "size": [
+        0.25,
+        0.06
+      ],
+      "mass": 0.4,
+      "position": [
+        0.32,
+        0.425,
+        0.27
+      ]
+    },
+    {
+      "name": "lowerFR",
+      "shape": "capsule",
+      "size": [
+        0.25,
+        0.05
+      ],
+      "mass": 0.3,
+      "position": [
+        0.32,
+        0.175,
+        0.27
+      ]
+    },
+    {
+      "name": "upperHL",
+      "shape": "capsule",
+      "size": [
+        0.25,
+        0.06
+      ],
+      "mass": 0.4,
+      "position": [
+        -0.32,
+        0.425,
+        -0.27
+      ]
+    },
+    {
+      "name": "lowerHL",
+      "shape": "capsule",
+      "size": [
+        0.25,
+        0.05
+      ],
+      "mass": 0.3,
+      "position": [
+        -0.32,
+        0.175,
+        -0.27
+      ]
+    },
+    {
+      "name": "upperHR",
+      "shape": "capsule",
+      "size": [
+        0.25,
+        0.06
+      ],
+      "mass": 0.4,
+      "position": [
+        -0.32,
+        0.425,
+        0.27
+      ]
+    },
+    {
+      "name": "lowerHR",
+      "shape": "capsule",
+      "size": [
+        0.25,
+        0.05
+      ],
+      "mass": 0.3,
+      "position": [
+        -0.32,
+        0.175,
+        0.27
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "name": "hipFL",
+      "parent": "torso",
+      "child": "upperFL",
+      "anchor": [
+        0.32,
+        0.55,
+        -0.27
+      ],
+      "limits": [
+        -0.9,
+        0.9
+      ],
+      "motor": {
+        "stiffness": "$strength",
+        "damping": 8
+      },
+      "drive": {
+        "amplitude": "$stride",
+        "phase": 0
+      }
+    },
+    {
+      "name": "kneeFL",
+      "parent": "upperFL",
+      "child": "lowerFL",
+      "anchor": [
+        0.32,
+        0.3,
+        -0.27
+      ],
+      "limits": [
+        -1.6,
+        0.1
+      ],
+      "motor": {
+        "stiffness": "$strength",
+        "damping": 8
+      },
+      "drive": {
+        "amplitude": "$lift",
+        "offset": -0.9,
+        "phase": 0,
+        "lag": "$kneeLag"
+      }
+    },
+    {
+      "name": "hipFR",
+      "parent": "torso",
+      "child": "upperFR",
+      "anchor": [
+        0.32,
+        0.55,
+        0.27
+      ],
+      "limits": [
+        -0.9,
+        0.9
+      ],
+      "motor": {
+        "stiffness": "$strength",
+        "damping": 8
+      },
+      "drive": {
+        "amplitude": "$stride",
+        "phase": "$diagonal"
+      }
+    },
+    {
+      "name": "kneeFR",
+      "parent": "upperFR",
+      "child": "lowerFR",
+      "anchor": [
+        0.32,
+        0.3,
+        0.27
+      ],
+      "limits": [
+        -1.6,
+        0.1
+      ],
+      "motor": {
+        "stiffness": "$strength",
+        "damping": 8
+      },
+      "drive": {
+        "amplitude": "$lift",
+        "offset": -0.9,
+        "phase": "$diagonal",
+        "lag": "$kneeLag"
+      }
+    },
+    {
+      "name": "hipHL",
+      "parent": "torso",
+      "child": "upperHL",
+      "anchor": [
+        -0.32,
+        0.55,
+        -0.27
+      ],
+      "limits": [
+        -0.9,
+        0.9
+      ],
+      "motor": {
+        "stiffness": "$strength",
+        "damping": 8
+      },
+      "drive": {
+        "amplitude": "$stride",
+        "phase": "$diagonal"
+      }
+    },
+    {
+      "name": "kneeHL",
+      "parent": "upperHL",
+      "child": "lowerHL",
+      "anchor": [
+        -0.32,
+        0.3,
+        -0.27
+      ],
+      "limits": [
+        -1.6,
+        0.1
+      ],
+      "motor": {
+        "stiffness": "$strength",
+        "damping": 8
+      },
+      "drive": {
+        "amplitude": "$lift",
+        "offset": -0.9,
+        "phase": "$diagonal",
+        "lag": "$kneeLag"
+      }
+    },
+    {
+      "name": "hipHR",
+      "parent": "torso",
+      "child": "upperHR",
+      "anchor": [
+        -0.32,
+        0.55,
+        0.27
+      ],
+      "limits": [
+        -0.9,
+        0.9
+      ],
+      "motor": {
+        "stiffness": "$strength",
+        "damping": 8
+      },
+      "drive": {
+        "amplitude": "$stride",
+        "phase": "$hindOffset"
+      }
+    },
+    {
+      "name": "kneeHR",
+      "parent": "upperHR",
+      "child": "lowerHR",
+      "anchor": [
+        -0.32,
+        0.3,
+        0.27
+      ],
+      "limits": [
+        -1.6,
+        0.1
+      ],
+      "motor": {
+        "stiffness": "$strength",
+        "damping": 8
+      },
+      "drive": {
+        "amplitude": "$lift",
+        "offset": -0.9,
+        "phase": "$hindOffset",
+        "lag": "$kneeLag"
+      }
+    }
+  ],
+  "sensors": [
+    {
+      "type": "pose"
+    },
+    {
+      "type": "joints"
+    },
+    {
+      "type": "touch"
+    }
+  ]
+}

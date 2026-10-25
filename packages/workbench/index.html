@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>breve workbench</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header>
+      <strong>breve</strong>
+      <select id="project" aria-label="Project"></select>
+      <input id="name" class="hidden" aria-label="Project name" />
+      <button id="fork" title="Copy this project so you can change it freely">Fork</button>
+      <button id="delete" class="hidden" title="Delete this project">Delete</button>
+      <span class="spacer"></span>
+      <button id="play" title="Play or pause">Pause</button>
+      <button id="step" title="Advance one tick">Step</button>
+      <button id="reset" title="Restart from the seed">Reset</button>
+      <span id="stats" class="muted mono"></span>
+      <button id="restore" title="Discard your edits and reload the example">Restore example</button>
+    </header>
+    <main>
+      <section id="editors">
+        <nav>
+          <button class="tab active" data-tab="scene">scene.json</button>
+          <button class="tab" data-tab="script" id="script-tab">script.js</button>
+          <button class="tab" data-tab="chat">Assistant</button>
+          <span id="status" class="status ok">ok</span>
+        </nav>
+        <div id="editor-scene" class="editor"></div>
+        <div id="editor-script" class="editor hidden"></div>
+        <div id="chat" class="chat hidden"></div>
+        <ul id="problems" class="problems"></ul>
+      </section>
+      <section id="right">
+        <div id="viewport"></div>
+        <div id="panel">
+          <div id="params"></div>
+          <div id="metrics"></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+// Boids: every bird follows three simple rules.
+//
+//   cohesion    fly toward the other birds nearby
+//   alignment   fly the same way they are flying
+//   separation  don't crowd anyone
+//
+// `neighbors` is a whole group of birds, so you can ask it questions
+// like neighbors.velocity.average() with no loops.
+
+export default {
+  decide({ self, neighbors }, p) {
+    const crowd = neighbors.within(p.separationRadius) // the birds that are too close
+
+    const cohesion = neighbors.offset.average() // toward the middle of the group
+    const alignment = neighbors.velocity.minus(self.velocity).average() // how they move compared to me
+    const separation = crowd.offset.map((o) => o.reversed().dividedBy(o.lengthSquared())).sum() // away from each one, harder the closer they are
+
+    return {
+      steer: cohesion.times(p.cohesion)
+        .plus(alignment.times(p.alignment))
+        .plus(separation.times(p.separation)),
+    }
+  },
+}
+
+// Numbers named in scene.json "metrics" are measured from all the birds.
+export const metrics = {
+  // 1 when everyone flies the same way, near 0 when it's chaos
+  polarization: ({ agents }) => agents.velocity.normalized().average().length(),
+}

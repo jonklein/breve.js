@@ -1,0 +1,208 @@
+import * as THREE from 'three'
+import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import type { PartShape, RigidFrame, TerrainMesh } from '@breve/core'
+
+const MAX_CREATURES = 256
+const DEFAULT_TERRAIN = '#4f7a46'
+
+type Model = NonNullable<RigidFrame['model']>
+
+/** Draws physics bodies (one instanced mesh per body part) and the terrain. A pure reader of RigidFrame. */
+export class RigidView {
+  private group = new THREE.Group()
+  private terrain: THREE.Mesh | null = null
+  private meshes: THREE.InstancedMesh[] = []
+  private tmpM = new THREE.Matrix4()
+  private tmpP = new THREE.Vector3()
+  private tmpQ = new THREE.Quaternion()
+  private one = new THREE.Vector3(1, 1, 1)
+  private tmpC = new THREE.Color()
+  private framed = 0
+  private shadows = false
+
+  constructor(scene: THREE.Scene, private camera: THREE.PerspectiveCamera, private controls: OrbitControls) {
+    this.group.visible = false
+    scene.add(this.group)
+  }
+
+  setVisible(v: boolean): void {
+    this.group.visible = v
+  }
+
+  setShadows(on: boolean): void {
+    this.shadows = on
+    for (const m of this.meshes) m.castShadow = on
+    if (this.terrain) this.terrain.receiveShadow = on
+  }
+
+  update(r: RigidFrame, halfSize: number): void {
+    if (r.model) this.build(r.model, halfSize)
+    const per = r.partCount * 7
+    const n = Math.min(MAX_CREATURES, per ? r.poses.length / per : 0)
+    const p = r.poses
+    this.meshes.forEach((mesh, part) => {
+      mesh.count = n
+      for (let i = 0; i < n; i++) {
+        const o = i * per + part * 7
+        this.tmpP.set(p[o], p[o + 1], p[o + 2])
+        this.tmpQ.set(p[o + 3], p[o + 4], p[o + 5], p[o + 6])
+        this.tmpM.compose(this.tmpP, this.tmpQ, this.one)
+        mesh.setMatrixAt(i, this.tmpM)
+      }
+      mesh.instanceMatrix.needsUpdate = true
+    })
+  }
+
+  private build(model: Model, halfSize: number): void {
+    for (const m of this.meshes) { this.group.remove(m); m.geometry.dispose(); (m.material as THREE.Material).dispose(); m.dispose() }
+    this.meshes = model.parts.map((part, k) => this.partMesh(part, k))
+    this.meshes.forEach((m) => this.group.add(m))
+    this.buildTerrain(model.terrain)
+    // frame the arena from a corner, a little above, but leave the camera alone when only a body was edited
+    if (halfSize !== this.framed) {
+      this.framed = halfSize
+      this.controls.target.set(0, 0, 0)
+      this.camera.position.set(0.9, 0.6, 0.9).multiplyScalar(halfSize * 0.5)
+    }
+  }
+
+  private partMesh(part: PartShape, k: number): THREE.InstancedMesh {
+    const mesh = new THREE.InstancedMesh(geometryFor(part), new THREE.MeshLambertMaterial(), MAX_CREATURES)
+    mesh.frustumCulled = false
+    mesh.castShadow = this.shadows
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CREATURES * 3), 3)
+    for (let i = 0; i < MAX_CREATURES; i++) {
+      // parts without a color take a hue from their creature, so you can tell individuals apart
+      if (part.color) this.tmpC.set(part.color)
+      else this.tmpC.setHSL((i * 0.618034) % 1, 0.55, k === 0 ? 0.55 : 0.4)
+      mesh.instanceColor.setXYZ(i, this.tmpC.r, this.tmpC.g, this.tmpC.b)
+    }
+    mesh.count = 0
+    return mesh
+  }
+
+  private buildTerrain(t: TerrainMesh | null): void {
+    if (this.terrain) { this.group.remove(this.terrain); this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); this.terrain = null }
+    if (!t) return
+    const tex = groundTexture(t.texture ?? 'static', t.size)
+    this.terrain = new THREE.Mesh(
+      terrainGeometry(t, tex?.tile ?? 1, tex?.offset ?? 0),
+      new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, map: tex?.map ?? null }),
+    )
+    this.terrain.receiveShadow = this.shadows
+    this.group.add(this.terrain)
+  }
+}
+
+/** Box `[w, h, d]`, sphere `[r]`, capsule and cylinder `[length, radius]` with the long axis along y: the same sizes the physics uses. */
+function geometryFor(p: PartShape): THREE.BufferGeometry {
+  const s = p.size
+  switch (p.shape) {
+    case 'box': return new THREE.BoxGeometry(s[0], s[1], s[2])
+    case 'sphere': return new THREE.SphereGeometry(s[0], 20, 14)
+    case 'capsule': return new THREE.CapsuleGeometry(s[1], s[0], 4, 12)
+    default: return new THREE.CylinderGeometry(s[1], s[1], s[0], 16)
+  }
+}
+
+/** A height grid as a mesh, shaded a little lighter on the hilltops. Vertex (ix, iz) matches the physics heightfield. */
+function terrainGeometry(t: TerrainMesh, tile: number, offset: number): THREE.BufferGeometry {
+  const m = t.n + 1
+  const step = t.size / t.n
+  let lo = Infinity, hi = -Infinity
+  for (const h of t.heights) { lo = Math.min(lo, h); hi = Math.max(hi, h) }
+  const base = new THREE.Color(t.color ?? DEFAULT_TERRAIN)
+  const pos = new Float32Array(m * m * 3), col = new Float32Array(m * m * 3), uv = new Float32Array(m * m * 2)
+  for (let ix = 0; ix < m; ix++)
+    for (let iz = 0; iz < m; iz++) {
+      const v = ix * m + iz
+      const h = t.heights[v]
+      pos.set([-t.size / 2 + ix * step, h, -t.size / 2 + iz * step], v * 3)
+      uv.set([(-t.size / 2 + ix * step) / tile + offset, (-t.size / 2 + iz * step) / tile + offset], v * 2)
+      const shade = 0.7 + 0.5 * (hi > lo ? (h - lo) / (hi - lo) : 0.5)
+      col.set([base.r * shade, base.g * shade, base.b * shade], v * 3)
+    }
+  const index: number[] = []
+  for (let ix = 0; ix < t.n; ix++)
+    for (let iz = 0; iz < t.n; iz++) {
+      const a = ix * m + iz, b = (ix + 1) * m + iz, c = a + 1, d = b + 1
+      index.push(a, c, b, b, c, d) // counter-clockwise seen from above
+    }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3))
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+  g.setIndex(index)
+  g.computeVertexNormals()
+  return g
+}
+
+/**
+ * A ground texture drawn once on a canvas, deterministically (a local seeded generator, so it looks the
+ * same every time). 'static' is one big image stretched over the whole ground, so nothing repeats and
+ * there are no seams: soft blotches at three scales, fine per-pixel grain, and a few flecks. 'grid'
+ * is a small tile repeated over the ground: a one-unit grid with heavier lines every five.
+ * `tile` is how many world units one copy covers, and `offset` shifts the texture coordinates.
+ */
+function groundTexture(kind: 'static' | 'grid' | 'none', size: number): { map: THREE.Texture; tile: number; offset: number } | null {
+  if (kind === 'none') return null
+  const N = kind === 'grid' ? 256 : 1024
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = N
+  const c = canvas.getContext('2d')!
+  let seed = 12345
+  const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+  let tile: number
+  let offset = 0
+  if (kind === 'grid') {
+    tile = 5
+    c.fillStyle = '#d8d8d8'
+    c.fillRect(0, 0, N, N)
+    const cell = N / 5
+    c.strokeStyle = 'rgba(0,0,0,0.22)'
+    c.lineWidth = 2
+    for (let i = 0; i <= 5; i++) {
+      c.beginPath(); c.moveTo(i * cell, 0); c.lineTo(i * cell, N); c.moveTo(0, i * cell); c.lineTo(N, i * cell); c.stroke()
+    }
+    c.strokeStyle = 'rgba(0,0,0,0.5)'
+    c.lineWidth = 5
+    c.strokeRect(0, 0, N, N)
+  } else {
+    tile = size
+    offset = 0.5
+    // value noise on a random lattice, smoothly interpolated; three scales added together
+    const lattice = (cells: number) => Float32Array.from({ length: (cells + 1) * (cells + 1) }, rnd)
+    const octaves = [{ cells: 6, grid: lattice(6), weight: 0.5 }, { cells: 24, grid: lattice(24), weight: 0.3 }, { cells: 96, grid: lattice(96), weight: 0.2 }]
+    const smooth = (t: number) => t * t * (3 - 2 * t)
+    const img = c.createImageData(N, N)
+    for (let y = 0; y < N; y++)
+      for (let x = 0; x < N; x++) {
+        let v = 0
+        for (const o of octaves) {
+          const fx = (x / N) * o.cells, fy = (y / N) * o.cells
+          const ix = Math.floor(fx), iy = Math.floor(fy)
+          const tx = smooth(fx - ix), ty = smooth(fy - iy)
+          const row = o.cells + 1
+          const top = o.grid[iy * row + ix] * (1 - tx) + o.grid[iy * row + ix + 1] * tx
+          const bot = o.grid[(iy + 1) * row + ix] * (1 - tx) + o.grid[(iy + 1) * row + ix + 1] * tx
+          v += (top * (1 - ty) + bot * ty) * o.weight
+        }
+        const grain = 0.86 + rnd() * 0.14
+        const k = (0.72 + 0.28 * v) * grain * 255
+        const i = (y * N + x) * 4
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = k
+        img.data[i + 3] = 255
+      }
+    c.putImageData(img, 0, 0)
+    for (let i = 0; i < 2500; i++) {
+      c.fillStyle = rnd() < 0.6 ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.28)'
+      const r = 0.8 + rnd() * 1.8
+      c.fillRect(rnd() * N, rnd() * N, r, r)
+    }
+  }
+  const map = new THREE.CanvasTexture(canvas)
+  map.wrapS = map.wrapT = kind === 'grid' ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping
+  map.colorSpace = THREE.SRGBColorSpace
+  map.anisotropy = 4
+  return { map, tile, offset }
+}

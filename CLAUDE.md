@@ -48,6 +48,8 @@ packages/
   physics-*/     adapters (for now: packages/core/src/physics/, Rapier loaded lazily)
   controllers/   built-in controllers
   experiment/    Strategy interface and runners
+  view/          Three.js drawing of a world (agents, cells, graphs, creatures), shared by the workbench and the embed
+  embed/         `breve.run(selector, script, config)` for other web pages, built with esbuild (docs/decisions/embed.md)
   workbench/     the UI
 examples/        demo scenes and scripts
 docs/decisions/  decision records

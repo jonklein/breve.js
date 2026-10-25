@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { WorldView, type WorldFrame, type WorldLook } from './world-view'
+import { WorldView, type WorldFrame, type WorldLook } from '@breve/view'
 
 export interface Tile {
   frames: WorldFrame[]

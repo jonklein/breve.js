@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { WorldView, type WorldLook, type WorldFrame } from './world-view'
+import { WorldView, type WorldLook, type WorldFrame } from '@breve/view'
 
 export type { WorldLook }
 

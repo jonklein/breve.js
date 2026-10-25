@@ -184,3 +184,20 @@ test('frames for the renderer: poses for every part, and the model only on the f
   assert.ok(f2.rigid!.poses.every(Number.isFinite))
   sim.dispose()
 })
+
+test('a physics sim can be snapshotted, restored and forked, and the branches stay identical', async () => {
+  const { scene, script } = await load({ count: 3 })
+  const a = await Sim.create(scene, script)
+  for (let i = 0; i < 40; i++) a.step()
+  const snap = a.snapshot()
+  for (let i = 0; i < 40; i++) a.step()
+  const later = a.hash()
+  a.restore(snap)
+  for (let i = 0; i < 40; i++) a.step()
+  assert.equal(a.hash(), later, 'restoring replays the same future')
+  const b = a.fork()
+  assert.equal(a.hash(), b.hash())
+  for (let i = 0; i < 40; i++) { a.step(); b.step() }
+  assert.equal(a.hash(), b.hash(), 'a fork carries on identically')
+  a.dispose(); b.dispose()
+})

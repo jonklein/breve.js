@@ -67,6 +67,7 @@ export class Sim {
   tick = 0
   script: ScriptModule | null = null
   private errors = new Map<string, number>()
+  private engine?: PhysicsEngine
   readonly worlds: World[] = []
   /** Keys held down right now, for human-driven controllers. Set with `setInput`. */
   private keys: string[] = []
@@ -87,6 +88,7 @@ export class Sim {
     this.params = paramValues(scene)
     this.rng = new Rng(scene.seed)
     if (script) this.script = script
+    this.engine = opts.physics
     if (scene.entities.some((e) => e.body) && !opts.physics) throw new Error('this scene has a physics body: build it with `await Sim.create(scene, script)`')
     scene.entities.forEach((e, i) => {
       const host = new SetHost(this, i)
@@ -289,10 +291,10 @@ export class Sim {
 
   /**
    * A copy of everything that affects the future: the columns, the RNG and the clock. Cheap enough to take
-   * every few ticks. Not available yet for physics scenes, whose engine state lives in wasm.
+   * every few ticks. Physics scenes snapshot the engine's state too.
    */
   snapshot(): SimSnapshot {
-    if (this.worlds.some((w) => !w.snapshot)) throw new Error('this kind of world cannot be snapshotted yet (physics scenes keep their state inside the engine)')
+    if (this.worlds.some((w) => !w.snapshot)) throw new Error('this kind of world cannot be snapshotted yet ')
     return { tick: this.tick, rng: this.rng.getState(), worlds: this.worlds.map((w) => w.snapshot!()), waiting: structuredClone(this.waiting), outbox: structuredClone(this.outbox), keys: [...this.keys] }
   }
 
@@ -313,7 +315,7 @@ export class Sim {
    * for example the same flock with one param changed. The scene must have the same shape (entities, lattice size).
    */
   fork(scene: Scene = this.scene): Sim {
-    const copy = new Sim(structuredClone(scene), this.script ?? undefined, { from: this })
+    const copy = new Sim(structuredClone(scene), this.script ?? undefined, { from: this, physics: this.engine })
     copy.restore(this.snapshot())
     return copy
   }

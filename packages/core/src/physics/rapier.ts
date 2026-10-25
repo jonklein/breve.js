@@ -121,6 +121,33 @@ class RapierWorld implements PhysicsWorld {
     this.world.step(this.events, this.hooks)
   }
 
+  snapshot(arts: Articulation[]): unknown {
+    return {
+      bytes: this.world.takeSnapshot(),
+      arts: (arts as RapierArticulation[]).map((a) => ({ bodies: a.bodies.map((b) => b.handle), joints: a.joints.map((j) => j.joint.handle) })),
+      order: this.bodies.map((b) => b.handle),
+      owner: [...this.owner],
+      nextId: this.nextId,
+      terrain: this.terrain?.handle ?? null,
+    }
+  }
+
+  restore(snapshot: unknown, arts: Articulation[]): void {
+    const s = snapshot as { bytes: Uint8Array; arts: { bodies: number[]; joints: number[] }[]; order: number[]; owner: [number, number][]; nextId: number; terrain: number | null }
+    this.world.free()
+    this.world = RAPIER.World.restoreSnapshot(s.bytes)
+    this.owner.clear()
+    for (const [k, v] of s.owner) this.owner.set(k, v)
+    this.nextId = s.nextId
+    this.terrain = s.terrain === null ? null : this.world.getCollider(s.terrain)
+    this.bodies = s.order.map((h) => this.world.getRigidBody(h))
+    this.articulations.clear()
+    ;(arts as RapierArticulation[]).forEach((a, i) => {
+      a.rebind(s.arts[i].bodies.map((h) => this.world.getRigidBody(h)), s.arts[i].joints.map((h) => this.world.getImpulseJoint(h)))
+      this.articulations.add(a)
+    })
+  }
+
   hash(): string {
     let h = 0x811c9dc5
     const buf = new Float32Array(13)
@@ -153,10 +180,16 @@ class RapierArticulation implements Articulation {
   readonly jointCount: number
   private axes: [number, number, number][]
 
-  constructor(readonly bodies: RAPIER.RigidBody[], private joints: BuiltJoint[]) {
+  constructor(public bodies: RAPIER.RigidBody[], public joints: BuiltJoint[]) {
     this.partCount = bodies.length
     this.jointCount = joints.length
     this.axes = joints.map((j) => unit(j.def.axis ?? [0, 0, 1]))
+  }
+
+  /** Point at the same bodies and joints in a restored world. */
+  rebind(bodies: RAPIER.RigidBody[], joints: RAPIER.ImpulseJoint[]): void {
+    this.bodies = bodies
+    this.joints = this.joints.map((j, i) => ({ ...j, joint: joints[i] }))
   }
 
   readPoses(out: Float32Array, offset: number): void {

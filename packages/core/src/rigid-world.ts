@@ -1,7 +1,7 @@
 import { MOTOR_DEFAULTS, type BodyDef, type PartDef } from './body'
 import { resolve } from './scene'
 import { spawnPosition } from './spawn'
-import { Table } from './store'
+import { Table, type TableSnapshot } from './store'
 import { Terrain } from './terrain'
 import { Nums, Vec3, Vecs } from '@breve/stdlib'
 import type { Articulation, PhysicsEngine, PhysicsWorld } from './physics/types'
@@ -403,6 +403,18 @@ export class RigidWorld implements World {
 
   hash(): string {
     return `${this.physics.hash()}:${this.table.hash()}`
+  }
+
+  snapshot(): unknown {
+    return { count: this.arts.length, table: this.table.snapshot(), physics: this.physics.snapshot(this.arts) }
+  }
+
+  restore(s: unknown): void {
+    const x = s as { count: number; table: TableSnapshot; physics: unknown }
+    if (x.count !== this.arts.length) throw new Error(`cannot restore: the snapshot has ${x.count} creatures and this sim has ${this.arts.length}`)
+    this.table.restore(x.table)
+    this.physics.restore(x.physics, this.arts)
+    this.record(false) // refresh the pose buffers the renderer reads
   }
 
   dispose(): void {

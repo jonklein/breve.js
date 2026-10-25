@@ -25,6 +25,10 @@ export interface PhysicsWorld {
   removeArticulation(a: Articulation): void
   /** Advance by `dt` seconds. The caller picks the fixed step. */
   step(dt: number): void
+  /** Copy the whole engine state. `arts` is the creatures in the order the caller will want them back. */
+  snapshot(arts: Articulation[]): unknown
+  /** Go back to a snapshot, re-pointing `arts` (the same number, in the same order) at the restored bodies. They may be fresh articulations from a new world. */
+  restore(snapshot: unknown, arts: Articulation[]): void
   /** Fingerprint of every dynamic body's pose and velocity, for determinism tests. */
   hash(): string
   dispose(): void

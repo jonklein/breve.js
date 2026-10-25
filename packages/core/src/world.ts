@@ -50,6 +50,16 @@ export interface Controller {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   update?(fields: any, params: Params, ctx: Ctx): unknown
+  /**
+   * Called once for each new entity as it is created: `init({ index, count }, params, ctx)` may return
+   * `{ position, velocity, state }` to say where it starts and what it starts as.
+   */
+  init?(obs: { index: number; count: number }, params: Params, ctx: Ctx): unknown
+  /**
+   * Called once when an entity crosses the set's `fence`. Do something about it here, usually `self.reset()`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onLeave?(obs: { self: any }, params: Params, ctx: Ctx): void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   decide?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
 }

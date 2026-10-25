@@ -1,14 +1,17 @@
 import { Agent, type AgentCols } from './agents'
+import type { Controller } from './world'
 import { Agents } from '@breve/stdlib'
 import { resolve, stateFields } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
 import { Nums, toVec } from '@breve/stdlib'
+import { spawnPosition } from './spawn'
 import type { FrameData, Host, MetricInput, World } from './world'
 
 const SCHEMA = {
   px: 'f32', py: 'f32', pz: 'f32',
   vx: 'f32', vy: 'f32', vz: 'f32',
   ax: 'f32', ay: 'f32', az: 'f32',
+  out: 'f32',
 } as const
 
 type Cols = Record<keyof typeof SCHEMA, Float32Array>
@@ -33,6 +36,7 @@ export class AgentWorld implements World {
   private gridItems = new Int32Array(0)
   private cellOf = new Int32Array(0)
   /** Bumped whenever positions change, so the grid knows when it is out of date. */
+  resets = new Set<number>()
   private moved = 1
   private builtAt = 0
 
@@ -55,29 +59,39 @@ export class AgentWorld implements World {
     return this.table.cols as Cols
   }
 
+  /** Give an agent its starting position, heading and state: random through the bounds unless `spawn` or `init` say otherwise. */
+  private place(r: number, count: number): void {
+    const def = this.host.def
+    const c = this.cols
+    const { params, rng } = this.host
+    const size = this.bounds.size
+    const maxSpeed = resolve(def.motion?.maxSpeed, params, 1)
+    c.px[r] = rng.range(-size, size) * 0.5
+    c.py[r] = def.motion?.plane === 'xz' ? 0 : rng.range(-size, size) * 0.5
+    c.pz[r] = rng.range(-size, size) * 0.5
+    const th = rng.range(0, Math.PI * 2)
+    const u = rng.range(-1, 1)
+    const s = Math.sqrt(1 - u * u)
+    const sp = maxSpeed * 0.6
+    c.vx[r] = Math.cos(th) * s * sp
+    c.vy[r] = def.motion?.plane === 'xz' ? 0 : u * sp
+    c.vz[r] = Math.sin(th) * s * sp
+    c.out[r] = 0
+    for (const f of this.extra) this.table.cols[f.name].fill((f.kind === 'string' ? '' : 0) as never, r * f.length, (r + 1) * f.length)
+    this.initState(r)
+    this.placeNew(r, count)
+  }
+
   sceneChanged(): void {
     const def = this.host.def
     if (def.count === undefined) return
-    const { params, rng } = this.host
+    const { params } = this.host
     const target = Math.max(0, Math.min(5000, Math.round(resolve(def.count, params, 0))))
     const c = this.cols
-    const size = this.bounds.size
-    const maxSpeed = resolve(def.motion?.maxSpeed, params, 1)
     while (this.table.size > target) this.table.despawn(this.table.idAt(this.table.size - 1))
     while (this.table.size < target) {
       this.table.spawn()
-      const r = this.table.size - 1
-      c.px[r] = rng.range(-size, size) * 0.5
-      c.py[r] = def.motion?.plane === 'xz' ? 0 : rng.range(-size, size) * 0.5
-      c.pz[r] = rng.range(-size, size) * 0.5
-      const th = rng.range(0, Math.PI * 2)
-      const u = rng.range(-1, 1)
-      const s = Math.sqrt(1 - u * u)
-      const sp = maxSpeed * 0.6
-      c.vx[r] = Math.cos(th) * s * sp
-      c.vy[r] = def.motion?.plane === 'xz' ? 0 : u * sp
-      c.vz[r] = Math.sin(th) * s * sp
-      this.initState(r)
+      this.place(this.table.size - 1, target)
     }
     while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(c, this.handles.length))
     this.moved++
@@ -88,6 +102,10 @@ export class AgentWorld implements World {
     const table = this.table
     const world = this
     class Stateful extends Agent {
+      /** True while beyond the set's `fence`. */
+      get outside(): boolean { return table.cols.out[this.row] !== 0 }
+      /** Put it back at its starting place and state. Happens at the end of the tick. */
+      reset(): void { world.resets.add(this.row) }
       /** The cell of the first lattice layer under this agent, or null when it is outside the grid or there is no layer. */
       /** The cell at an offset from this agent (a vector), or null off the grid: `self.patchAt(heading.times(3))`. */
       patchAt(offset: Parameters<typeof toVec>[0]): unknown | null { const o = toVec(offset); return world.layer()?.patchAt(this.x + o.x, this.y + o.y, this.z + o.z) ?? null }
@@ -156,6 +174,26 @@ export class AgentWorld implements World {
         enumerable: true,
       })
     return Group
+  }
+
+  /** Apply the scene's `spawn` and the script's `init` to a freshly made agent. */
+  private placeNew(r: number, count: number): void {
+    const def = this.host.def
+    const c = this.cols
+    const flat = def.motion?.plane === 'xz'
+    const at = spawnPosition(def.spawn, this.host.rng, flat)
+    if (at) { c.px[r] = at[0]; c.py[r] = at[1]; c.pz[r] = at[2] }
+    if (def.spawn?.velocity) { c.vx[r] = def.spawn.velocity[0]; c.vy[r] = flat ? 0 : def.spawn.velocity[1]; c.vz[r] = def.spawn.velocity[2] }
+    const init = this.host.controller()?.init
+    if (!init) return
+    try {
+      const out = init({ index: r, count }, this.host.params, this.host.ctx()) as { position?: Parameters<typeof toVec>[0]; velocity?: Parameters<typeof toVec>[0]; state?: Record<string, unknown> } | void
+      if (out?.position) { const p = toVec(out.position); c.px[r] = p.x; c.py[r] = flat ? 0 : p.y; c.pz[r] = p.z }
+      if (out?.velocity) { const v = toVec(out.velocity); c.vx[r] = v.x; c.vy[r] = flat ? 0 : v.y; c.vz[r] = v.z }
+      if (out?.state) this.writeState(r, out.state)
+    } catch (e) {
+      this.host.fail('init', e)
+    }
   }
 
   private initState(r: number): void {
@@ -256,6 +294,28 @@ export class AgentWorld implements World {
       }
     }
     this.moved++
+    this.fence(ctrl)
+  }
+
+  /** Fire `onLeave` for agents that just crossed the fence, then carry out queued resets. */
+  private fence(ctrl: Controller | undefined): void {
+    const f = this.host.def.fence
+    const c = this.cols
+    if (f) {
+      const { params } = this.host
+      const size = resolve(f.size, params, Infinity), floor = resolve(f.floor, params, -Infinity)
+      const ctx = this.host.ctx()
+      for (let i = 0; i < this.table.size; i++) {
+        const out = Math.abs(c.px[i]) > size || Math.abs(c.pz[i]) > size || Math.abs(c.py[i]) > size || c.py[i] < floor
+        if (out && !c.out[i] && ctrl?.onLeave) {
+          try { ctrl.onLeave({ self: this.handles[i] }, params, ctx) } catch (e) { this.host.fail('onLeave', e) }
+        }
+        c.out[i] = out ? 1 : 0
+      }
+    }
+    for (const i of [...this.resets].sort((a, b) => a - b)) if (i < this.table.size) this.place(i, this.table.size)
+    this.resets.clear()
+    if (this.resets.size === 0) this.moved++
   }
 
   frame(): FrameData {

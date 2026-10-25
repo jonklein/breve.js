@@ -44,6 +44,24 @@ Colors are hex only: `#rgb` or `#rrggbb`. Anywhere a number is expected in an en
 
 Agents live in continuous 3D space. Each tick every agent's `decide` is called and returns a steering acceleration; the engine integrates it, enforces the speed limits, and applies the bounds.
 
+**Where they start: `spawn`.** By default agents (and creatures) start scattered at random. Say where instead, on the set:
+
+```jsonc
+"spawn": { "at": [0, 0, 0], "spread": 4, "velocity": [1, 0, 0] }   // all start near a point (spread = radius of the scatter)
+"spawn": { "box": [[-5, 0, -5], [5, 0, 5]] }                        // or anywhere inside a box
+```
+
+For full control, the script may export an `init` function that runs for each new entity: `init({ index, count }, p, ctx)` returns `{ position, velocity, state }`, for example `{ position: ctx.vec(index * 2, 0, 0) }` to line them up. `init` wins over `spawn`.
+
+**Fences and reset.** A set may have a `fence`: `"fence": { "size": 30, "floor": -20 }` (`size` is the half-width of a box around the origin, `floor` the lowest height allowed). A fence changes nothing by itself. When an entity crosses it, the script's `onLeave({ self }, p, ctx)` runs once, and the usual thing to do there is `self.reset()`, which puts that entity back at its start (same rules as a new one) at the end of the tick. `self.outside` tells you whether it is beyond the fence right now. `self.reset()` also works anywhere else: in `decide`, say, when an ant runs out of energy.
+
+```js
+export default {
+  onLeave({ self }) { self.reset() },
+  decide({ self }) { if (self.energy <= 0) self.reset() },
+}
+```
+
 **Per-agent state (memory, brains).** Free agents may declare `state`: extra numbers each agent carries. Say what a field starts as and its type follows: `"energy": 10` is a number, `"hungry": false` a boolean, `"mood": "calm"` text. An object makes an array of numbers and says how it starts: `"weights": { "length": 108, "init": { "normal": 0.7 } }`. To spell a type out, use `"int"`, `"float"`, `"boolean"` or `"string"` (`{ "type": "int", "init": 3 }`) (`init` can be a number, `{ "normal": spread }` or `{ "uniform": [low, high] }`, drawn from the seeded generator). In `decide`, `self.energy` is a number (or boolean, or text, as declared) and `self.weights` is a read-only array. To change state, return it: `{ steer, state: { energy: self.energy - 1, memory: [..5 numbers..] } }`. Like everything else, new state is applied after all agents have decided. State is saved by snapshots and copied by forks.
 
 `ctx.mlp([11, 5, 8])` makes a small neural network (tanh layers) whose `run(weights, inputs)` returns the outputs; the weights for that shape are 11×5+5 + 5×8+8 = 108 numbers. See `examples/neural`.
@@ -89,8 +107,7 @@ Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy t
   "physics": {                            // optional
     "gravity": 9.81,
     "substeps": 4,                        // physics steps per tick: more is steadier but slower
-    "collide": true,                      // creatures bump into each other (default true)
-    "respawn": { "after": 3, "fallBelow": 20 }   // put a creature back on its feet after lying flipped or collapsed for 3 s, or once it is 20 units under the world. false turns this off
+    "collide": true                       // creatures bump into each other (default true)
   },
   "entities": [{
     "name": "walker",
@@ -137,7 +154,7 @@ Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy t
 - **Motor:** makes the hinge chase a target angle like a spring with damping: `stiffness` is torque per radian, `damping` torque per radian per second (defaults 100 and 8). Both may be `"$param"`. Too weak and the creature collapses; too strong and it gets jittery.
 - **Oscillator drive:** a joint with a `drive` follows `offset + amplitude * sin(2 pi * (t * frequency + phase - lag))`. `amplitude` and `offset` are radians (offset default 0); `phase` and `lag` are fractions of a cycle (0.5 = half a cycle). Each may be a number or a `"$param"`, so every phase gets a slider. `frequency` comes from the entity's `oscillator`. Without a `drive` the motor holds angle 0, unless the script sets it. A trot is: diagonal legs in phase (front-left with hind-right) and the other diagonal half a cycle later, with each knee trailing its hip by a fraction of a cycle (`lag`, about 0.4 in the example; the gait is sensitive to it).
 - **Sensors:** declare what `decide` can read. `pose` (always available), `joints` (`self.joints`: hinge angles by joint name), `touch` (`self.touch`: which parts touch the ground by name; default the parts nothing hangs off, or give `"parts": ["FL.lower"]`). Each joint with a `motor` is an actuator.
-- Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains, drives and the script apply live. Unless `physics.respawn` says otherwise, a creature that stays flipped over or flat for 3 seconds, or falls off the terrain, is put back on its feet at a random spot.
+- Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains, drives and the script apply live. Nothing resets a creature on its own: add a `fence` and an `onLeave` handler, or check `self.downFor` in `decide` (see below).
 - Validation rejects unknown joint or part names, parts not connected to the root, duplicate names, sizes that do not fit the shape, a template or placeholder that does not exist, and unknown `"$param"` names.
 
 ## Scripts
@@ -185,7 +202,7 @@ export default {
 
 ### Creatures
 
-`decide` receives `self` (the creature) and `neighbors` (always an empty group for now). By default it can return nothing and the oscillator drives the legs. It may return `{ joints: { 'FL.hip': 0.3, ... } }`: target angles in radians by joint name, which replace the oscillator for those joints only (targets are clamped to the joint's `limits`; an unknown name is an error).
+`decide` receives `self` (the creature) and `neighbors` (always an empty group for now). Besides position and speed, `self.down` is true while the creature is flipped or lying flat and `self.downFor` is how many seconds that has lasted (`if (self.downFor > 3) self.reset()` stands it back up); `self.outside` and `self.reset()` work as for agents. By default it can return nothing and the oscillator drives the legs. It may return `{ joints: { 'FL.hip': 0.3, ... } }`: target angles in radians by joint name, which replace the oscillator for those joints only (targets are clamped to the joint's `limits`; an unknown name is an error).
 
 `self` has `x, y, z`, `vx, vy, vz`, `position`, `velocity` (vectors), `speed` (horizontal), `travelled` (horizontal distance walked), `forward` (vector the torso faces), `yaw` (heading in radians: 0 faces +x and it grows toward -z, a counter-clockwise turn seen from above), `row` (a stable index), `joints` and `touch` (if the body declares those sensors) and `gait`: what the oscillator wants every motorized joint to do right now, by name. Scale or mix `self.gait` to steer, e.g. longer strides on the right turn the creature left:
 

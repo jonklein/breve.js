@@ -22,6 +22,7 @@
     {
       "name": "walker",
       "count": "$count",
+      "fence": { "floor": -20 },
       "controller": "creature.js",
       "oscillator": { "frequency": "$frequency" },
       "body": {

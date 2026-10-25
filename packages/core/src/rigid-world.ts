@@ -1,5 +1,6 @@
 import { MOTOR_DEFAULTS, type BodyDef, type PartDef } from './body'
 import { resolve } from './scene'
+import { spawnPosition } from './spawn'
 import { Table } from './store'
 import { Terrain } from './terrain'
 import { Nums, Vec3, Vecs } from '@breve/stdlib'
@@ -17,6 +18,7 @@ const SCHEMA = {
   phase: 'f64',
   /** Ticks spent flipped over or flat on the ground. */
   down: 'f32',
+  out: 'f32',
 } as const
 
 type Cols = Record<keyof typeof SCHEMA, Float64Array>
@@ -26,8 +28,6 @@ const MAX_CREATURES = 200
 const DEFAULT_PHYSICS = { gravity: 9.81, substeps: 4 }
 const TOUCH_MARGIN = 0.04
 const TAU = Math.PI * 2
-/** The default reset rule: below this height (world units) a creature has fallen off the terrain, and one that stays flipped or collapsed for 3 s is put back on its feet. Both can be set (or turned off) with `physics.respawn`. */
-const DEFAULT_RESPAWN = { after: 3, fallBelow: 20 }
 const TICKS_PER_SECOND = 60
 /** Torso height above the ground that counts as collapsed (standing is about 0.6). */
 const DOWN_HEIGHT = 0.22
@@ -44,6 +44,14 @@ export class Creature {
   get vz() { return this.c.vz[this.row] }
   get position(): Vec3 { return new Vec3(this.x, this.y, this.z) }
   get velocity(): Vec3 { return new Vec3(this.vx, this.vy, this.vz) }
+  /** True while the torso is tilted over or lying low (see `downFor`). */
+  get down(): boolean { return this.c.down[this.row] > 0 }
+  /** How many seconds it has been down without getting up. */
+  get downFor(): number { return this.c.down[this.row] / TICKS_PER_SECOND }
+  /** True while it is beyond the set's `fence`. */
+  get outside(): boolean { return this.c.out[this.row] !== 0 }
+  /** Put it back on its feet at its starting place (where `spawn` says, or a random spot). Happens at the end of the tick. */
+  reset(): void { this.world.queueReset(this.row) }
   /** Horizontal speed. */
   get speed(): number { return Math.hypot(this.vx, this.vz) }
   /** Horizontal distance covered since the start. */
@@ -172,16 +180,22 @@ export class RigidWorld implements World {
     this.record(false)
   }
 
+  /** Stand the body on the highest ground under it so no foot starts buried. */
+  private groundAt(x: number, z: number): number {
+    let ground = -Infinity
+    for (const [dx, dz] of [[0, 0], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]]) ground = Math.max(ground, this.terrain.heightAt(x + dx, z + dz))
+    return ground
+  }
+
   private spawnPoint(): { x: number; y: number; z: number; yaw: number } {
     const { rng } = this.host
     const half = this.terrain.size / 2
     const x = rng.range(-1, 1) * half * 0.6
     const z = rng.range(-1, 1) * half * 0.6
     const yaw = rng.range(0, TAU)
-    // stand the body on the highest ground under it so no foot starts buried
-    let ground = -Infinity
-    for (const [dx, dz] of [[0, 0], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]]) ground = Math.max(ground, this.terrain.heightAt(x + dx, z + dz))
-    return { x, y: ground + 0.05, z, yaw }
+    const set = spawnPosition(this.host.def.spawn, rng)
+    if (set) return { x: set[0], y: this.groundAt(set[0], set[2]) + 0.05, z: set[2], yaw }
+    return { x, y: this.groundAt(x, z) + 0.05, z, yaw }
   }
 
   private spawn(): void {
@@ -253,6 +267,7 @@ export class RigidWorld implements World {
 
     // record
     this.record(true)
+    this.afterRecord()
   }
 
   private clampToLimits(j: number, v: number): number {
@@ -274,22 +289,44 @@ export class RigidWorld implements World {
       c.qx[i] = this.poses[o + 3]; c.qy[i] = this.poses[o + 4]; c.qz[i] = this.poses[o + 5]; c.qw[i] = this.poses[o + 6]
       this.arts[i].readRootVelocity(v, 0)
       c.vx[i] = v[0]; c.vy[i] = v[1]; c.vz[i] = v[2]
-      // walked off the edge of the world, or lying down for good: stand it up somewhere else
-      const rule = this.respawnRule
-      if (accumulate && rule && c.py[i] < -rule.fallBelow) this.respawn(i)
-      if (accumulate && rule) {
+      if (accumulate) {
         const up = 1 - 2 * (c.qx[i] * c.qx[i] + c.qz[i] * c.qz[i])
         const low = c.py[i] - this.terrain.heightAt(c.px[i], c.pz[i]) < DOWN_HEIGHT
         c.down[i] = up < 0.3 || low ? c.down[i] + 1 : 0
-        if (c.down[i] > rule.after * TICKS_PER_SECOND) this.respawn(i)
+        const out = this.beyondFence(c.px[i], c.py[i], c.pz[i])
+        if (out && !c.out[i]) this.leavers.push(i)
+        c.out[i] = out ? 1 : 0
       }
     }
   }
 
-  /** The reset rule from `physics.respawn`: `false` turns it off, otherwise missing fields use the defaults. */
-  private get respawnRule(): { after: number; fallBelow: number } | null {
-    const r = this.host.scene.physics?.respawn
-    return r === false ? null : { ...DEFAULT_RESPAWN, ...r }
+  private leavers: number[] = []
+  private resets = new Set<number>()
+
+  queueReset(row: number): void {
+    this.resets.add(row)
+  }
+
+  private beyondFence(x: number, y: number, z: number): boolean {
+    const f = this.host.def.fence
+    if (!f) return false
+    const { params } = this.host
+    const size = resolve(f.size, params, Infinity), floor = resolve(f.floor, params, -Infinity)
+    return Math.abs(x) > size || Math.abs(z) > size || y < floor
+  }
+
+  /** Tell controllers who crossed the fence, then carry out the resets they (or `decide`) asked for. */
+  private afterRecord(): void {
+    const ctrl = this.host.controller()
+    if (ctrl?.onLeave && this.leavers.length) {
+      const ctx = this.host.ctx()
+      for (const i of this.leavers) {
+        try { ctrl.onLeave({ self: this.handles[i] }, this.host.params, ctx) } catch (e) { this.host.fail('onLeave', e) }
+      }
+    }
+    this.leavers = []
+    for (const i of [...this.resets].sort((a, b) => a - b)) if (i < this.table.size) this.respawn(i)
+    this.resets.clear()
   }
 
   private respawn(i: number): void {
@@ -300,6 +337,7 @@ export class RigidWorld implements World {
     const c = this.cols
     c.px[i] = x; c.pz[i] = z // keep the distance walked; the next tick measures from here
     c.down[i] = 0
+    c.out[i] = 0
   }
 
   // ---- sensors, read by Creature handles ----

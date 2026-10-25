@@ -10,9 +10,20 @@
 //
 // self.gait is what the oscillator wants each joint to do right now. Returning
 // { joints: { name: angle } } overrides those motors; any joint you leave out keeps its gait.
+//
+// Falling over: scene.json sets a fence 20 units under the ground, and onLeave runs when a creature
+// crosses it. A creature that has been down (flipped or flat) for 3 seconds gets stood up the same way.
+// self.reset() puts a creature back at its starting place at the end of the tick.
 
 export default {
+  // walked off the edge of the world
+  onLeave({ self }) {
+    self.reset()
+  },
+
   decide({ self }, p, ctx) {
+    if (self.downFor > 3) self.reset()
+
     // where do I want to go? an angle, 0 = +x, growing toward -z (the same as self.yaw)
     let want = self.row * 2.4 + p.wander * 1.5 * Math.sin(ctx.tick * 0.002 * (1 + (self.row % 3)))
     if (Math.hypot(self.x, self.z) > p.radius) want = Math.atan2(self.z, -self.x) // toward the middle

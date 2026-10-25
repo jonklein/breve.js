@@ -77,10 +77,35 @@ export interface FillDef {
   region?: { center: [number, number, number]; radius: number }
 }
 
+/**
+ * Where new entities start. `at` puts them at a point (scattered over a ball of radius `spread`), `box` anywhere
+ * inside two corners; `velocity` gives them all that heading. Leave `spawn` out to scatter them through the bounds.
+ */
+export interface SpawnDef {
+  at?: [number, number, number]
+  spread?: number
+  box?: [[number, number, number], [number, number, number]]
+  velocity?: [number, number, number]
+}
+
+/**
+ * A fence: when an entity crosses it, its controller's `onLeave({ self })` runs once. The fence changes nothing by
+ * itself; `self.reset()` inside the handler puts the entity back at its start. `size` is the half-width of a box
+ * around the origin, `floor` the lowest height allowed.
+ */
+export interface FenceDef {
+  size?: NumOrParam
+  floor?: NumOrParam
+}
+
 export interface EntityDef {
   name: string
   /** Which controller runs this set: the name of an export of the script. Leave it out to use `export default`. */
   type?: string
+  /** A boundary that fires `onLeave` when crossed (free agents and creatures). */
+  fence?: FenceDef
+  /** Where entities start (free agents and creatures). */
+  spawn?: SpawnDef
   /** Run this set only every n-th tick (default 1). */
   every?: number
   /** Draw color for free agents (overrides the world's agentColor). */
@@ -135,8 +160,6 @@ export interface Scene {
   terrain?: TerrainDef
   /** Physics settings for scenes with a `body`. */
   physics?: { gravity?: number; substeps?: number; /** Creatures bump into each other (default true). */ collide?: boolean
-    /** When to put a creature back on its feet: after lying flipped or collapsed for `after` seconds, or once it is `fallBelow` units under the world. `false` never resets. */
-    respawn?: false | { after?: number; fallBelow?: number }
   }
   params: Record<string, number | ParamDef>
   entities: EntityDef[]
@@ -148,6 +171,8 @@ export type Params = Record<string, number>
 const numOrParam = {
   anyOf: [{ type: 'number' }, { type: 'string', pattern: '^\\$[A-Za-z_][A-Za-z0-9_]*$' }],
 }
+
+const vec3 = { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 } as const
 
 const color = { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$' }
 
@@ -213,12 +238,6 @@ export const sceneSchema = {
         gravity: { type: 'number' },
         substeps: { type: 'integer', minimum: 1, maximum: 16 },
         collide: { type: 'boolean' },
-        respawn: {
-          anyOf: [
-            { const: false },
-            { type: 'object', additionalProperties: false, properties: { after: { type: 'number', exclusiveMinimum: 0 }, fallBelow: { type: 'number', exclusiveMinimum: 0 } } },
-          ],
-        },
       },
     },
     world: {
@@ -267,6 +286,17 @@ export const sceneSchema = {
         properties: {
           name: { type: 'string' },
           type: { type: 'string', pattern: '^[A-Za-z_$][A-Za-z0-9_$]*$' },
+          fence: { type: 'object', additionalProperties: false, properties: { size: numOrParam, floor: numOrParam } },
+          spawn: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              at: vec3,
+              spread: { type: 'number', minimum: 0 },
+              box: { type: 'array', items: vec3, minItems: 2, maxItems: 2 },
+              velocity: vec3,
+            },
+          },
           every: { type: 'integer', minimum: 1, maximum: 1000 },
           color,
           size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
@@ -398,6 +428,10 @@ export function validateScene(data: unknown): SceneResult {
       for (const [k, d] of Object.entries(e.state ?? {}))
         if (typeof d === 'object' && d.length !== undefined) errors.push(`entities.${i}.state.${k}: lattice cells hold one value per field, not an array`)
     }
+    if (e.spawn?.at && e.spawn.box) errors.push(`entities.${i}.spawn: give "at" or "box", not both`)
+    if (e.spawn?.spread !== undefined && !e.spawn.at) errors.push(`entities.${i}.spawn.spread: "spread" scatters entities around "at"`)
+    check(e.fence?.size, `entities.${i}.fence.size`)
+    check(e.fence?.floor, `entities.${i}.fence.floor`)
     check(e.count, `entities.${i}.count`)
     if (e.body) {
       if (e.lattice) errors.push(`entities.${i}.body: a lattice cannot have a body`)

@@ -19,6 +19,7 @@
       "controller": "ants.js",
       "count": "$count",
       "color": "#f2d088",
+      "spawn": { "at": [-12, 0, 0], "spread": 4 },
       "size": 2.2,
       "motion": { "maxSpeed": "$speed", "minSpeed": 1.5, "maxAccel": 60, "plane": "xz" },
       "state": { "carrying": false }

@@ -49,28 +49,29 @@ test('a creature does not collide with its own parts (its joints would fight it)
   world.dispose()
 })
 
-test('the respawn rule is configurable and can be turned off', async () => {
+test('nothing resets a creature on its own; a fence plus onLeave and self.reset() do', async () => {
   const { Sim: S } = await import('../src/index')
   const base = structuredClone(parsed.ok ? parsed.scene : (null as never))
   // limp legs: no muscle strength, so the creature slumps and never gets up on its own
   base.params.count = { value: 1 }
   base.params.strength = { value: 0 }
   base.terrain = { size: 60, amplitude: 0 }
-  // a respawn is a jump: it puts the creature down somewhere random, far from where it lay
-  const respawns = async (respawn: unknown) => {
+  // a reset is a jump: it puts the creature down somewhere random, far from where it lay
+  const jumps = async (script: unknown, fence?: unknown) => {
     const scene = structuredClone(base)
-    scene.physics = { respawn } as never
-    const sim = await S.create(scene)
+    scene.entities[0].fence = fence as never
+    const sim = await S.create(scene, script as never)
     const c = sim.table.cols as Record<string, Float64Array>
-    let jumps = 0, x = c.px[0], z = c.pz[0]
+    let n = 0, x = c.px[0], z = c.pz[0]
     for (let i = 0; i < 900; i++) {
       sim.step()
-      if (Math.hypot(c.px[0] - x, c.pz[0] - z) > 1.5) jumps++
+      if (Math.hypot(c.px[0] - x, c.pz[0] - z) > 1.5) n++
       x = c.px[0]; z = c.pz[0]
     }
     sim.dispose()
-    return jumps
+    return n
   }
-  assert.equal(await respawns(false), 0, 'with respawn off a collapsed creature is left alone')
-  assert.ok((await respawns({ after: 0.3 })) >= 2, 'with a short respawn time it is put back again and again')
+  assert.equal(await jumps({ default: { decide: () => ({}) } }), 0, 'a collapsed creature is left alone')
+  assert.ok((await jumps({ default: { decide: ({ self }: { self: { downFor: number; reset(): void } }) => { if (self.downFor > 0.3) self.reset() } } })) >= 2, 'a script can stand it up again and again')
+  assert.ok((await jumps({ default: { onLeave: ({ self }: { self: { reset(): void } }) => self.reset(), decide: () => ({}) } }, { size: 1 })) >= 1, 'crossing the fence calls onLeave')
 })

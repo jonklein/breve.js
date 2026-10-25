@@ -1,6 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import Anthropic from '@anthropic-ai/sdk'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { chat, configured, MODEL, type Turn } from './llm'
+
+// the pages shown in the workbench's Docs tab, read fresh so edits show up on reload
+const DOCS: Record<string, { title: string; file: string }> = {
+  reference: { title: 'Scene and script reference', file: 'script-api.md' },
+  stdlib: { title: 'Standard library', file: 'stdlib.md' },
+}
+const docsDir = new URL('../../../docs/', import.meta.url)
 
 const PORT = Number(process.env.BREVE_API_PORT || 8787)
 const MAX_BODY = 2_000_000
@@ -37,6 +46,12 @@ function friendly(e: unknown): { status: number; error: string } {
 const server = createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/api/status') return send(res, 200, { llm: configured(), model: MODEL })
+    if (req.method === 'GET' && req.url === '/api/docs') return send(res, 200, Object.entries(DOCS).map(([id, d]) => ({ id, title: d.title })))
+    const page = req.method === 'GET' ? req.url?.match(/^\/api\/docs\/(\w+)$/)?.[1] : undefined
+    if (page && DOCS[page]) {
+      res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8' })
+      return void res.end(readFileSync(fileURLToPath(new URL(DOCS[page].file, docsDir)), 'utf8'))
+    }
     if (req.method === 'POST' && req.url === '/api/chat') {
       if (!configured()) return send(res, 503, { error: 'No API key. Put ANTHROPIC_API_KEY=... in .env at the project root and restart `npm run dev`.' })
       const body = JSON.parse(await readBody(req)) as { history?: unknown; request?: unknown; project?: { name?: unknown; scene?: unknown; script?: unknown } }

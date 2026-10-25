@@ -13,6 +13,7 @@
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/theme-one-dark": "^6.1.3",
     "codemirror": "^6.0.2",
+    "marked": "^18.1.1",
     "three": "^0.186.1"
   },
   "devDependencies": {

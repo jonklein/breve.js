@@ -7,6 +7,7 @@ import {
   type Doc, type ExampleInfo,
 } from './projects'
 import { ChatPanel } from './chat'
+import { DocsPanel } from './docs'
 import type { FromWorker, ToWorker } from './sim.worker'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -140,6 +141,7 @@ async function main(): Promise<void> {
     scriptName: () => $('script-tab').textContent ?? 'script.js',
   })
   void chat.init()
+  const docs = new DocsPanel($('docs'))
 
   // ---- projects: examples and your own forks ----
   const picker = $<HTMLSelectElement>('project')
@@ -236,6 +238,8 @@ async function main(): Promise<void> {
       $('editor-scene').classList.toggle('hidden', b.dataset.tab !== 'scene')
       $('editor-script').classList.toggle('hidden', b.dataset.tab !== 'script')
       $('chat').classList.toggle('hidden', b.dataset.tab !== 'chat')
+      $('docs').classList.toggle('hidden', b.dataset.tab !== 'docs')
+      if (b.dataset.tab === 'docs') void docs.show()
     }),
   )
 

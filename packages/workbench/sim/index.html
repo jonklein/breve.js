@@ -71,6 +71,11 @@
           <input id="think-file" type="file" accept=".json,application/json" class="hidden" />
         </div>
         <div id="viewport"></div>
+        <div id="timeline" class="hidden">
+          <span class="muted">Timeline</span>
+          <input id="timeline-slider" type="range" min="0" max="0" step="10" value="0" aria-label="Scrub through the run" title="Drag back to look at an earlier moment. Press Play to carry on from there as a new run." />
+          <span id="timeline-label" class="muted mono"></span>
+        </div>
         <div id="inspector" class="inspector hidden"></div>
         <div id="tiles" class="hidden"></div>
         <div id="panel">

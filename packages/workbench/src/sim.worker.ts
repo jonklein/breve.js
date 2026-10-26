@@ -1,5 +1,5 @@
 import { compile } from './script-load'
-import { Sim, SimGroup, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
+import { Sim, SimGroup, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
 
 export type ToWorker =
   | { type: 'init'; scene: string; script: string }
@@ -21,6 +21,8 @@ export type ToWorker =
   | { type: 'single' }
   /** Continue from one sweep tile as the single sim. */
   | { type: 'focus'; name: string }
+  /** Go back to the recorded moment at or before this tick, and pause there. Playing on from it starts a new branch. */
+  | { type: 'seek'; tick: number }
   /** Realtime thoughts land whenever they arrive; lockstep waits for every answer before each tick, so the run repeats exactly. */
   | { type: 'thinkMode'; mode: 'realtime' | 'lockstep' }
   /** Ask for the decision log (answered with a `log` message). */
@@ -52,7 +54,9 @@ export type FromWorker =
   | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
   | { type: 'log'; log: DecisionLog }
-  | { type: 'frame'; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
+  /** The metric samples up to a moment, after a seek: the charts redraw from them. */
+  | { type: 'metrics'; samples: Record<string, number>[] }
+  | { type: 'frame'; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -109,6 +113,7 @@ async function rebuild(): Promise<void> {
   if (mine !== builds) return next.dispose() // a newer rebuild started while this one loaded
   sim?.dispose()
   sim = next
+  resetTimeline(next)
 }
 
 let lastPosted = -1
@@ -116,6 +121,46 @@ let lastPosted = -1
 const flagged = (s: Sim): string[] => [...new Set([...s.nondeterministic(), ...(!s.isReplaying ? s.scene.entities.filter((e) => e.think).map((e) => e.name) : [])])]
 let thinkMode: 'realtime' | 'lockstep' = 'realtime'
 let lockBusy = false // a lockstep tick is waiting for its answers
+
+// ---- timeline: a snapshot every few ticks, within a memory budget, so a run can be scrubbed and resumed from any point ----
+const HISTORY_EVERY = 10
+const HISTORY_BYTES = 64_000_000
+let history: { tick: number; snap: SimSnapshot }[] = []
+let historyCap = 0 // how many snapshots fit; worked out from the first one
+let timelineOff = false // this kind of sim cannot be snapshotted (yet)
+let metricLog: { tick: number; m: Record<string, number> }[] = []
+
+const bytesOf = (v: unknown): number => {
+  if (ArrayBuffer.isView(v)) return v.byteLength
+  if (Array.isArray(v)) return v.reduce((n: number, x) => n + bytesOf(x), 0)
+  if (v && typeof v === 'object') return Object.values(v).reduce((n: number, x) => n + bytesOf(x), 0)
+  return 0
+}
+
+function recordMoment(s: Sim): void {
+  if (timelineOff || group || s !== sim || s.tick % HISTORY_EVERY !== 0) return
+  // playing on from an earlier moment starts a new branch: whatever was recorded after this tick is gone
+  while (history.length && history[history.length - 1].tick >= s.tick) history.pop()
+  try {
+    const snap = s.snapshot()
+    if (!historyCap) historyCap = Math.max(3, Math.min(400, Math.floor(HISTORY_BYTES / Math.max(1, bytesOf(snap)))))
+    history.push({ tick: s.tick, snap })
+    if (history.length > historyCap) history.shift()
+  } catch {
+    timelineOff = true
+    history = []
+  }
+}
+
+function resetTimeline(s: Sim): void {
+  history = []
+  historyCap = 0
+  timelineOff = false
+  metricLog = []
+  recordMoment(s)
+}
+
+const timeline = () => (history.length > 1 ? { first: history[0].tick, last: history[history.length - 1].tick, step: HISTORY_EVERY } : null)
 let stepMs = 0 // smoothed time one tick takes, shown in the stats line
 
 function transfers(f: WorldFrameMsg): ArrayBuffer[] {
@@ -148,8 +193,9 @@ function post(): void {
     lastPosted = sim.tick
     const frames = sim.frames()
     const m = sim.tick % 4 === 0 || sim.rate < 30 ? sim.metrics() : null
+    if (m) { metricLog.push({ tick: sim.tick, m }); if (metricLog.length > 600) metricLog.shift() }
     const inspected = selection ? sim.inspect(selection.set, selection.row) : null
-    const msg: FromWorker = { type: 'frame', tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying }, nondeterministic: flagged(sim), inspected, metrics: m, stepMs, rate: sim.rate, frames }
+    const msg: FromWorker = { type: 'frame', tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, rate: sim.rate, frames }
     postMessage(msg, frames.flatMap(transfers))
   }
   const runtime = sim.takeErrors()
@@ -175,8 +221,8 @@ setInterval(() => {
         if (lockBusy) break // the model has not answered yet: the clock waits
         lockBusy = true
         const s = sim!
-        void s.think().then(() => { s.step(); lastPosted = -1 }).finally(() => { lockBusy = false })
-      } else { sim!.thinkInBackground(); sim!.step() } // slow thoughts (model calls) run beside the clock and land when they arrive
+        void s.think().then(() => { s.step(); recordMoment(s); lastPosted = -1 }).finally(() => { lockBusy = false })
+      } else { sim!.thinkInBackground(); sim!.step(); recordMoment(sim!) } // slow thoughts (model calls) run beside the clock and land when they arrive
       stepMs = stepMs * 0.8 + (performance.now() - t0) * 0.2
       budget--
       if (performance.now() - frameStart > FRAME_BUDGET_MS) { budget = Math.min(budget, 1); break }
@@ -230,9 +276,20 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'step':
       if (group) group.step()
-      else if (sim && thinkMode === 'lockstep') { await sim.think(); sim.step() }
-      else sim?.step()
+      else if (sim && thinkMode === 'lockstep') { await sim.think(); sim.step(); recordMoment(sim) }
+      else if (sim) { sim.step(); recordMoment(sim) }
       break
+    case 'seek': {
+      if (!sim || group) break
+      const at = [...history].reverse().find((h) => h.tick <= m.tick)
+      if (!at) break
+      running = false
+      sim.restore(at.snap)
+      metricLog = metricLog.filter((x) => x.tick <= at.tick)
+      postMessage({ type: 'metrics', samples: metricLog.map((x) => x.m) } satisfies FromWorker)
+      lastPosted = -1
+      break
+    }
     case 'thinkMode':
       thinkMode = m.mode
       lastPosted = -1

@@ -348,6 +348,22 @@ async function main(): Promise<void> {
   $('step').addEventListener('click', () => send({ type: 'step' }))
   $('reset').addEventListener('click', () => { metrics.clear(); tiles.resetHistory(); send({ type: 'reset' }) })
 
+  // ---- timeline: drag back through the run; Play carries on from there ----
+  const slider = $('timeline-slider') as HTMLInputElement
+  let scrubbing = false
+  let pendingSeek: number | null = null
+  const sendSeek = () => {
+    if (pendingSeek === null) return
+    send({ type: 'seek', tick: pendingSeek })
+    pendingSeek = null
+    running = false
+    $('play').textContent = 'Play'
+    send({ type: 'play', running: false })
+  }
+  slider.addEventListener('pointerdown', () => { scrubbing = true })
+  window.addEventListener('pointerup', () => { scrubbing = false })
+  slider.addEventListener('input', () => { pendingSeek = Number(slider.value); requestAnimationFrame(sendSeek) })
+
   // ---- thinking: lockstep or realtime, and saving or replaying the decision log ----
   const thinkMode = $('think-mode') as HTMLSelectElement
   thinkMode.addEventListener('change', () => send({ type: 'thinkMode', mode: thinkMode.value as 'realtime' | 'lockstep' }))
@@ -389,6 +405,12 @@ async function main(): Promise<void> {
         flags.textContent = '⚠ not repeatable'
         flags.title = `${m.nondeterministic.join(', ')} depend${m.nondeterministic.length === 1 ? 's' : ''} on something outside the simulation (a person at the keyboard, or a language model). A rerun or a fork may not match. To repeat a run exactly, save its decision log and replay it.`
       }
+      $('timeline').classList.toggle('hidden', !m.timeline || sweeping)
+      if (m.timeline) {
+        slider.min = String(m.timeline.first); slider.max = String(m.timeline.last); slider.step = String(m.timeline.step)
+        if (!scrubbing) slider.value = String(Math.min(m.tick, m.timeline.last))
+        $('timeline-label').textContent = `tick ${m.tick}${m.tick < m.timeline.last ? ' · earlier than the latest' : ''}`
+      }
       viewport.update(m.frames.map((f) => ({ ...f, rate: m.rate })))
       if (inspecting) { if (m.inspected) inspector.update(m.inspected); else stopInspecting() }
       if (m.metrics) metrics.push(m.metrics)
@@ -408,6 +430,9 @@ async function main(): Promise<void> {
         lastTime = now
         $('stats').textContent = `tick ${m.tick} · ${m.tiles.length} runs · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick (all runs)`
       }
+    } else if (m.type === 'metrics') {
+      metrics.clear()
+      for (const sample of m.samples) metrics.push(sample)
     } else if (m.type === 'log') {
       download(`${projectName().replace(/[^\w-]+/g, '-')}-decisions.json`, JSON.stringify(m.log, null, 1))
     } else if (m.type === 'controllers') {

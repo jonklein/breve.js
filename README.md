@@ -27,6 +27,8 @@ npm run typecheck
 
 ### The assistant (LLM)
 
+The workbench records the run as it goes: the **Timeline** slider under the view goes back to an earlier moment and pauses there, and Play carries on from it as a new branch. **Tree view** (above the editor) edits `scene.json` and `experiment.json` as a tree of fields over the same text, and **Share** copies a link that carries the whole project.
+
 The workbench has an **Assistant** tab: describe a change in words, review the proposed diff, and apply or dismiss it (with undo). It needs an Anthropic API key. Copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. The key stays on the local API server (`packages/server`, bound to 127.0.0.1) and never reaches the browser. The model defaults to `claude-opus-5-5`; set `BREVE_MODEL` to change it. The assistant is given [docs/script-api.md](docs/script-api.md) and the example projects, and its proposals are validated against the scene schema and checked for script syntax (with automatic repair attempts) before you see them.
 
 ## Status

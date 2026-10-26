@@ -169,3 +169,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 #editors nav .status { white-space: nowrap; }
 .flag { color: #f5c26b; border: 1px solid #5c4a1f; border-radius: 6px; padding: 1px 8px; font-size: 12px; cursor: help; }
 .embed .flag { display: none !important; }
+
+#timeline { display: flex; align-items: center; gap: 10px; padding: 4px 12px; background: var(--panel); border-top: 1px solid var(--border); font-size: 12px; }
+#timeline input[type='range'] { flex: 1; min-width: 80px; padding: 0; }
+.embed #timeline { display: none !important; }

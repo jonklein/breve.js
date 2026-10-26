@@ -225,11 +225,13 @@ class RapierArticulation implements Articulation {
     }
   }
 
-  setMotors(targets: ArrayLike<number>, stiffness: ArrayLike<number>, damping: ArrayLike<number>): void {
+  setMotors(targets: ArrayLike<number>, stiffness: ArrayLike<number>, damping: ArrayLike<number>, maxTorque?: ArrayLike<number>): void {
     for (let i = 0; i < this.joints.length; i++) {
       const j = this.joints[i]
       if (!j.def.motor || (j.def.type ?? 'hinge') !== 'hinge') continue
-      ;(j.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(targets[i], stiffness[i], damping[i])
+      const joint = j.joint as RAPIER.RevoluteImpulseJoint
+      joint.configureMotorPosition(targets[i], stiffness[i], damping[i])
+      if (maxTorque && Number.isFinite(maxTorque[i])) joint.setMotorMaxForce(maxTorque[i])
     }
   }
 }

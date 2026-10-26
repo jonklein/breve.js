@@ -25,6 +25,10 @@ const SLOTS = BLOCKS * SIDES * CHAIN // every joint a body could have
 const SIZES = [SLOTS + 5, 12, SLOTS] // brain: joint angles, which way is up, a clock -> joint targets
 const WEIGHTS = SIZES.slice(1).reduce((n, out, i) => n + (SIZES[i] + 1) * out, 0)
 const SWING = 1.2 // radians a joint can turn either way
+const DENSITY = 50 // kg per cubic metre of block
+const MIN_MASS = 0.25 // no block is lighter than this, so no tiny limb is pushed around by a heavy trunk
+const STRENGTH = 2500 // newton-metres of motor torque per square metre of a block's cross-section
+const MAX_JOINT_SPEED = 5 // radians per second a joint's target can move
 const SETTLE = 90 // ticks a creature gets to land before its walk is measured
 const AXES = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 const FACES = [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]] // [axis, direction]: which side of the parent block
@@ -86,11 +90,15 @@ export function bodyOf(g) {
   const parts = [], joints = []
   for (const t of layout(g)) {
     const name = `B${nameOf(t.i, t.side, t.seg)}`
-    const mass = Math.max(0.05, 50 * t.size[0] * t.size[1] * t.size[2])
+    const mass = Math.max(MIN_MASS, DENSITY * t.size[0] * t.size[1] * t.size[2])
     parts.push({ name, shape: 'box', size: t.size, mass, position: t.center, color: COLORS[t.depth % COLORS.length] })
     if (!t.parent) continue
-    const stiffness = 60 + 120 * Math.min(3, mass)
-    joints.push({ name: `J${nameOf(t.i, t.side, t.seg)}`, parent: `B${nameOf(t.parent.i, t.parent.side, t.parent.seg)}`, child: name, anchor: t.anchor, axis: AXES[t.hinge], limits: [-SWING, SWING], motor: { stiffness, damping: stiffness * 0.1 } })
+    // A muscle's strength grows with its cross-section (an area), a block's weight with its volume: big creatures are relatively weaker,
+    // as in nature. The motor cannot push harder than that, and its target moves no faster than a real limb could, so a brain cannot
+    // buy impossible forces by jumping its targets around.
+    const [small, mid] = [...t.size].sort((a, b) => a - b)
+    const maxTorque = STRENGTH * small * mid
+    joints.push({ name: `J${nameOf(t.i, t.side, t.seg)}`, parent: `B${nameOf(t.parent.i, t.parent.side, t.parent.seg)}`, child: name, anchor: t.anchor, axis: AXES[t.hinge], limits: [-SWING, SWING], motor: { stiffness: maxTorque * 2, damping: maxTorque * 0.3, maxTorque, maxSpeed: MAX_JOINT_SPEED } })
   }
   return { parts, joints, sensors: [{ type: 'pose' }, { type: 'joints' }] }
 }
@@ -142,14 +150,14 @@ export const metrics = {
 // ---------------------------------------------------------------------------------------------------------
 // The genome
 
-const ROOT = [0.3, 1.2], DIM = [0.06, 1], RHYTHM = [0.4, 3]
+const ROOT = [0.3, 1.2], DIM = [0.08, 0.8], RHYTHM = [0.4, 3]
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v))
 const between = (r, [lo, hi]) => lo + r() * (hi - lo)
 const pickInt = (r, n) => Math.floor(r() * n)
 
 /** A new block: often a long thin one (a limb, a tail), sometimes a lump, hanging from any earlier block. */
 function randomBlock(r, k, on) {
-  const size = [0, 0, 0].map(() => between(r, [0.06, 0.2]))
+  const size = [0, 0, 0].map(() => between(r, [0.08, 0.2]))
   if (r() < 0.7) size[pickInt(r, 3)] = between(r, [0.25, 0.7])
   else for (let a = 0; a < 3; a++) size[a] = between(r, [0.1, 0.5])
   return { on, parent: pickInt(r, k + 1), face: pickInt(r, 6), u: between(r, [-0.7, 0.7]), v: between(r, [-0.7, 0.7]), size, axis: pickInt(r, 3), axis2: pickInt(r, 3), mirror: r() < 0.6, chain: 1 + pickInt(r, CHAIN) }
@@ -213,6 +221,7 @@ async function launch(host, run) {
   run.start = []
   run.upright = run.genomes.map(() => ({ sum: 0, n: 0 }))
   run.thrown = run.genomes.map(() => false)
+  run.stand = run.genomes.map((g) => layout(g)[0].center[1]) // how high the trunk's middle is when standing
   run.tickInGen = 0
   for (let i = 0; i < run.genomes.length; i++) {
     const scene = structuredClone(host.scene)
@@ -223,8 +232,9 @@ async function launch(host, run) {
 }
 
 // A body that overlaps itself can make the physics engine throw it across the world; that is not walking. A creature that is
-// ever faster than this, or leaves the ground, scores nothing.
-const MAX_SPEED = 8
+// ever faster than this, rises far above where it stands, or leaves the ground, scores nothing.
+const MAX_RISE = 1 // metres the trunk may rise above where it stands
+const MAX_SPEED = 6
 
 /**
  * How well each creature did: the straight-line distance it covered between landing and the end of the generation (any direction),
@@ -243,17 +253,18 @@ function scoresOf(host, run) {
 export const parent = {
   async init(host) {
     const n = host.params.population
-    runs.set(host, { gen: 1, genomes: Array.from({ length: n }, () => randomGenome(() => host.random(), () => host.normal())), tickInGen: 0, start: [], upright: [], thrown: [], scores: [], best: 0, lastBest: 0, mean: 0 })
+    runs.set(host, { gen: 1, genomes: Array.from({ length: n }, () => randomGenome(() => host.random(), () => host.normal())), tickInGen: 0, start: [], upright: [], thrown: [], stand: [], scores: [], best: 0, lastBest: 0, mean: 0 })
     await launch(host, runs.get(host))
   },
 
   async step(host) {
     const run = runs.get(host)
     run.tickInGen++
-    if (run.tickInGen > SETTLE && run.tickInGen % 10 === 0) {
+    if (run.tickInGen > SETTLE && run.tickInGen % 5 === 0) {
       const half = host.scene.terrain.size / 2 - 1
       ;[...host.group.sims.values()].forEach((s, i) => {
         const m = s.metrics()
+        if (m.y > run.stand[i] + MAX_RISE) run.thrown[i] = true
         run.upright[i].sum += m.upright
         run.upright[i].n++
         if (m.speed > MAX_SPEED || m.y < -0.5 || Math.abs(m.x) > half || Math.abs(m.z) > half) run.thrown[i] = true

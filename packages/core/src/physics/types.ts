@@ -43,6 +43,6 @@ export interface Articulation {
   readRootVelocity(out: Float32Array | number[], offset: number): void
   /** Hinge angle of every joint in body order, radians (0 for non-hinge joints). */
   readAngles(out: Float32Array | number[], offset: number): void
-  /** Point every motor at its target angle. Arrays have one entry per joint in body order; joints without a motor ignore them. */
-  setMotors(targets: ArrayLike<number>, stiffness: ArrayLike<number>, damping: ArrayLike<number>): void
+  /** Point every motor at its target angle, never pushing harder than `maxTorque` (Infinity: no limit). Arrays have one entry per joint in body order; joints without a motor ignore them. */
+  setMotors(targets: ArrayLike<number>, stiffness: ArrayLike<number>, damping: ArrayLike<number>, maxTorque?: ArrayLike<number>): void
 }

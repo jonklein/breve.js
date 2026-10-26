@@ -42,6 +42,18 @@ export interface DriveDef {
   lag?: NumOrParam
 }
 
+/** What a hinge motor does: chase a target like a spring with damping, within limits on how hard and how fast. */
+export interface MotorDef {
+  /** Torque per radian of error. */
+  stiffness?: NumOrParam
+  /** Torque per radian per second. */
+  damping?: NumOrParam
+  /** The most torque (newton-metres) the motor can ever apply. A real muscle has a limit; without one a motor given a far-off target pushes as hard as its stiffness says, however small the limb. */
+  maxTorque?: NumOrParam
+  /** The fastest the target may move (radians per second). A script that jumps the target from one end of the range to the other is eased there at this speed. */
+  maxSpeed?: NumOrParam
+}
+
 export interface JointDef {
   name: string
   /** "hinge" turns around one axis (can have limits and a motor), "ball" turns freely, "fixed" welds. */
@@ -55,7 +67,7 @@ export interface JointDef {
   /** Hinge angle range in radians. */
   limits?: [number, number]
   /** A motor makes the joint chase a target angle like a spring with damping (torque per radian, torque per radian per second). */
-  motor?: { stiffness?: NumOrParam; damping?: NumOrParam }
+  motor?: MotorDef
   /** Oscillator settings for this joint's motor. Without it the target stays at the joint's rest angle (0) unless `act` sets it. */
   drive?: DriveDef
 }
@@ -101,7 +113,7 @@ export interface AttachDef {
 /** The compact form you write: the flat body plus templates, attachments, and a default motor. */
 export interface BodyInput extends BodyDef {
   /** Default motor for every joint with a `drive` that doesn't give its own. */
-  motor?: { stiffness?: NumOrParam; damping?: NumOrParam }
+  motor?: MotorDef
   templates?: Record<string, TemplateDef>
   attach?: AttachDef[]
 }
@@ -156,7 +168,7 @@ const jointItem = {
     motor: {
       type: 'object',
       additionalProperties: false,
-      properties: { stiffness: numOrParamOrArg, damping: numOrParamOrArg },
+      properties: { stiffness: numOrParamOrArg, damping: numOrParamOrArg, maxTorque: numOrParamOrArg, maxSpeed: numOrParamOrArg },
     },
     drive: {
       type: 'object',
@@ -174,7 +186,7 @@ export const bodySchema = {
   properties: {
     parts: { type: 'array', minItems: 1, items: partItem },
     joints: { type: 'array', items: jointItem },
-    motor: { type: 'object', additionalProperties: false, properties: { stiffness: numOrParam, damping: numOrParam } },
+    motor: { type: 'object', additionalProperties: false, properties: { stiffness: numOrParam, damping: numOrParam, maxTorque: numOrParam, maxSpeed: numOrParam } },
     templates: {
       type: 'object',
       additionalProperties: {
@@ -255,6 +267,8 @@ export function checkBody(body: BodyDef, where: string, params: Set<string> | nu
       ...(['amplitude', 'phase', 'offset', 'lag'] as const).map((k): [string, NumOrParam | undefined] => [`drive.${k}`, j.drive?.[k]]),
       ['motor.stiffness', j.motor?.stiffness],
       ['motor.damping', j.motor?.damping],
+      ['motor.maxTorque', j.motor?.maxTorque],
+      ['motor.maxSpeed', j.motor?.maxSpeed],
     ]
     for (const [k, v] of refs) if (typeof v === 'string' && params && !params.has(v.slice(1))) errors.push(`${w}.${k}: unknown param "${v}"`)
   })

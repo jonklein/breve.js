@@ -115,6 +115,9 @@ export class RigidWorld implements World {
   /** Oscillator output and the final targets, `jointCount` numbers per creature. */
   private gait = new Float32Array(0)
   private targets = new Float32Array(0)
+  /** Where each motor's target actually is after `maxSpeed` has eased it toward what the script asked for, and whether it has started yet. */
+  private applied = new Float32Array(0)
+  private appliedReady = false
   private leaves: number[] = []
   private lastBody: BodyDef
   /** The flat body worked out from the scene's body and the current params, remembered until either changes. */
@@ -192,6 +195,8 @@ export class RigidWorld implements World {
       this.angles = new Float32Array(n * J)
       this.gait = new Float32Array(n * J)
       this.targets = new Float32Array(n * J)
+      this.applied = new Float32Array(n * J)
+      this.appliedReady = false
     }
     this.record(false)
   }
@@ -234,6 +239,7 @@ export class RigidWorld implements World {
     const freq = resolve(this.host.def.oscillator?.frequency, p, 1)
     const amp = new Float64Array(J), off = new Float64Array(J), pha = new Float64Array(J)
     const kp = new Float64Array(J), kd = new Float64Array(J)
+    const maxTorque = new Float64Array(J).fill(Infinity), maxStep = new Float64Array(J).fill(Infinity)
     for (let j = 0; j < J; j++) {
       const d = bj[j].drive
       amp[j] = resolve(d?.amplitude, p, 0)
@@ -241,6 +247,8 @@ export class RigidWorld implements World {
       pha[j] = resolve(d?.phase, p, 0) - resolve(d?.lag, p, 0)
       kp[j] = resolve(bj[j].motor?.stiffness, p, MOTOR_DEFAULTS.stiffness)
       kd[j] = resolve(bj[j].motor?.damping, p, MOTOR_DEFAULTS.damping)
+      maxTorque[j] = resolve(bj[j].motor?.maxTorque, p, Infinity)
+      maxStep[j] = resolve(bj[j].motor?.maxSpeed, p, Infinity) * DT
     }
     for (let i = 0; i < n; i++)
       for (let j = 0; j < J; j++) {
@@ -271,10 +279,16 @@ export class RigidWorld implements World {
       }
     }
 
-    // act: point the motors
+    // act: ease each target toward what was asked (at most `maxSpeed`), then point the motors, which push no harder than `maxTorque`
+    if (!this.appliedReady) { this.applied.set(this.angles); this.appliedReady = true } // start from where the joints are
+    for (let k = 0; k < n * J; k++) {
+      const step = maxStep[k % J]
+      const d = this.targets[k] - this.applied[k]
+      this.applied[k] = Math.abs(d) <= step ? this.targets[k] : this.applied[k] + Math.sign(d) * step
+    }
     for (let i = 0; i < n; i++) {
-      const t = this.targets.subarray(i * J, (i + 1) * J)
-      this.arts[i].setMotors(t, kp, kd)
+      const t = this.applied.subarray(i * J, (i + 1) * J)
+      this.arts[i].setMotors(t, kp, kd, maxTorque)
       c.phase[i] = (c.phase[i] + freq * DT) % 1
     }
 
@@ -423,14 +437,15 @@ export class RigidWorld implements World {
   }
 
   snapshot(): unknown {
-    return { count: this.arts.length, table: this.table.snapshot(), physics: this.physics.snapshot(this.arts) }
+    return { count: this.arts.length, table: this.table.snapshot(), physics: this.physics.snapshot(this.arts), applied: this.applied.slice(), appliedReady: this.appliedReady }
   }
 
   restore(s: unknown): void {
-    const x = s as { count: number; table: TableSnapshot; physics: unknown }
+    const x = s as { count: number; table: TableSnapshot; physics: unknown; applied?: Float32Array; appliedReady?: boolean }
     if (x.count !== this.arts.length) throw new Error(`cannot restore: the snapshot has ${x.count} creatures and this sim has ${this.arts.length}`)
     this.table.restore(x.table)
     this.physics.restore(x.physics, this.arts)
+    if (x.applied && x.applied.length === this.applied.length) { this.applied.set(x.applied); this.appliedReady = !!x.appliedReady }
     this.record(false) // refresh the pose buffers the renderer reads
   }
 

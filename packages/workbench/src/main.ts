@@ -1,7 +1,7 @@
 import { Viewport, type WorldLook } from './viewport'
 import { TileGrid } from './tiles'
 import { makeEditor, setParamInText } from './editors'
-import { setEntityKey } from '@breve/core'
+import { parseScene, sceneSchema, setEntityKey } from '@breve/core'
 import { ParamsPanel, MetricsPanel } from './panel'
 import {
   clearDoc, createProject, deleteProject, fetchExample, loadExamples, renameProject, saveDoc, savedDoc, userProjects,
@@ -12,6 +12,8 @@ import { DocsPanel } from './docs'
 import { InspectorPanel } from './inspector'
 import { decodeShare, encodeShare } from './share'
 import { ExperimentPanel, defaultExperiment } from './experiment-panel'
+import { JsonTree } from './tree'
+import { experimentSchema, parseExperiment } from '@breve/experiment'
 import type { FromWorker, ToWorker } from './sim.worker'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -77,7 +79,34 @@ async function main(): Promise<void> {
     } catch { /* keep the last good sliders and look */ }
   }
 
+  // ---- the tree view: a second way to edit scene.json and experiment.json, over the same text ----
+  let treeView = false
+  let tab = 'scene'
+  const sceneTree = new JsonTree($('tree-scene'), sceneSchema, (text) => sceneEditor.setText(text))
+  const experimentTree = new JsonTree($('tree-experiment'), experimentSchema, (text) => experimentEditor.setText(text))
+  const checkExperiment = () => {
+    const sc = parseScene(sceneEditor.getText())
+    const r = parseExperiment(experimentEditor.getText(), sc.ok ? sc.scene : undefined)
+    experimentTree.setErrors(r.ok ? [] : r.errors)
+  }
+  const syncTrees = () => {
+    if (!treeView) return
+    if (tab === 'scene') sceneTree.setText(sceneEditor.getText())
+    if (tab === 'experiment') { experimentTree.setText(experimentEditor.getText()); checkExperiment() }
+  }
+  const showViews = () => {
+    const jsonTab = tab === 'scene' || tab === 'experiment'
+    $('view-toggle').classList.toggle('hidden', !jsonTab)
+    $('view-toggle').textContent = treeView ? 'Text view' : 'Tree view'
+    $('editor-scene').classList.toggle('hidden', tab !== 'scene' || treeView)
+    $('tree-scene').classList.toggle('hidden', tab !== 'scene' || !treeView)
+    $('editor-experiment').classList.toggle('hidden', treeView)
+    $('tree-experiment').classList.toggle('hidden', !treeView)
+    syncTrees()
+  }
+
   const sceneEditor = makeEditor($('editor-scene'), '', 'json', (text) => {
+    if (treeView && tab === 'scene') sceneTree.setText(text) // whoever changed the text, the tree follows
     if (loading) return
     saveDoc(current, docNow())
     showScene(text)
@@ -89,6 +118,7 @@ async function main(): Promise<void> {
     debounce('script', () => send({ type: 'script', script: text }))
   })
   const experimentEditor = makeEditor($('editor-experiment'), '', 'json', () => {
+    syncTrees()
     if (loading) return
     saveDoc(current, docNow())
   })
@@ -248,6 +278,7 @@ async function main(): Promise<void> {
   const status = $('status')
   const problems = $('problems')
   const showProblems = (scene: string[], script: string[], runtime: string[]) => {
+    sceneTree.setErrors(scene)
     problems.replaceChildren()
     const add = (where: string, msgs: string[]) =>
       msgs.forEach((m) => {
@@ -290,14 +321,17 @@ async function main(): Promise<void> {
   document.querySelectorAll<HTMLButtonElement>('.tab').forEach((b) =>
     b.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b))
-      $('editor-scene').classList.toggle('hidden', b.dataset.tab !== 'scene')
+      tab = b.dataset.tab ?? 'scene'
       $('editor-script').classList.toggle('hidden', b.dataset.tab !== 'script')
       $('exp').classList.toggle('hidden', b.dataset.tab !== 'experiment')
       $('chat').classList.toggle('hidden', b.dataset.tab !== 'chat')
       $('docs').classList.toggle('hidden', b.dataset.tab !== 'docs')
       if (b.dataset.tab === 'docs') void docs.show()
+      showViews()
     }),
   )
+  $('view-toggle').addEventListener('click', () => { treeView = !treeView; showViews() })
+  showViews()
 
   if (new URLSearchParams(location.search).get('tab') === 'docs') document.querySelector<HTMLButtonElement>('[data-tab=docs]')!.click()
 

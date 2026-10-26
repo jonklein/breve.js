@@ -1,4 +1,4 @@
-export { parseExperiment, type ExperimentSpec, type StrategySpec, type SpecResult } from './spec'
+export { parseExperiment, experimentSchema, type ExperimentSpec, type StrategySpec, type SpecResult } from './spec'
 export { makeDims, type Dim, type SpaceSpec } from './space'
 export type { Strategy } from './strategy'
 export { GridStrategy, RandomStrategy, CmaStrategy } from './strategies'

@@ -25,7 +25,7 @@ export interface ExperimentSpec {
   seed?: number
 }
 
-const schema = {
+export const experimentSchema = {
   type: 'object',
   required: ['strategy', 'space', 'objective', 'ticks'],
   additionalProperties: false,
@@ -69,7 +69,7 @@ const schema = {
   },
 } as const
 
-const validate = new Ajv({ allErrors: true, strict: false }).compile(schema)
+const validate = new Ajv({ allErrors: true, strict: false }).compile(experimentSchema)
 
 export type SpecResult = { ok: true; spec: ExperimentSpec } | { ok: false; errors: string[] }
 

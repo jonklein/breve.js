@@ -30,12 +30,15 @@
           <button class="tab" data-tab="experiment">experiment.json</button>
           <button class="tab" data-tab="chat">Assistant</button>
           <button class="tab" data-tab="docs">Docs</button>
+          <button id="view-toggle" class="hidden" title="Edit this file as a tree of fields instead of text">Tree view</button>
           <span id="status" class="status ok">ok</span>
         </nav>
         <div id="editor-scene" class="editor"></div>
+        <div id="tree-scene" class="editor hidden"></div>
         <div id="editor-script" class="editor hidden"></div>
         <div id="exp" class="exp hidden">
           <div id="editor-experiment" class="editor"></div>
+          <div id="tree-experiment" class="editor hidden"></div>
           <div class="exp-bar">
             <button id="exp-run" title="Run every candidate to the end, one after another, and rank them">Run</button>
             <button id="exp-watch" title="Show up to 12 of the runs side by side, live">Watch</button>

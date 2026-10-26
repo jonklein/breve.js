@@ -18,7 +18,7 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 | M5 | Abstract worlds | **Done**, minus `transform.meaning` | `epidemic`, `epidemic-grid`, `market` |
 | M6 | Bodies and physics | **Mostly done** (no MuJoCo, MJCF, glTF, mutation utilities) | `creature`, `urdf-bot`, `morphology` |
 | M7 | Learning and language models | **Partly done** (no ONNX, Hugging Face, VLM) | `llm-wanderers`, `neural`, assistant |
-| M8 | Site and editing polish | **Partly done** (no JSON tree editor yet) | home page, site nav, gallery, share links |
+| M8 | Site and editing polish | **Done** | home page, site nav, gallery, share links, tree editor |
 | Later | Sandboxing, scrubber, GPU layers, remote training | Not started | |
 
 Also built, outside the original list:
@@ -139,7 +139,7 @@ Pending:
 - [ ] A camera sensor so a VLM can drive an agent.
 - [x] Workbench controls for lockstep mode and for saving and replaying a decision log (a bar above the view when a set thinks; checked in a headless browser with a stubbed model).
 
-## M8 — Site and editing polish — Partly done
+## M8 — Site and editing polish — Done
 
 The workbench was the whole app; this milestone gives breve a front door and makes configs easier to edit without hand-writing JSON. See `docs/decisions/site.md`.
 
@@ -147,9 +147,9 @@ The workbench was the whole app; this milestone gives breve a front door and mak
 - [x] **Site navigation**: Home, Simulations, Gallery, Docs, About and a link to the source, in one module used by every page, including the workbench header. `?embed` hides it.
 - [x] **Gallery** at `/gallery/`: every example as a card with a picture, description and tags; filter by tag; Open, Fork (copies it into your projects) and Copy link; your own projects are listed below.
 - [x] **Sharing**: Share in the workbench copies a link that carries the scene, script and experiment (`/sim/#s=...`); opening one saves it as your own project.
-- [ ] **JSON tree editor for the config**: edit `scene.json` (and `experiment.json`) as a collapsible tree with typed fields, number inputs, color pickers, dropdowns drawn from the schema, add/remove for lists and objects, and inline validation errors, beside the text editor as a second view of the same text.
+- [x] **JSON tree editor for the config** (Tree view button above the editor, for `scene.json` and `experiment.json`): a collapsible tree with number inputs, checkboxes, color pickers, dropdowns for fixed choices, `$param` pickers, add (fields the schema names, or any key) and remove, and inline validation errors. It is a second view of the same text: each edit is a path-based text edit (`setAtPath`, `removeAtPath`, `addAtPath` in core) so the rest of the file keeps its formatting.
 
-Acceptance: the home page shows three working demos (done); the gallery lists every example and opens any of them in one click (done); every config field in the examples can be edited from the tree editor without touching the text, and the text still validates (pending).
+Acceptance (met): the home page shows three working demos; the gallery lists every example and opens any in one click; every config field in the examples can be edited from the tree editor without touching the text. Checked two ways: a core test sets, removes and re-adds every value of every example config and asserts the text stays valid JSON, and a headless-browser run confirmed the tree draws a control for every leaf of all 13 example scenes.
 
 ## Later (not started)
 

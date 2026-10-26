@@ -3,10 +3,10 @@
  * (comments aside, which JSON does not have), so the editor does not jump when a control changes a value.
  */
 
-interface Span { start: number; end: number }
+export interface Span { start: number; end: number }
 
 /** The end (exclusive) of the JSON value that starts at `i`. */
-function valueEnd(text: string, i: number): number {
+export function valueEnd(text: string, i: number): number {
   const c = text[i]
   if (c === '"') {
     let j = i + 1
@@ -28,10 +28,10 @@ function valueEnd(text: string, i: number): number {
   return j
 }
 
-const skip = (text: string, i: number) => { while (i < text.length && /\s/.test(text[i])) i++; return i }
+export const skip = (text: string, i: number) => { while (i < text.length && /\s/.test(text[i])) i++; return i }
 
 /** Every member of the object that starts at `start`: its key, and where the whole `"key": value` and the value sit. */
-function members(text: string, start: number): { key: string; whole: Span; value: Span }[] {
+export function members(text: string, start: number): { key: string; whole: Span; value: Span }[] {
   const out: { key: string; whole: Span; value: Span }[] = []
   let i = skip(text, start + 1)
   while (i < text.length && text[i] === '"') {
@@ -49,7 +49,7 @@ function members(text: string, start: number): { key: string; whole: Span; value
 }
 
 /** The object spans inside the array that starts at `start`. */
-function elements(text: string, start: number): Span[] {
+export function elements(text: string, start: number): Span[] {
   const out: Span[] = []
   let i = skip(text, start + 1)
   while (i < text.length && text[i] !== ']') {

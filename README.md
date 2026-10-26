@@ -20,7 +20,7 @@ A world is entities with components and relations. 3D continuous space is the de
 
 ```bash
 npm install
-npm run dev     # workbench at http://localhost:5173, plus the local API server
+npm run dev     # site at http://localhost:5173 (the workbench is at /sim/), plus the local API server
 npm test        # core and server tests
 npm run typecheck
 ```

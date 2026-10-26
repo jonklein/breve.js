@@ -139,3 +139,31 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 .site-nav .brand { color: var(--text); font-weight: 700; letter-spacing: 0.02em; margin-right: 6px; border-bottom: 0; }
 .site-nav .external::after { content: ' ↗'; font-size: 0.85em; }
 .embed .site-nav { display: none; }
+
+/* JSON tree view */
+.tree { overflow: auto; padding: 8px 6px 24px; font-size: 13px; }
+.tree-banner { margin: 0 6px 8px; padding: 6px 10px; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; }
+.tree-row { display: flex; align-items: center; gap: 6px; min-height: 26px; }
+.tree-row:hover { background: rgba(255, 255, 255, 0.03); }
+.tree-kids { margin-left: 14px; padding-left: 6px; border-left: 1px solid var(--border); }
+.tree-toggle { width: 18px; padding: 0; border: 0; color: var(--muted); background: transparent; line-height: 1; }
+.tree-toggle.pad { display: inline-block; flex: none; }
+.tree-key { color: #e5c07b; font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: nowrap; }
+.tree-key.idx { color: var(--muted); }
+.tree-leaf { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.tree-leaf input[type='text'], .tree-leaf input[type='number'] { width: 150px; padding: 2px 6px; }
+.tree-leaf input[type='number'] { width: 90px; }
+.tree-leaf select, .tree-add select { padding: 2px 6px; }
+.tree-color { width: 28px; height: 22px; padding: 0; border: 1px solid var(--border); background: transparent; }
+.tree-del, .tree-mini { padding: 0 7px; border-radius: 4px; font-size: 12px; line-height: 20px; color: var(--muted); }
+.tree-del { border-color: transparent; visibility: hidden; }
+.tree-row:hover .tree-del { visibility: visible; }
+.tree-del:hover { color: var(--danger); border-color: var(--danger); }
+.tree-add { margin: 2px 0 6px 24px; }
+.tree-err { margin: 0 0 2px 24px; color: var(--danger); font-size: 12px; }
+.tree-stray { margin: 0 6px 8px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.tree-stray .tree-err { margin-left: 6px; }
+#view-toggle { white-space: nowrap; padding: 2px 10px; font-size: 12px; margin-left: auto; }
+#view-toggle + .status { margin-left: 8px; }
+#editors nav { flex-wrap: wrap; }
+#editors nav .status { white-space: nowrap; }

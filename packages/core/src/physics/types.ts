@@ -8,7 +8,7 @@ import type { BodyDef } from '../body'
 export interface PhysicsEngine {
   readonly name: string
   /** `collide`: creatures bump into each other (never into their own parts). */
-  createWorld(opts: { gravity: number; collide: boolean }): PhysicsWorld
+  createWorld(opts: { gravity: number; collide: boolean; minGyration?: number }): PhysicsWorld
 }
 
 /** A square heightfield centered on the origin: `heights[ix * (n + 1) + iz]`, `n` cells per side. */

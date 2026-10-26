@@ -90,3 +90,24 @@ test('"reward staying upright" scales a score by how upright the creature stayed
   const free = await last(0), strict = await last(1)
   assert.ok(strict <= free + 1e-9, `${strict} should not beat ${free}`)
 })
+
+test('a random creature the physics used to throw 40 m/s stays put once parts have a floor on how easily they spin', async () => {
+  const { Sim } = await import('../src/index')
+  const { scene, script } = await load()
+  const r = new Rng(77), normal = normalOf(r)
+  let g: unknown
+  for (let i = 0; i <= 45; i++) g = script.randomGenome(() => r.next(), normal) // the 46th genome of this seed is one that blew up
+  const peak = async (minGyration: number) => {
+    const s = structuredClone(scene)
+    s.entities[0].body = script.bodyOf(g)
+    s.data = { genome: g }
+    s.physics = { minGyration }
+    const sim = await Sim.create(s, script)
+    let top = 0
+    for (let t = 0; t < 300; t++) { sim.step(); top = Math.max(top, sim.metrics().speed as number) }
+    sim.dispose()
+    return top
+  }
+  assert.ok((await peak(0)) > 6, 'without the floor it is thrown')
+  assert.ok((await peak(0.3)) < 6, 'with the floor it is not')
+})

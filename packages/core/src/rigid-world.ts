@@ -160,7 +160,7 @@ export class RigidWorld implements World {
   private build(): void {
     this.physics?.dispose()
     const { scene } = this.host
-    this.physics = this.engine.createWorld({ gravity: scene.physics?.gravity ?? DEFAULT_PHYSICS.gravity, collide: scene.physics?.collide ?? true })
+    this.physics = this.engine.createWorld({ gravity: scene.physics?.gravity ?? DEFAULT_PHYSICS.gravity, collide: scene.physics?.collide ?? true, minGyration: scene.physics?.minGyration })
     this.terrain = new Terrain(scene.terrain, scene.seed)
     this.physics.setTerrain({ size: this.terrain.size, n: this.terrain.n, heights: this.terrain.heights })
     this.key = this.structureKey()

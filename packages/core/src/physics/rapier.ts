@@ -23,7 +23,7 @@ const WITH_CREATURES = (CREATURE << 16) | TERRAIN | CREATURE
 
 const engine: PhysicsEngine = {
   name: 'rapier3d-deterministic',
-  createWorld: ({ gravity, collide }) => new RapierWorld(gravity, collide),
+  createWorld: ({ gravity, collide, minGyration }) => new RapierWorld(gravity, collide, minGyration ?? 0),
 }
 
 class RapierWorld implements PhysicsWorld {
@@ -37,7 +37,7 @@ class RapierWorld implements PhysicsWorld {
   private events = new RAPIER.EventQueue(false)
   private hooks: RAPIER.PhysicsHooks
 
-  constructor(gravity: number, private collide: boolean) {
+  constructor(gravity: number, private collide: boolean, private minGyration: number) {
     this.world = new RAPIER.World({ x: 0, y: -gravity, z: 0 })
     this.world.integrationParameters.numSolverIterations = 8
     const owner = this.owner
@@ -71,7 +71,7 @@ class RapierWorld implements PhysicsWorld {
       const rb = this.world.createRigidBody(
         RAPIER.RigidBodyDesc.dynamic().setTranslation(x, at.y + py, z).setRotation(rot).setCanSleep(false).setLinearDamping(0.05).setAngularDamping(0.3),
       )
-      this.world.createCollider(colliderFor(p, this.collide ? WITH_CREATURES : WITH_TERRAIN), rb)
+      this.world.createCollider(colliderFor(p, this.collide ? WITH_CREATURES : WITH_TERRAIN, this.minGyration), rb)
       this.owner.set(rb.handle, id)
       this.bodies.push(rb)
       return rb
@@ -236,7 +236,21 @@ class RapierArticulation implements Articulation {
   }
 }
 
-function colliderFor(p: PartDef, groups: number): RAPIER.ColliderDesc {
+/** Rotational inertia about each of a part's own axes for its mass, from its shape (a capsule is treated as a cylinder with its caps). */
+function inertiaOf(p: PartDef): [number, number, number] {
+  const m = p.mass, s = p.size
+  switch (p.shape) {
+    case 'box': return [m * (s[1] ** 2 + s[2] ** 2) / 12, m * (s[0] ** 2 + s[2] ** 2) / 12, m * (s[0] ** 2 + s[1] ** 2) / 12]
+    case 'sphere': { const i = 0.4 * m * s[0] ** 2; return [i, i, i] }
+    default: { // long axis is y; `size` is [straight length, radius]
+      const h = p.shape === 'capsule' ? s[0] + 2 * s[1] : s[0], r = s[1]
+      const side = m * (3 * r * r + h * h) / 12
+      return [side, 0.5 * m * r * r, side]
+    }
+  }
+}
+
+function colliderFor(p: PartDef, groups: number, minGyration: number): RAPIER.ColliderDesc {
   const s = p.size
   let d: RAPIER.ColliderDesc
   switch (p.shape) {
@@ -246,7 +260,13 @@ function colliderFor(p: PartDef, groups: number): RAPIER.ColliderDesc {
     default: d = RAPIER.ColliderDesc.cylinder(s[0] / 2, s[1])
   }
   if (p.rotation) { const [x, y, z, w] = quatFromEuler(p.rotation); d.setRotation({ x, y, z, w }) }
-  return d.setMass(p.mass).setFriction(p.friction ?? 1).setRestitution(0).setCollisionGroups(groups).setActiveHooks(RAPIER.ActiveHooks.FILTER_CONTACT_PAIRS)
+  if (minGyration > 0) {
+    // the same mass, but never easier to spin than a body with this radius of gyration (keeps tiny parts from whipping around under joint forces)
+    const floor = p.mass * minGyration * minGyration
+    const [x, y, z] = inertiaOf(p).map((v) => Math.max(v, floor))
+    d.setMassProperties(p.mass, { x: 0, y: 0, z: 0 }, { x, y, z }, { x: 0, y: 0, z: 0, w: 1 })
+  } else d.setMass(p.mass)
+  return d.setFriction(p.friction ?? 1).setRestitution(0).setCollisionGroups(groups).setActiveHooks(RAPIER.ActiveHooks.FILTER_CONTACT_PAIRS)
 }
 
 function unit(v: [number, number, number]): [number, number, number] {

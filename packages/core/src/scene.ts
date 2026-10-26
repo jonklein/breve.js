@@ -157,7 +157,7 @@ export interface Scene {
   /** Bumpy ground for creatures to walk on (needs an entity with a `body`). Shape changes apply on reset or respawn the creatures. */
   terrain?: TerrainDef
   /** Physics settings for scenes with a `body`. */
-  physics?: { gravity?: number; substeps?: number; /** Creatures bump into each other (default true). */ collide?: boolean
+  physics?: { gravity?: number; substeps?: number; /** A floor on how hard each part is to spin: its rotational inertia is at least mass times this many metres squared. Thin, light parts joined to heavy ones can otherwise be whipped around by the joint solver and throw the whole creature. Default 0 (off); 0.3 steadies random blocky bodies. */ minGyration?: number; /** Creatures bump into each other (default true). */ collide?: boolean
   }
   params: Record<string, number | ParamDef>
   /**
@@ -229,6 +229,7 @@ export const sceneSchema = {
       properties: {
         gravity: { type: 'number' },
         substeps: { type: 'integer', minimum: 1, maximum: 16 },
+        minGyration: { type: 'number', minimum: 0, maximum: 2 },
         collide: { type: 'boolean' },
       },
     },

@@ -255,11 +255,131 @@ zip(other: Field, fn: (a: number, b: number, i: number) => number): Field
 
 Combine two fields cell by cell: `alive.zip(crowd, (a, n) => ...)`.
 
+### `Field.add`
+
+```ts
+add(o: number | Field): Field
+```
+
+Arithmetic on whole fields, with no function call per cell (much faster than `map` and `zip` on a big grid). Each takes a
+number or another field of the same size and makes a new field: `crowd.eq(3)`, `alive.mul(2).add(crowd)`.
+Comparisons give 1 where true and 0 where not, so they combine with `and`, `or`, `not` and `where`.
+
+### `Field.sub`
+
+```ts
+sub(o: number | Field): Field
+```
+
+### `Field.mul`
+
+```ts
+mul(o: number | Field): Field
+```
+
+### `Field.div`
+
+```ts
+div(o: number | Field): Field
+```
+
+### `Field.min`
+
+```ts
+min(o: number | Field): Field
+```
+
+### `Field.max`
+
+```ts
+max(o: number | Field): Field
+```
+
+### `Field.eq`
+
+```ts
+eq(o: number | Field): Field
+```
+
+1 where this equals `o`, else 0.
+
+### `Field.ne`
+
+```ts
+ne(o: number | Field): Field
+```
+
+### `Field.lt`
+
+```ts
+lt(o: number | Field): Field
+```
+
+### `Field.le`
+
+```ts
+le(o: number | Field): Field
+```
+
+### `Field.gt`
+
+```ts
+gt(o: number | Field): Field
+```
+
+### `Field.ge`
+
+```ts
+ge(o: number | Field): Field
+```
+
+### `Field.and`
+
+```ts
+and(o: number | Field): Field
+```
+
+1 where both are non-zero.
+
+### `Field.or`
+
+```ts
+or(o: number | Field): Field
+```
+
+1 where either is non-zero.
+
+### `Field.not`
+
+```ts
+not(): Field
+```
+
+1 where this is 0, else 0.
+
+### `Field.where`
+
+```ts
+where(a: number | Field, b: number | Field): Field
+```
+
+`a` where this field is non-zero, `b` where it is zero: `crowd.eq(3).where(1, 0)`, `alive.where(age.add(1), 0)`.
+
+### `Field.clamp`
+
+```ts
+clamp(lo: number, hi: number): Field
+```
+
+Every value held between `lo` and `hi`.
+
 ### `Field.sum`
 
 ```ts
 sum(): number
 ```
+
+The other operand as an array and an index mask: a number is a one-element array read at index 0 (mask 0), a field is read in step (mask -1).
 
 ### `Field.average`
 

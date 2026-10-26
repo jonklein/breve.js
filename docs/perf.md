@@ -14,10 +14,18 @@ Re-run with `node --import tsx scripts/bench-life.mjs [side]`.
 | fork (shares neighbor tables, copies columns) | ~30–60 ms |
 | hash | ~8 ms |
 
-The M1 placeholder target was a tick under 30 ms. A tick is currently about 80 ms: `neighborSum` is ~20 ms, and every
-`zip`/`map` is ~12 ms because each calls a JS closure per cell. Ways to close the gap, if it matters, in order of effort:
-fuse common patterns into built-in field operations (for example a lookup table `alive.neighborSum().lookup(...)`), run
-the rule in WASM, or compute on the GPU. Per-cell `decide` rules cost about 3 µs/cell (3D Life, 8,000 cells, ~24 ms),
+The M1 placeholder target was a tick under 30 ms; it is not met yet. Measured on a slower Linux box (same script,
+`scripts/bench-life.mjs`), a tick went from ~112 ms to ~62 ms in two steps:
+
+1. Writing a rule's result back into the columns no longer calls a function per cell (~110 → ~77 ms).
+2. `Field` has closure-free whole-field operations (`add`, `eq`, `and`, `or`, `where`, `clamp`, ...), and `examples/life2d`
+   uses them instead of two `zip` closures (~77 → ~62 ms). A test checks that both ways of writing the rule give the same
+   state, tick for tick.
+
+What is left, per tick: `neighborSum` ~22 ms, then about 5-10 ms for each of the six or so whole-field operations. Those are
+memory-bound: each one allocates and fills a fresh 4 MB array. Ways to close the rest of the gap, in order of effort: reuse
+buffers for temporaries, fuse common chains (for example `crowd.eq(3).or(alive.and(crowd.eq(2)))` as one pass), run the rule in
+WASM, or compute on the GPU. Per-cell `decide` rules cost about 3 µs/cell (3D Life, 8,000 cells, ~24 ms),
 so they suit grids up to roughly 50,000 cells.
 
 Per-cell handles are only built when a `decide` rule or a lattice metric asks for them; a metric such as

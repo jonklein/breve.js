@@ -17,6 +17,19 @@ function coerce(f: StateField, v: unknown): number | string {
 }
 
 /**
+ * Write a whole field into a column the way `coerce` would, cell by cell, but without a function call per cell
+ * (a million-cell rule spends most of its time here otherwise).
+ */
+function store(dst: Column, f: StateField, data: ArrayLike<number>, n: number): void {
+  if (f.kind === 'string') { for (let r = 0; r < n; r++) (dst as unknown as string[])[r] = String(data[r]); return }
+  if (f.kind === 'boolean') { for (let r = 0; r < n; r++) dst[r] = data[r] ? 1 : 0; return }
+  if (f.type === 'u8') { for (let r = 0; r < n; r++) { const x = Math.round(Number(data[r])); dst[r] = x < 0 ? 0 : x > 255 ? 255 : x } return }
+  if (f.type === 'i32') { for (let r = 0; r < n; r++) dst[r] = Math.round(Number(data[r])); return }
+  if (data.length === n && ArrayBuffer.isView(data)) { (dst as Float64Array).set(data as Float64Array); return } // f32 / f64: a plain copy
+  for (let r = 0; r < n; r++) dst[r] = Number(data[r])
+}
+
+/**
  * A 3D grid of cells. Each cell is an entity; neighbors are implicit index arithmetic,
  * so a 100,000-cell grid needs no edge lists. Rules are synchronous: every cell reads
  * the old state, and the new state is written all at once at the end of the tick.
@@ -240,8 +253,7 @@ export class LatticeWorld implements World, PatchLayer {
       if (v === undefined) continue
       const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
       if (!data || data.length !== this.n) { this.host.fail('update', new Error(`"${f}" must be a field with ${this.n} cells`)); continue }
-      const dst = cols[f]
-      for (let r = 0; r < this.n; r++) dst[r] = coerce(this.fieldOf[f], data[r]) as number
+      store(cols[f], this.fieldOf[f], data, this.n)
     }
   }
 

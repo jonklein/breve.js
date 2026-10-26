@@ -220,13 +220,13 @@ export const metrics = {
 
 `self` has `x, y, z` (grid coordinates), `position` (a vector), and every state field as a number: `self.alive`.
 
-**Big grids: `update` instead of `decide`.** A script may export `update(fields, params)` instead. It runs once per tick, gets every state field as a whole (`{ alive, age }`) and returns the new fields. Fields have `neighborSum()`, `neighborMax()`, `map(fn)`, `zip(other, fn)`, `sum()` and `average()`; each makes a new field and none changes the original. Use it for grids above about 50,000 cells (a 1000×1000 flat grid works). A lattice with a dimension of 1, like `[200, 200, 1]`, is flat and its cells have no neighbors along that axis. Networks take `update` too: a field's `neighborSum()`, `neighborAverage()` and `neighborMax()` follow the links, however many each node has (a hub with hundreds of links is fine), and only single-number state fields are passed in.
+**Big grids: `update` instead of `decide`.** A script may export `update(fields, params)` instead. It runs once per tick, gets every state field as a whole (`{ alive, age }`) and returns the new fields. Fields have `neighborSum()`, `neighborAverage()`, `neighborMax()`, arithmetic and comparisons that take a number or another field (`add`, `sub`, `mul`, `div`, `min`, `max`, `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `and`, `or`, `not`, `clamp`, and `where(a, b)` to pick between two values), `map(fn)`, `zip(other, fn)`, `sum()` and `average()`; each makes a new field and none changes the original. Prefer the arithmetic over `map`/`zip` on big grids: they run without a function call per cell. Use it for grids above about 50,000 cells (a 1000×1000 flat grid works). A lattice with a dimension of 1, like `[200, 200, 1]`, is flat and its cells have no neighbors along that axis. Networks take `update` too: a field's `neighborSum()`, `neighborAverage()` and `neighborMax()` follow the links, however many each node has (a hub with hundreds of links is fine), and only single-number state fields are passed in.
 
 ```js
 export default {
   update({ alive }) {
     const crowd = alive.neighborSum()           // live neighbors of every cell
-    return { alive: alive.zip(crowd, (a, n) => (a ? n === 2 || n === 3 : n === 3) ? 1 : 0) }
+    return { alive: crowd.eq(3).or(alive.and(crowd.eq(2))) } // born on 3, or alive and on 2
   },
 }
 ```

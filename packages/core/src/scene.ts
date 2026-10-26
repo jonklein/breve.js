@@ -12,6 +12,13 @@ export interface ParamDef {
   label?: string
 }
 
+export interface ModelDef {
+  /** Where the model file is: a path or URL, or `hf:owner/repo/path/to/model.onnx` for a file on the Hugging Face Hub (`hf:owner/repo@revision/path` to pin a revision). */
+  url: string
+  /** `cpu` (default; repeatable) or `webgpu` (faster where the browser has it, but results can differ a little between machines). */
+  device?: 'cpu' | 'webgpu'
+}
+
 export interface SensorDef {
   /** `neighbors`: the agents near this one, or linked to it. `camera`: a small top-down picture of its surroundings (see `size` and `range`), made when a script reads it. */
   type: 'neighbors' | 'camera'
@@ -199,6 +206,11 @@ export interface Scene {
   physics?: { gravity?: number; substeps?: number; /** Creatures bump into each other (default true). */ collide?: boolean
   }
   params: Record<string, number | ParamDef>
+  /**
+   * Trained models the scene uses, by name: `"models": { "policy": { "url": "policy.onnx" } }`. The host loads them
+   * (see `@breve/inference`); a controller's `think` or `thinkAll` runs one with `ctx.model('policy')`.
+   */
+  models?: Record<string, ModelDef>
   entities: EntityDef[]
   metrics?: string[]
   /** Draw several metrics on one chart: `[{ "title": "SIR", "metrics": ["susceptible", "infected"] }]`. Metrics not listed in any chart get their own. */
@@ -294,6 +306,13 @@ export const sceneSchema = {
         boundsColor: color,
         agentColor: { anyOf: [{ const: 'heading' }, color] },
         shadows: { type: 'boolean' },
+      },
+    },
+    models: {
+      type: 'object',
+      additionalProperties: {
+        type: 'object', required: ['url'], additionalProperties: false,
+        properties: { url: { type: 'string', minLength: 1 }, device: { enum: ['cpu', 'webgpu'] } },
       },
     },
     params: {

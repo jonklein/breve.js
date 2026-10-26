@@ -350,7 +350,7 @@ export class AgentWorld implements World {
   thinkers(): { row: number; obs: { self: unknown; neighbors: unknown } }[] {
     const ctrl = this.host.controller()
     const every = this.host.def.think?.every ?? 60
-    if (!ctrl?.think || this.host.tick % every !== 0) return []
+    if (!(ctrl?.think || ctrl?.thinkAll) || this.host.tick % every !== 0) return []
     const own = this.host.def.sensors?.find((s) => !s.of && s.type !== 'camera')
     const cameras = (this.host.def.sensors ?? []).filter((s) => s.type === 'camera')
     const radius = resolve(own?.radius, this.host.params, 0)

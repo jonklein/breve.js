@@ -17,7 +17,7 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 | M4 | Experiment layer | **Done** | `boids`, `creature`, `ants`, `morphology` experiments |
 | M5 | Abstract worlds | **Done** | `epidemic`, `epidemic-grid`, `market` |
 | M6 | Bodies and physics | **Mostly done** (no MuJoCo, MJCF, glTF, mutation utilities) | `creature`, `urdf-bot`, `morphology` |
-| M7 | Learning and language models | **Partly done** (no ONNX, Hugging Face, VLM) | `llm-wanderers`, `neural`, assistant |
+| M7 | Learning and language models | **Done** (WebGPU untested) | `llm-wanderers`, `neural`, assistant |
 | M8 | Site and editing polish | **Done** | home page, site nav, gallery, share links, tree editor |
 | Later | Sandboxing, scrubber, GPU layers, remote training | Not started | |
 
@@ -49,7 +49,7 @@ Also built, outside the original list:
 - [x] Benchmarks in `docs/perf.md`; snapshot ~3 ms, fork ~40 ms, hash ~8 ms for 1,000,000 cells
 - [x] Life playable in the workbench with the same mechanism as boids
 
-Pending:
+Added to finish the milestone:
 
 - [ ] A 1000×1000 Life tick is above the 30 ms target (112 → 62 ms on the test box after this work; see `docs/perf.md` for what was done and what is left: buffer reuse, fused chains, WASM, GPU). `Field` gained closure-free whole-field operations (`add`, `eq`, `and`, `where`, ...) along the way.
 - [x] General relation tables: named, directed, attributed edges with CSR neighbor lookup, owned by the `Sim` (`sim.relations`), included in snapshot, fork and hash. Scripts reach them as `ctx.relations`; `via` sensors read them (M5).
@@ -63,7 +63,7 @@ Pending:
 - [x] Per-agent strided state (`ctx.mlp`, `examples/neural`), forked mid-run with identical branches
 - [x] Fork determinism tests
 
-Pending:
+Added to finish the milestone:
 
 - [ ] A pool of workers and a budget-aware scheduler across them. One worker runs a whole group today, under a per-frame time budget.
 
@@ -75,7 +75,7 @@ Pending:
 - [x] **Ants** with a pheromone layer, and swapping a controller at runtime with only the binding edited (tested)
 - [x] Non-determinism flag in core (`spec.nondeterministic`, `sim.nondeterministic()`); keyboard input is logged (`sim.inputLog`)
 
-Pending:
+Added to finish the milestone:
 
 - [x] The workbench shows "⚠ not repeatable" (with the reason on hover) for sets driven by a person or a model, and clears it while a decision log is replayed.
 - [x] Controller per entity: a text state field called `controller` names the script export an agent runs; the inspector menu sets it for the clicked entity.
@@ -89,7 +89,7 @@ Pending:
 - [x] The 12-sim sweep is driven by an experiment file; three strategies run against the same scene with no core changes
 - [x] Morphology search through `$param` expressions in body geometry
 
-Pending:
+Added to finish the milestone:
 
 - [ ] Run candidates in parallel across workers (needs the M2 pool).
 - [ ] Export results as JSON as well as CSV.
@@ -103,7 +103,7 @@ Pending:
 - [x] **Market**: traders with cash and goods trading over links
 - [x] Headless run with no renderer (`npm run run -- epidemic`)
 
-Pending:
+Added to finish the milestone:
 
 - [x] `via` neighbor sensors over named relations (agents; networks already read their links as neighbors).
 - [x] `transform.meaning`: settled by the kind of set (networks are layout-only by construction); `SPEC.md` now says so.
@@ -117,7 +117,7 @@ Pending:
 - [x] Snapshot, restore and fork of physics state; identical replicate runs
 - [x] URDF importer (box, sphere, cylinder; revolute, continuous, fixed) with `examples/urdf-bot`
 
-Pending:
+Added to finish the milestone:
 
 - [ ] The MuJoCo WASM comparison from the original spike.
 - [x] MJCF importer (`importMjcf`, `npm run mjcf -- model.xml`): nested bodies, box/sphere/capsule/cylinder geoms (sized or `fromto`), hinge/ball/free joints with ranges, euler/quat/axisangle, mass or density. No slide joints, meshes or several joints on one body (reported).
@@ -125,17 +125,17 @@ Pending:
 - [x] Rotated links in URDF: parts take a `rotation`, and the importer composes `rpy` frames down the link tree (shapes, child positions and joint axes follow).
 - [x] Annotated mutation and crossover utilities (`mutate`, `crossover`, `randomGenome` in `@breve/experiment`): they read the min, max and step the scene gives each param, so they work on body geometry params as well as any other. They stay out of core.
 
-## M7 — Learning and language models — Partly done
+## M7 — Learning and language models — Done
 
 - [x] `think()` with `ctx.ask`: lockstep and realtime modes, a decision log, exact replay without calling the model (`examples/llm-wanderers`, `/api/decide`)
 - [x] Authoring assistant: prompt in, validated scene and script changes out, accept or reject, undo
 - [x] Per-agent neural network weights as columns (`ctx.mlp`)
 - [x] A morphology search with the experiment layer
 
-Pending:
+Added to finish the milestone:
 
-- [ ] ONNX or WebGPU inference, and batched inference for populations.
-- [ ] Loading models from the Hugging Face Hub into an asset store.
+- [x] ONNX inference with batched inference for populations: `models` in the scene, `ctx.model(...)`, `thinkAll` (one call for a whole set), `@breve/inference` over ONNX Runtime Web, replay without the runtime. Checked with a real ONNX file in Node tests and in the browser (`examples/onnx-policy`). WebGPU (`"device": "webgpu"`) is written but untested: no GPU here. See `docs/decisions/inference.md`.
+- [x] Loading models from the Hugging Face Hub (`hf:owner/repo/path.onnx`), cached in memory and in the browser's Cache Storage. Hub resolution and caching are tested with a stubbed network (no test downloads from the Hub); once, by hand, `hf:onnxmodelzoo/mnist-12/mnist-12.onnx` downloaded from the real Hub and loaded (a 4-D image model: it loads, but reports no input width, since only `[batch, width]` shapes are described). Private repositories are not supported.
 - [x] A camera sensor so a VLM can drive an agent: `"sensors": [{ "type": "camera", "name": "view" }]` gives an egocentric top-down picture drawn from sim state (no renderer), `ctx.ask(..., { images })` shows it to a vision model through the server, and decisions are logged and replayed like any other (`examples/vlm-scouts`). A first-person 3D render would need the renderer and is left out on purpose: the core stays headless.
 - [x] Workbench controls for lockstep mode and for saving and replaying a decision log (a bar above the view when a set thinks; checked in a headless browser with a stubbed model).
 

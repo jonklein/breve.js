@@ -1,5 +1,6 @@
 export { Relation, Relations, type EdgeId } from './relations'
 export { Picture } from './image'
+export { handleFor, type Model, type ModelHandle } from './inference'
 export { Rng } from './rng'
 export { Table, ObjColumn, StrColumn, canonicalJson, type ColumnType, type EntityId } from './store'
 export {
@@ -12,6 +13,7 @@ export {
   type WorldDef,
   type EntityDef,
   type LatticeDef,
+  type ModelDef,
   type ParamDef,
   type Params,
   type SceneResult,

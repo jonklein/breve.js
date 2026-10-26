@@ -12,6 +12,7 @@
     "@breve/core": "*",
     "@breve/embed": "*",
     "@breve/experiment": "*",
+    "@breve/inference": "*",
     "@breve/view": "*",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-json": "^6.0.2",

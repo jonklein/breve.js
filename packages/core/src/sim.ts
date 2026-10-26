@@ -1,3 +1,4 @@
+import { handleFor, type Model, type ModelHandle } from './inference'
 import { Relations, type RelationsSnapshot } from './relations'
 import { Mlp } from '@breve/stdlib'
 import { Rng } from './rng'
@@ -9,7 +10,7 @@ import { NetworkWorld } from './network-world'
 import type { PhysicsEngine } from './physics/types'
 import { paramValues, stateFields, type EntityDef, type Params, type Scene } from './scene'
 import { blend } from './blend'
-import type { AskOptions, ModelRequest, Controller, Ctx, FrameData, Host, MetricInput, Message, ScriptModule, World } from './world'
+import type { AskOptions, ModelRequest, ThinkCtx, Controller, Ctx, FrameData, Host, MetricInput, Message, ScriptModule, World } from './world'
 
 /** One entity as an inspector shows it. */
 export interface Inspected {
@@ -29,6 +30,12 @@ export type { AskOptions, Ctx, Controller, FrameData, Message, MetricInput, Mode
 const DT = 1 / 60
 
 /** What one entity set sees of the sim: its own definition and controller, and everything shared. */
+interface ThoughtJob {
+  set: number
+  rows: number[]
+  run: () => Promise<{ ok: true; values: unknown[] } | { ok: false }>
+}
+
 class SetHost implements Host {
   private warned = new Set<string>()
   constructor(private sim: Sim, readonly index: number) {}
@@ -260,9 +267,20 @@ export class Sim {
   private replaying: { tick: number; set: number; row: number; decision: unknown }[] | null = null
   private thinking = false
 
+  /**
+   * The most decisions kept. A model deciding for hundreds of agents every tick would otherwise fill memory; past the limit the
+   * oldest are dropped and `decisionLogComplete` turns false, because a log with its start missing cannot replay the run.
+   */
+  decisionLogLimit = 250_000
+  decisionLogComplete = true
+
   private decide(set: number, row: number, decision: unknown): void {
     this.worlds[set].setDecision?.(row, decision)
     this.decisionLog.push({ tick: this.tick, set, row, decision: structuredClone(decision) })
+    if (this.decisionLog.length > this.decisionLogLimit) {
+      this.decisionLog.splice(0, this.decisionLog.length - Math.floor(this.decisionLogLimit * 0.9)) // drop a tenth at a time, not one by one
+      this.decisionLogComplete = false
+    }
   }
 
   /**
@@ -273,7 +291,7 @@ export class Sim {
     if (this.replaying) return
     const jobs = this.dueThoughts()
     const results = await Promise.all(jobs.map((j) => j.run()))
-    jobs.forEach((j, i) => { if (results[i].ok) this.decide(j.set, j.row, results[i].value) })
+    jobs.forEach((j, i) => this.land(j, results[i]))
   }
 
   /**
@@ -286,27 +304,56 @@ export class Sim {
     if (!jobs.length) return
     this.thinking = true
     void Promise.all(jobs.map(async (j) => ({ j, r: await j.run() }))).then((all) => {
-      for (const { j, r } of all) if (r.ok) this.decide(j.set, j.row, r.value)
+      for (const { j, r } of all) this.land(j, r)
     }).finally(() => { this.thinking = false })
   }
 
-  private dueThoughts() {
-    const jobs: { set: number; row: number; run: () => Promise<{ ok: true; value: unknown } | { ok: false }> }[] = []
+  private land(job: ThoughtJob, r: { ok: true; values: unknown[] } | { ok: false }): void {
+    if (r.ok) job.rows.forEach((row, k) => this.decide(job.set, row, r.values[k]))
+  }
+
+  /** Names of the sets whose controllers have asked a language model: their runs cannot be repeated, only replayed from a log. */
+  private asked = new Set<string>()
+
+  /** Trained models by the names the scene gives them (`"models"`). The host loads them (see `@breve/inference`) and puts them here before the run. */
+  readonly models: Record<string, Model> = {}
+
+  private modelFor(name: string): ModelHandle {
+    const m = this.models[name]
+    if (!m) throw new Error(`no model called "${name}" is loaded (the scene declares: ${Object.keys(this.scene.models ?? {}).join(', ') || 'none'}; the host must load them into sim.models)`)
+    return handleFor(name, m)
+  }
+
+  private dueThoughts(): ThoughtJob[] {
+    const jobs: ThoughtJob[] = []
     this.worlds.forEach((w, set) => {
       const ctrl = new SetControllerLookup(this, set).get()
-      for (const t of w.thinkers?.() ?? []) {
+      const due = w.thinkers?.() ?? []
+      if (!due.length) return
+      const thinkCtx = (): ThinkCtx => {
+        const ask = (prompt: string, options?: AskOptions) => (this.asked.add(this.scene.entities[set].name), this.provider ? this.provider(prompt, options && { ...options, images: options.images?.map((p) => p.toBase64()) }) : Promise.reject(new Error('no language model is connected: ctx.ask needs one')))
+        return { ...this.ctx(), ask, model: (name: string) => this.modelFor(name) }
+      }
+      const guarded = (run: () => Promise<unknown[]>) => async () => {
+        try {
+          return { ok: true as const, values: await run() }
+        } catch (e) {
+          this.fail('think', e)
+          return { ok: false as const }
+        }
+      }
+      if (ctrl?.thinkAll) {
+        // one call for the whole set, so a model can take every agent as a single batch
         jobs.push({
-          set, row: t.row,
-          run: async () => {
-            try {
-              const ask = (prompt: string, options?: AskOptions) => (this.provider ? this.provider(prompt, options && { ...options, images: options.images?.map((p) => p.toBase64()) }) : Promise.reject(new Error('no language model is connected: ctx.ask needs one')))
-              return { ok: true as const, value: await ctrl!.think!(t.obs as never, this.params, { ...this.ctx(), ask }) }
-            } catch (e) {
-              this.fail('think', e)
-              return { ok: false as const }
-            }
-          },
+          set, rows: due.map((t) => t.row),
+          run: guarded(async () => {
+            const out = await ctrl.thinkAll!(due.map((t) => t.obs as never), this.params, thinkCtx())
+            if (!Array.isArray(out) || out.length !== due.length) throw new Error(`thinkAll must return one decision per entity (${due.length}), got ${Array.isArray(out) ? out.length : typeof out}`)
+            return out
+          }),
         })
+      } else if (ctrl?.think) {
+        for (const t of due) jobs.push({ set, rows: [t.row], run: guarded(async () => [await ctrl.think!(t.obs as never, this.params, thinkCtx())]) })
       }
     })
     return jobs
@@ -325,10 +372,12 @@ export class Sim {
 
   /** Names of the entity sets whose controller depends on something outside the sim (a person, a model), so forking or replay may not reproduce it. */
   nondeterministic(): string[] {
-    const out: string[] = []
+    const out: string[] = this.replaying ? [] : [...this.asked]
+    // a model whose math can differ between runs (a GPU) makes every set that thinks non-repeatable
+    if (Object.values(this.models).some((m) => !m.deterministic)) for (const e of this.scene.entities) if (e.think && !out.includes(e.name)) out.push(e.name)
     this.scene.entities.forEach((e, i) => {
       const c = (this.script as Record<string, unknown> | null)?.[e.type ?? 'default'] as Controller | undefined
-      if (c?.spec?.nondeterministic) out.push(e.name)
+      if (c?.spec?.nondeterministic && !out.includes(e.name)) out.push(e.name)
       void i
     })
     return out

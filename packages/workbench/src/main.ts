@@ -236,7 +236,9 @@ async function main(): Promise<void> {
     showScene(doc.scene)
     renderPicker()
     history.replaceState(null, '', '#' + id)
-    send({ type: 'init', scene: doc.scene, script: doc.script })
+    // relative model paths in a scene start at the example's folder (a copy of an example keeps using the original's files)
+    const home = isExample(id) ? id : userProjects().find((p) => p.id === id)?.from
+    send({ type: 'init', scene: doc.scene, script: doc.script, base: `${location.origin}/${home && isExample(home) ? home + '/' : ''}` })
   }
 
   picker.addEventListener('change', () => open(picker.value))
@@ -397,13 +399,13 @@ async function main(): Promise<void> {
       $('thinkbar').classList.toggle('hidden', !m.think.enabled || sweeping)
       if (m.think.enabled) {
         thinkMode.value = m.think.mode
-        $('think-count').textContent = `${m.think.decisions} decisions${m.think.replaying ? ' · replaying a log, the model is not asked' : ''}`
+        $('think-count').textContent = `${m.think.decisions} decisions${m.think.replaying ? ' · replaying a log, the model is not asked' : ''}${m.think.complete ? '' : ' · the log is too long to keep from the start, so it cannot replay this run'}`
       }
       const flags = $('flags')
       flags.classList.toggle('hidden', m.nondeterministic.length === 0)
       if (m.nondeterministic.length) {
         flags.textContent = '⚠ not repeatable'
-        flags.title = `${m.nondeterministic.join(', ')} depend${m.nondeterministic.length === 1 ? 's' : ''} on something outside the simulation (a person at the keyboard, or a language model). A rerun or a fork may not match. To repeat a run exactly, save its decision log and replay it.`
+        flags.title = `${m.nondeterministic.join(', ')} depend${m.nondeterministic.length === 1 ? 's' : ''} on something outside the simulation (a person at the keyboard, a language model, or a model running on the GPU). A rerun or a fork may not match. To repeat a run exactly, save its decision log and replay it.`
       }
       $('timeline').classList.toggle('hidden', !m.timeline || sweeping)
       if (m.timeline) {

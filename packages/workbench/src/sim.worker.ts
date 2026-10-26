@@ -1,8 +1,10 @@
 import { compile } from './script-load'
+import { loadSceneModels } from '@breve/inference'
 import { Sim, SimGroup, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
 
 export type ToWorker =
-  | { type: 'init'; scene: string; script: string }
+  /** `base` is where a scene's relative model paths start (the example's folder). */
+  | { type: 'init'; scene: string; script: string; base?: string }
   | { type: 'scene'; scene: string }
   | { type: 'script'; script: string }
   | { type: 'play'; running: boolean }
@@ -56,7 +58,7 @@ export type FromWorker =
   | { type: 'log'; log: DecisionLog }
   /** The metric samples up to a moment, after a seek: the charts redraw from them. */
   | { type: 'metrics'; samples: Record<string, number>[] }
-  | { type: 'frame'; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
+  | { type: 'frame'; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean; complete: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -113,12 +115,29 @@ async function rebuild(): Promise<void> {
   if (mine !== builds) return next.dispose() // a newer rebuild started while this one loaded
   sim?.dispose()
   sim = next
+  modelsKey = ''
   resetTimeline(next)
+  await syncModels()
 }
 
 let lastPosted = -1
-/** Controllers that declare themselves non-deterministic (a person at the keyboard), and sets that ask a model, until a saved decision log is being replayed. */
-const flagged = (s: Sim): string[] => [...new Set([...s.nondeterministic(), ...(!s.isReplaying ? s.scene.entities.filter((e) => e.think).map((e) => e.name) : [])])]
+let modelBase = ''
+let modelsKey = '' // the scene's `models` as last loaded
+let modelProblems: string[] = []
+
+/** Load the models the scene declares (again when they change) into the running sim. */
+async function syncModels(): Promise<void> {
+  if (!sim || !scene) return
+  const key = JSON.stringify(scene.models ?? {})
+  if (key === modelsKey) return
+  modelsKey = key
+  for (const k of Object.keys(sim.models)) delete sim.models[k]
+  const target = sim
+  modelProblems = await loadSceneModels(target, { base: modelBase || undefined })
+  lastSent = '' // show (or clear) the problems
+}
+/** Controllers that declare themselves non-deterministic (a person at the keyboard), sets that ask a language model, and GPU models; none while a log is replayed. */
+const flagged = (s: Sim): string[] => s.nondeterministic()
 let thinkMode: 'realtime' | 'lockstep' = 'realtime'
 let lockBusy = false // a lockstep tick is waiting for its answers
 
@@ -195,10 +214,10 @@ function post(): void {
     const m = sim.tick % 4 === 0 || sim.rate < 30 ? sim.metrics() : null
     if (m) { metricLog.push({ tick: sim.tick, m }); if (metricLog.length > 600) metricLog.shift() }
     const inspected = selection ? sim.inspect(selection.set, selection.row) : null
-    const msg: FromWorker = { type: 'frame', tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, rate: sim.rate, frames }
+    const msg: FromWorker = { type: 'frame', tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying, complete: sim.decisionLogComplete }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, rate: sim.rate, frames }
     postMessage(msg, frames.flatMap(transfers))
   }
-  const runtime = sim.takeErrors()
+  const runtime = [...modelProblems, ...sim.takeErrors()]
   const problems = JSON.stringify([sceneErrors, scriptErrors, runtime])
   if (problems !== lastSent || runtime.length) {
     lastSent = problems
@@ -242,12 +261,14 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       group?.dispose()
       group = null
       lastPosted = -1
+      modelBase = m.base ?? ''
       applyScene(m.scene)
       await applyScript(m.script)
       await rebuild()
       break
     case 'scene':
       applyScene(m.scene)
+      await syncModels()
       break
     case 'script':
       await applyScript(m.script)

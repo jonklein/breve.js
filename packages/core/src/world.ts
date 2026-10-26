@@ -1,4 +1,5 @@
 import type { Picture } from './image'
+import type { ModelHandle } from './inference'
 import type { Relations } from './relations'
 import type { Mlp } from '@breve/stdlib'
 import type { Rng } from './rng'
@@ -62,6 +63,8 @@ export interface ModelRequest {
 
 /** What `think` gets: everything in `ctx`, plus a way to ask a model. */
 export interface ThinkCtx extends Ctx {
+  /** A trained model the scene declares under `models` (and the host loaded): `const out = await ctx.model('policy').run(obs)`. */
+  model(name: string): ModelHandle
   /** Ask a language model. Resolves to its text reply; rejects when no model is connected. */
   ask(prompt: string, options?: AskOptions): Promise<string>
 }
@@ -96,6 +99,12 @@ export interface Controller {
    * `self.decision`. Every decision is logged with the tick it took effect, so a run can be replayed without asking again.
    */
   think?(obs: { self: any; neighbors: any }, params: Params, ctx: ThinkCtx): Promise<unknown>
+  /**
+   * Like `think`, but one call for every entity of the set that is due, so a model can run them as one batch
+   * (`ctx.model('policy').runBatch(...)`). Return one decision per entity, in the same order. Each decision is logged and
+   * read as `self.decision` exactly like `think`'s, so replaying a log needs neither the model nor its runtime.
+   */
+  thinkAll?(obs: { self: any; neighbors: any }[], params: Params, ctx: ThinkCtx): Promise<unknown[]>
   /**
    * Called once when an entity crosses the set's `fence`. Do something about it here, usually `self.reset()`.
    */

@@ -163,5 +163,17 @@
     ],
     "scene": "scene.json",
     "script": "scouts.js"
+  },
+  {
+    "id": "onnx-policy",
+    "name": "A trained network steers the crowd",
+    "description": "Walkers steered by an ONNX model, run as one batch per tick. Swap in your own network (a path, a URL or a Hugging Face file). Runs and replays without the model.",
+    "tags": [
+      "agents",
+      "neural network",
+      "learning"
+    ],
+    "scene": "scene.json",
+    "script": "policy.js"
   }
 ]

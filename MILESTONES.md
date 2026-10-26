@@ -6,12 +6,12 @@ The order was: a playable thin slice first (M0), then harden and widen. The crea
 
 ## Where we are
 
-About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every milestone has its acceptance demo running; what is pending is mostly the second-tier items listed under each one.
+About 170 tests pass (stdlib 7, experiment 13, core 136, server 7, inference 5), `scripts/check-ui.mjs` clicks through the site in a headless browser, and a fresh clone installs, tests and builds. Every milestone has its acceptance demo running; what is pending is mostly the second-tier items listed under each one.
 
 | | Milestone | Status | Demo |
 |---|---|---|---|
 | M0 | Playable slice | **Done** | `boids` |
-| M1 | Kernel hardening | **Done**, with two gaps (relation tables, 1M-cell tick time) | `life2d`, `life3d` |
+| M1 | Kernel hardening | **Done**, with one gap (1M-cell Life tick is 62 ms against the 30 ms target) | `life2d`, `life3d` |
 | M2 | Sim as a value | **Done** | Sweep / Watch, `neural` |
 | M3 | Controllers and inspector | **Done** | `ants`, `herding` |
 | M4 | Experiment layer | **Done** | `boids`, `creature`, `ants`, `morphology` experiments |
@@ -19,10 +19,14 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 | M6 | Bodies and physics | **Done** | `creature`, `urdf-bot`, `morphology` |
 | M7 | Learning and language models | **Done** (WebGPU untested) | `llm-wanderers`, `neural`, assistant |
 | M8 | Site and editing polish | **Done** | home page, site nav, gallery, share links, tree editor |
-| Later | Sandboxing, scrubber, GPU layers, remote training | Not started | |
+| Later | Timeline scrubber, remote models | **Done** | any run; `examples/remote-policy` |
+| Later | Sandboxed scripts (QuickJS), GPU-resident patch layers, server-side projects and accounts | Not started | |
 
 Also built, outside the original list:
 
+- The site: a home page with live demos, a gallery with pictures and tags, share links (held until you approve the script), a JSON tree editor, a timeline scrubber, a thinking bar, and a non-repeatable flag (`docs/decisions/site.md`).
+- Trained models and other processes as controllers: ONNX files, Hugging Face addresses, and Python servers over WebSockets, all through one `Model` interface with logged, replayable decisions (`docs/decisions/inference.md`, `remote.md`); a camera sensor for vision models.
+- Relation tables (`ctx.relations`), per-agent controller choice, whole-network `update` rules, glTF part visuals, an MJCF importer.
 - A standard library in its own package (`packages/stdlib`) with generated docs, and an in-app Docs tab.
 - `spawn`, `init`, fences with `onLeave`, and `self.reset()`; inferred state types (number, boolean, string); several entity sets per scene; controllers chosen by named export.
 - `breve.run(selector, script, config)`, an embeddable build (`packages/embed`, `packages/view`), and `?embed` for the workbench. The boids demo is live on the kleininen project page.
@@ -151,15 +155,20 @@ The workbench was the whole app; this milestone gives breve a front door and mak
 
 Acceptance (met): the home page shows three working demos; the gallery lists every example and opens any in one click; every config field in the examples can be edited from the tree editor without touching the text. Checked two ways: a core test sets, removes and re-adds every value of every example config and asserts the text stays valid JSON, and a headless-browser run confirmed the tree draws a control for every leaf of all 13 example scenes.
 
-## Later (not started)
+## Later
 
-- Server-side project storage and accounts; projects live in browser storage only today.
+Not started:
+
+- Server-side project storage and accounts; projects live in browser storage only today. This needs a decision from the project owner first (a hosted service, and what to store where), per CLAUDE.md.
 - Sandboxed untrusted sims (QuickJS). Until then, projects opened from a share link are held back until you read the script and press Run (a trust prompt, not a sandbox).
 - ~~Timeline scrubber~~ done: the workbench records a snapshot every 10 ticks (within a 64 MB budget), a slider under the view goes back to any of them and pauses there, and Play carries on from that point as a new branch (the charts rewind too). Works for physics scenes. Not for sweeps. Moments between snapshots cannot be reached, because stepping forward from a snapshot would not match a run driven by a person or a model.
 - GPU-resident dense patch layers.
+
+Done:
+
 - ~~Remote controllers for Python training~~ done as a model server: `"models": { "policy": { "url": "ws://localhost:8765" } }` talks to a Python process over a WebSocket (`examples/remote-policy/serve.py`), same batches and logging as ONNX models (`docs/decisions/remote.md`). A trainer that owns the clock and steps the simulator like a Gym environment is not built.
 
 ## Housekeeping
 
-- Pushed to GitHub on branch `next` of `jonklein/breve.js`; the newest commits are local until pushed.
+- Work happens on branch `next` of `jonklein/breve.js`, one concern per commit; no pull request has been opened.
 - `docs/script-api.md` and the generated `docs/stdlib.md` are the assistant's reference; a test keeps `stdlib.md` in sync with the code.

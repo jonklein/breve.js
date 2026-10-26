@@ -1,8 +1,11 @@
 import * as THREE from 'three'
 import type { WorldFrame } from './world-view'
+import { alphaMaterial, blend, withAlpha } from './alpha'
 
 const MAX_INSTANCES = 5000
 const MAX_CUBES = 200000
+const DEFAULT_CELL = '#4f86f7'
+const DEFAULT_NODE = '#4dff88'
 
 function color(v: string): THREE.Color {
   try { return new THREE.Color(v) } catch { return new THREE.Color('#ffffff') }
@@ -11,6 +14,7 @@ function color(v: string): THREE.Color {
 /** One set of free agents, drawn as cones that point the way they move. */
 export class AgentLayer {
   private mesh: THREE.InstancedMesh
+  private alpha: THREE.InstancedBufferAttribute
   private m = new THREE.Matrix4()
   private q = new THREE.Quaternion()
   private p = new THREE.Vector3()
@@ -24,7 +28,8 @@ export class AgentLayer {
   constructor(private scene: THREE.Scene) {
     const geo = new THREE.ConeGeometry(0.32, 1.3, 8)
     geo.rotateX(Math.PI / 2)
-    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial(), MAX_INSTANCES)
+    this.mesh = new THREE.InstancedMesh(geo, alphaMaterial(), MAX_INSTANCES)
+    this.alpha = withAlpha(this.mesh, MAX_INSTANCES)
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES * 3), 3)
     this.mesh.frustumCulled = false
     this.mesh.count = 0
@@ -51,7 +56,9 @@ export class AgentLayer {
     this.mesh.count = n
     const colors = this.mesh.instanceColor!
     const { pos, vel } = f
+    const look = f.look
     if (!vel) return
+    let see = false
     for (let i = 0; i < n; i++) {
       this.p.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2])
       this.d.set(vel[i * 3], vel[i * 3 + 1], vel[i * 3 + 2])
@@ -59,17 +66,24 @@ export class AgentLayer {
       if (len > 1e-6) this.d.multiplyScalar(1 / len)
       else this.d.copy(this.fwd)
       this.q.setFromUnitVectors(this.fwd, this.d)
-      this.m.compose(this.p, this.q, this.selected === i ? this.big.setScalar(1.8 * sc) : this.big.setScalar(sc))
+      // `display` can hide an agent or resize it; a hidden agent is drawn at size zero
+      const size = look?.visible && !look.visible[i] ? 0 : sc * (look?.scale ? look.scale[i] : 1)
+      this.m.compose(this.p, this.q, this.big.setScalar(this.selected === i ? 1.8 * size : size))
       this.mesh.setMatrixAt(i, this.m)
+      const a = look?.alpha ? look.alpha[i] / 255 : 1
+      if (a < 1) see = true
+      this.alpha.setX(i, a)
       // heading as colour: boids flying the same way share a colour
       if (this.selected === i) this.c.set('#ffffff')
-      else if (f.colors) this.c.setRGB(f.colors[i * 3] / 255, f.colors[i * 3 + 1] / 255, f.colors[i * 3 + 2] / 255)
+      else if (look?.rgb) this.c.setRGB(look.rgb[i * 3] / 255, look.rgb[i * 3 + 1] / 255, look.rgb[i * 3 + 2] / 255)
       else if (own) this.c.copy(own)
       else this.c.setRGB(0.35 + 0.65 * (this.d.x * 0.5 + 0.5), 0.35 + 0.65 * (this.d.y * 0.5 + 0.5), 0.35 + 0.65 * (this.d.z * 0.5 + 0.5))
       colors.setXYZ(i, this.c.r, this.c.g, this.c.b)
     }
     this.mesh.instanceMatrix.needsUpdate = true
     colors.needsUpdate = true
+    this.alpha.needsUpdate = true
+    blend(this.mesh.material as THREE.Material, see)
   }
 
   dispose(): void {
@@ -83,6 +97,7 @@ export class AgentLayer {
 /** One lattice, drawn as cubes that grow in and out. The mesh grows when a bigger grid arrives. */
 export class CellLayer {
   private cubes: THREE.InstancedMesh | null = null
+  private alpha: THREE.InstancedBufferAttribute | null = null
   private capacity = 0
   private cells: {
     dims: [number, number, number]
@@ -92,10 +107,10 @@ export class CellLayer {
     tau: number
     scale: Float32Array
     target: Uint8Array
-    color: Float32Array
-    /** red, green, blue per cell (0 to 255) when the script's `display` gives colors */
+    /** from the script's `display`, per cell: red, green, blue (0 to 255), opacity (0 to 255), size multiplier */
     rgb: Uint8Array | null
-    palette: THREE.Color[] | null
+    alpha: Uint8Array | null
+    sizes: Float32Array | null
     animating: boolean
   } | null = null
   private m = new THREE.Matrix4()
@@ -104,6 +119,7 @@ export class CellLayer {
   private d = new THREE.Vector3()
   private c = new THREE.Color()
   private fixed: THREE.Color | null = null
+  private fallback = color(DEFAULT_CELL)
   /** Which lattice row each drawn cube is, so a click on a cube can name its cell. */
   private rows = new Int32Array(0)
 
@@ -124,7 +140,8 @@ export class CellLayer {
     this.dispose()
     this.capacity = need
     this.rows = new Int32Array(need)
-    const cubes = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), need)
+    const cubes = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), alphaMaterial(), need)
+    this.alpha = withAlpha(cubes, need)
     cubes.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(need * 3), 3)
     cubes.frustumCulled = false
     cubes.count = 0
@@ -141,29 +158,21 @@ export class CellLayer {
     this.fixed = fixed
     let c = this.cells
     if (!c || c.scale.length !== n || c.dims.some((d, i) => d !== dims[i])) {
-      c = this.cells = { dims, spacing, unit: f.unit, thick: [1, 1, 1], tau: 0.1, scale: Float32Array.from(show), target: new Uint8Array(n), color: new Float32Array(n), rgb: null, palette: null, animating: true }
+      c = this.cells = { dims, spacing, unit: f.unit, thick: [1, 1, 1], tau: 0.1, scale: Float32Array.from(show), target: new Uint8Array(n), rgb: null, alpha: null, sizes: null, animating: true }
     }
     c.spacing = spacing
     c.unit = f.unit
     // a flat grid (size 1 on one axis) can be drawn as thin tiles
     const t = L.thickness ?? 1
     c.thick = [dims[0] === 1 ? t : 1, dims[1] === 1 ? t : 1, dims[2] === 1 ? t : 1]
-    c.palette = L.palette ? L.palette.map(color) : null
     c.rgb = L.rgb ?? null
+    c.alpha = L.alpha ?? null
+    c.sizes = L.sizes ?? null
     // `fade` is the fraction of a tick over which cells ease in and out; 0 snaps them instantly
     c.tau = fade > 0 ? fade / (3 * (f.rate ?? 8)) : 0
     c.target.set(show)
     if (fade <= 0) c.scale.set(show)
-    for (let i = 0; i < n; i++) if (show[i] && f.attr) c.color[i] = f.attr[i]
     c.animating = true
-  }
-
-  private tint(v: number, out: THREE.Color): void {
-    const pal = this.cells!.palette
-    if (!pal) { out.setRGB(1 - v, v, 0.05); return } // young cells red, old cells green
-    const x = Math.min(1, Math.max(0, v)) * (pal.length - 1)
-    const i = Math.min(pal.length - 2, Math.floor(x))
-    out.copy(pal[i]).lerp(pal[i + 1], x - i)
   }
 
   animate(dt: number): void {
@@ -173,6 +182,7 @@ export class CellLayer {
     const k = c.tau > 0 ? 1 - Math.exp(-dt / c.tau) : 1
     const colors = cubes.instanceColor!
     let moving = false
+    let see = false
     let w = 0
     this.q.identity()
     for (let i = 0; i < c.scale.length && w < this.capacity; i++) {
@@ -185,7 +195,7 @@ export class CellLayer {
         c.scale[i] = s
       }
       if (s <= 0) continue
-      const u = c.unit * s * s * (3 - 2 * s) // smoothstep, so growth starts and ends gently
+      const u = c.unit * s * s * (3 - 2 * s) * (c.sizes ? c.sizes[i] : 1) // smoothstep, so growth starts and ends gently
       this.p.set(
         ((i % nx) - (nx - 1) / 2) * c.spacing,
         ((Math.floor(i / nx) % ny) - (ny - 1) / 2) * c.spacing,
@@ -196,14 +206,18 @@ export class CellLayer {
       cubes.setMatrixAt(w, this.m)
       this.rows[w] = i
       if (c.rgb) this.c.setRGB(c.rgb[i * 3] / 255, c.rgb[i * 3 + 1] / 255, c.rgb[i * 3 + 2] / 255)
-      else if (this.fixed && !c.palette) this.c.copy(this.fixed)
-      else this.tint(c.color[i], this.c)
+      else this.c.copy(this.fixed ?? this.fallback)
       colors.setXYZ(w, this.c.r, this.c.g, this.c.b)
+      const a = c.alpha ? c.alpha[i] / 255 : 1
+      if (a < 1) see = true
+      this.alpha!.setX(w, a)
       w++
     }
     cubes.count = w
     cubes.instanceMatrix.needsUpdate = true
     colors.needsUpdate = true
+    this.alpha!.needsUpdate = true
+    blend(cubes.material as THREE.Material, see)
     c.animating = moving
   }
 
@@ -214,6 +228,7 @@ export class CellLayer {
     ;(this.cubes.material as THREE.Material).dispose()
     this.cubes.dispose()
     this.cubes = null
+    this.alpha = null
     this.capacity = 0
     if (this.cells) this.cells.animating = true
   }
@@ -222,6 +237,7 @@ export class CellLayer {
 /** A network: nodes as small spheres where the layout put them, links as thin lines. */
 export class GraphLayer {
   private mesh: THREE.InstancedMesh | null = null
+  private alpha: THREE.InstancedBufferAttribute | null = null
   private lines: THREE.LineSegments | null = null
   private version = -1
   private capacity = 0
@@ -253,32 +269,36 @@ export class GraphLayer {
     if (!this.mesh || this.capacity < n) {
       this.disposeNodes()
       this.capacity = n
-      this.mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 14, 10), new THREE.MeshLambertMaterial(), Math.max(1, n))
+      this.mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 14, 10), alphaMaterial(), Math.max(1, n))
+      this.alpha = withAlpha(this.mesh, Math.max(1, n))
       this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, n) * 3), 3)
       this.mesh.frustumCulled = false
       this.scene.add(this.mesh)
     }
     this.mesh.visible = true
     this.mesh.count = n
-    const pal = (g.palette ?? ['#ff4d4d', '#4dff88']).map((x) => color(x))
+    const look = f.look
+    let see = false
     const base = (f.scale ?? 1) * g.nodeSize * 0.9
     for (let i = 0; i < n; i++) {
       this.p.set(f.pos[i * 3], f.pos[i * 3 + 1], f.pos[i * 3 + 2])
       const big = this.selected === i ? 1.8 : 1
-      this.s.setScalar(base * big)
+      const size = look?.visible && !look.visible[i] ? 0 : look?.scale ? look.scale[i] : 1
+      this.s.setScalar(base * big * size)
       this.m.compose(this.p, this.q, this.s)
       this.mesh.setMatrixAt(i, this.m)
       if (this.selected === i) this.c.set('#ffffff')
-      else if (f.colors) this.c.setRGB(f.colors[i * 3] / 255, f.colors[i * 3 + 1] / 255, f.colors[i * 3 + 2] / 255)
-      else if (f.attr) {
-        const x = Math.min(1, Math.max(0, f.attr[i])) * (pal.length - 1)
-        const k = Math.min(pal.length - 2, Math.floor(x))
-        this.c.copy(pal[k]).lerp(pal[k + 1], x - k)
-      } else this.c.copy(fixed ?? pal[0])
+      else if (look?.rgb) this.c.setRGB(look.rgb[i * 3] / 255, look.rgb[i * 3 + 1] / 255, look.rgb[i * 3 + 2] / 255)
+      else this.c.copy(fixed ?? color(DEFAULT_NODE))
+      const a = look?.alpha ? look.alpha[i] / 255 : 1
+      if (a < 1) see = true
+      this.alpha!.setX(i, a)
       this.mesh.setColorAt(i, this.c)
     }
     this.mesh.instanceMatrix.needsUpdate = true
     this.mesh.instanceColor!.needsUpdate = true
+    this.alpha!.needsUpdate = true
+    blend(this.mesh.material as THREE.Material, see)
     if (g.version !== this.version) this.drawLinks(f)
     if (this.lines) this.lines.visible = true
   }

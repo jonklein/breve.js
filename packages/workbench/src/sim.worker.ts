@@ -45,11 +45,10 @@ export interface WorldFrameMsg {
   unit: number
   pos: Float32Array
   vel: Float32Array | null
-  attr: Float32Array | null
-  colors?: Uint8Array
-  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number; rgb?: Uint8Array }
+  look?: { rgb: Uint8Array | null; visible: Uint8Array | null; alpha: Uint8Array | null; scale: Float32Array | null }
+  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; thickness?: number; rgb?: Uint8Array; alpha?: Uint8Array; sizes?: Float32Array }
   rigid?: RigidFrame
-  graph?: { edges: Uint32Array; version: number; palette?: string[]; nodeSize: number }
+  graph?: { edges: Uint32Array; version: number; nodeSize: number }
 }
 
 export type FromWorker =
@@ -92,7 +91,7 @@ async function applyScript(code: string): Promise<void> {
   try {
     script = await compile(code)
     scriptErrors = []
-    postMessage({ type: 'controllers', names: Object.entries(script).filter(([k, v]) => k !== 'metrics' && !!v && typeof v === 'object' && ['act', 'actAll', 'decide', 'decideAll', 'update', 'init'].some((f) => typeof (v as Record<string, unknown>)[f] === 'function')).map(([k]) => k) } satisfies FromWorker)
+    postMessage({ type: 'controllers', names: Object.entries(script).filter(([k, v]) => k !== 'metrics' && !!v && typeof v === 'object' && ['act', 'actAll', 'init', 'initAll'].some((f) => typeof (v as Record<string, unknown>)[f] === 'function')).map(([k]) => k) } satisfies FromWorker)
   } catch (e) {
     scriptErrors = [e instanceof Error ? e.message : String(e)]
   }
@@ -184,7 +183,8 @@ const timeline = () => (history.length > 1 ? { first: history[0].tick, last: his
 let stepMs = 0 // smoothed time one tick takes, shown in the stats line
 
 function transfers(f: WorldFrameMsg): ArrayBuffer[] {
-  return [f.pos.buffer as ArrayBuffer, ...(f.vel ? [f.vel.buffer as ArrayBuffer] : []), ...(f.attr ? [f.attr.buffer as ArrayBuffer] : []), ...(f.lattice ? [f.lattice.show.buffer as ArrayBuffer] : []), ...(f.lattice?.rgb ? [f.lattice.rgb.buffer as ArrayBuffer] : []), ...(f.colors ? [f.colors.buffer as ArrayBuffer] : []), ...(f.rigid ? [f.rigid.poses.buffer as ArrayBuffer] : []), ...(f.graph ? [f.graph.edges.buffer as ArrayBuffer] : [])]
+  const buffers = (...arrays: (ArrayBufferView | null | undefined)[]) => arrays.filter((a): a is ArrayBufferView => !!a).map((a) => a.buffer as ArrayBuffer)
+  return buffers(f.pos, f.vel, f.look?.rgb, f.look?.visible, f.look?.alpha, f.look?.scale, f.lattice?.show, f.lattice?.rgb, f.lattice?.alpha, f.lattice?.sizes, f.rigid?.poses, f.graph?.edges)
 }
 
 let groupTick = -1

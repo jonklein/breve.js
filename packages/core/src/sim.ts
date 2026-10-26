@@ -1,3 +1,4 @@
+import { initResult, stateDefOf } from './init-shape'
 import { handleFor, type Model, type ModelHandle } from './inference'
 import { Relations, type RelationsSnapshot } from './relations'
 import { Mlp } from '@breve/stdlib'
@@ -8,7 +9,7 @@ import { LatticeWorld } from './lattice-world'
 import { RigidWorld } from './rigid-world'
 import { NetworkWorld } from './network-world'
 import type { PhysicsEngine } from './physics/types'
-import { paramValues, stateFields, type EntityDef, type Params, type Scene } from './scene'
+import { paramValues, stateFields, type EntityDef, type Params, type Scene, type StateDef } from './scene'
 import { blend } from './blend'
 import { HOOKS, type AskOptions, type ModelRequest, type ThinkCtx, type Controller, type Ctx, type FrameData, type Host, type MetricInput, type Message, type ScriptModule, type World } from './world'
 
@@ -44,7 +45,20 @@ class SetHost implements Host {
   get rng() { return this.sim.rng }
   get tick() { return this.sim.tick }
   get script() { return this.sim.script }
-  get def(): EntityDef { return this.sim.scene.entities[this.index] }
+  private defCache: { base: EntityDef; script: ScriptModule | null; eff: EntityDef } | null = null
+  /**
+   * The set's definition as the worlds should see it: the scene's, plus any state the script's `init` shows (a field that `init`
+   * returns exists, with a kind and length taken from the value). Worked out once per scene and script.
+   */
+  get def(): EntityDef {
+    const base = this.sim.scene.entities[this.index]
+    const c = this.defCache
+    if (c && c.base === base && c.script === this.sim.script) return c.eff
+    const inferred = this.sim.inferState(this.index, base)
+    const eff = inferred ? { ...base, state: { ...inferred, ...(base.state ?? {}) } } : base
+    this.defCache = { base, script: this.sim.script, eff }
+    return eff
+  }
   fail(where: string, e: unknown) { this.sim.fail(where, e) }
   ctx() { return this.sim.ctx() }
   get relations() { return this.sim.relations }
@@ -107,6 +121,7 @@ export class Sim {
     if (scene.entities.some((e) => e.body) && !opts.physics) throw new Error('this scene has a physics body: build it with `await Sim.create(scene, script)`')
     scene.entities.forEach((e, i) => {
       const host = new SetHost(this, i)
+      this.hosts.push(host)
       const old = opts.from?.worlds[i]
       this.worlds.push(
         e.network ? new NetworkWorld(host, old instanceof NetworkWorld ? old : undefined)
@@ -115,6 +130,38 @@ export class Sim {
           : new AgentWorld(host),
       )
     })
+  }
+
+  private hosts: SetHost[] = []
+
+  /**
+   * State a set's `init` (or `initAll`) shows, by field name: ask it for one entity with a throwaway random generator (so the
+   * run's own random numbers are untouched) and take the kind and length of each value. Null when there is no init to ask.
+   * A script that throws here is not reported now; the real call will report it.
+   */
+  inferState(set: number, def: EntityDef): Record<string, StateDef> | null {
+    const ctrl = new SetControllerLookup(this, set).get()
+    if (!ctrl?.init && !ctrl?.initAll) return null
+    const probe = new Rng(this.scene.seed ^ 0x9e3779b9)
+    const ctx = { ...this.ctx(), random: () => probe.next() }
+    let values: Record<string, unknown>
+    try {
+      if (ctrl.initAll) {
+        const out = ctrl.initAll({ count: 1, probe: true }, this.params, ctx) as Record<string, ArrayLike<unknown>> | undefined
+        values = Object.fromEntries(Object.entries(out ?? {}).map(([k, v]) => [k, v && typeof v === 'object' ? (v as { data?: ArrayLike<unknown> }).data?.[0] ?? v[0] : v]))
+      } else values = initResult(ctrl.init!({ index: 0, count: 1, x: 0, y: 0, z: 0 }, this.params, ctx))
+    } catch {
+      return null
+    }
+    const out: Record<string, StateDef> = {}
+    for (const [k, v] of Object.entries(values)) { const d = stateDefOf(v); if (d !== null) out[k] = d }
+    void def
+    return Object.keys(out).length ? out : null
+  }
+
+  /** Every set's state fields as the worlds see them, as text: it changes when a script's `init` starts returning different fields. */
+  stateShape(): string {
+    return JSON.stringify(this.hosts.map((h) => h.def.state ?? {}))
   }
 
   /** The first entity set's table (the only one in most scenes). */

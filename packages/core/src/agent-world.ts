@@ -1,5 +1,6 @@
 import { Picture } from './image'
 import { Agent, type AgentCols } from './agents'
+import { initResult } from './init-shape'
 import { actOf, type Controller } from './world'
 import { Agents } from '@breve/stdlib'
 import { resolve, stateFields } from './scene'
@@ -155,16 +156,16 @@ export class AgentWorld implements World {
     }
   }
 
-  private writeState(row: number, state: Record<string, unknown>): void {
+  private writeState(row: number, state: Record<string, unknown>, where = 'act'): void {
     for (const [name, v] of Object.entries(state)) {
       const f = this.extra.find((x) => x.name === name)
-      if (!f) { this.host.fail('act', new Error(`state "${name}" is not declared in the scene's "state"`)); continue }
+      if (!f) { this.host.fail(where, new Error(`state "${name}" does not exist: a set's state is what its init returns (or the scene's "state")`)); continue }
       const col = this.table.cols[name]
       if (f.kind === 'string') { (col as unknown as string[])[row] = String(v); continue }
       if (f.kind === 'boolean') { col[row] = v ? 1 : 0; continue }
       const vals = typeof v === 'number' ? [v] : Array.isArray(v) || ArrayBuffer.isView(v) ? Array.from(v as ArrayLike<number>) : null
       if (!vals || vals.length !== f.length || vals.some((x) => !Number.isFinite(x))) {
-        this.host.fail('act', new Error(`state "${name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`))
+        this.host.fail(where, new Error(`state "${name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`))
         continue
       }
       for (let k = 0; k < f.length; k++) col[row * f.length + k] = f.type === 'i32' ? Math.round(vals[k]) : vals[k]
@@ -195,7 +196,8 @@ export class AgentWorld implements World {
       const out = init({ index: r, count }, this.host.params, this.host.ctx()) as { position?: Parameters<typeof toVec>[0]; velocity?: Parameters<typeof toVec>[0]; state?: Record<string, unknown> } | void
       if (out?.position) { const p = toVec(out.position); c.px[r] = p.x; c.py[r] = flat ? 0 : p.y; c.pz[r] = p.z }
       if (out?.velocity) { const v = toVec(out.velocity); c.vx[r] = v.x; c.vy[r] = flat ? 0 : v.y; c.vz[r] = v.z }
-      if (out?.state) this.writeState(r, out.state)
+      const state = initResult(out)
+      if (Object.keys(state).length) this.writeState(r, state, 'init')
     } catch (e) {
       this.host.fail('init', e)
     }

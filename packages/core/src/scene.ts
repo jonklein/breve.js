@@ -495,12 +495,14 @@ export function validateScene(data: unknown): SceneResult {
   scene.entities.forEach((e, i) => {
     if (!e.lattice === (e.count === undefined)) errors.push(`entities.${i}: give either "count" (free agents) or "lattice" (a grid of cells)`)
     if (e.lattice) {
+      // without a "state" block the fields come from the script's init, so they are checked when the sim is built
       const fields = Object.keys(e.state ?? {})
-      if (!fields.length) errors.push(`entities.${i}.state: a lattice needs at least one state field`)
-      if (!fields.includes(e.lattice.show)) errors.push(`entities.${i}.lattice.show: "${e.lattice.show}" is not a state field`)
-      if (e.lattice.color && !fields.includes(e.lattice.color)) errors.push(`entities.${i}.lattice.color: "${e.lattice.color}" is not a state field`)
+      const declared = e.state !== undefined
+      if (declared && !fields.length) errors.push(`entities.${i}.state: a lattice needs at least one state field`)
+      if (declared && !fields.includes(e.lattice.show)) errors.push(`entities.${i}.lattice.show: "${e.lattice.show}" is not a state field`)
+      if (declared && e.lattice.color && !fields.includes(e.lattice.color)) errors.push(`entities.${i}.lattice.color: "${e.lattice.color}" is not a state field`)
       for (const [k, f] of fillList(e.fill).entries()) {
-        if (!fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)
+        if (declared && !fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)
         check(f.density, `entities.${i}.fill.density`)
       }
       for (const [k, d] of Object.entries(e.state ?? {}))
@@ -510,10 +512,10 @@ export function validateScene(data: unknown): SceneResult {
       if (e.lattice || e.body) errors.push(`entities.${i}.network: a set is a network, a lattice or creatures, not several`)
       if (e.count === undefined) errors.push(`entities.${i}.count: a network needs "count", the number of nodes`)
       const fields = stateFields(e.state).map((f) => f.name)
-      if (e.network.color && !fields.includes(e.network.color)) errors.push(`entities.${i}.network.color: "${e.network.color}" is not a state field`)
+      if (e.state !== undefined && e.network.color && !fields.includes(e.network.color)) errors.push(`entities.${i}.network.color: "${e.network.color}" is not a state field`)
       if (e.network.topology === 'edges' && !e.network.edges) errors.push(`entities.${i}.network.edges: topology "edges" needs the list of links`)
       for (const [k, f] of fillList(e.fill).entries())
-        if (!fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)
+        if (e.state !== undefined && !fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)
     }
     if (e.spawn?.at && e.spawn.box) errors.push(`entities.${i}.spawn: give "at" or "box", not both`)
     if (e.spawn?.spread !== undefined && !e.spawn.at) errors.push(`entities.${i}.spawn.spread: "spread" scatters entities around "at"`)

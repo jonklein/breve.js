@@ -1,3 +1,4 @@
+import { initResult } from './init-shape'
 import { StrColumn, Table, type Column, type ColumnType, type TableSnapshot } from './store'
 import { fillList, resolve, stateFields, type Params, type StateField, type StateType } from './scene'
 import { Field, type NeighborTable } from '@breve/stdlib'
@@ -86,7 +87,9 @@ export class LatticeWorld implements World, PatchLayer {
     const { Cell, Cells } = this.makeTypes()
     this.Cells = Cells
     this.Cell = Cell
-    if (!from) this.fill() // a fork gets its cells from the snapshot
+    if (!this.fields.length) host.fail('init', new Error(`"${def.name}" has no state: a lattice needs "state" in the scene, or an init that returns fields (return { alive: 0 })`))
+    else if (!this.fieldOf[L.show]) host.fail('lattice', new Error(`lattice.show: "${L.show}" is not a state field of "${def.name}" (it has: ${this.fields.join(', ')})`))
+    if (!from) { this.applyInit(); this.fill() } // a fork gets its cells from the snapshot
   }
 
   patchAt(x: number, y: number, z: number): unknown | null {
@@ -165,6 +168,42 @@ export class LatticeWorld implements World, PatchLayer {
       })
     }
     return { Cell, Cells: Cells as unknown as new () => unknown[] }
+  }
+
+  /** Run the script's `init` (a cell at a time) or `initAll` (every cell at once): they say what the cells start as. */
+  private applyInit(): void {
+    const ctrl = this.host.controller()
+    if (!ctrl?.init && !ctrl?.initAll) return
+    const ctx = this.host.ctx(), { params } = this.host
+    const [nx, ny] = this.dims
+    const cols = this.table.cols
+    const unknown = new Set<string>()
+    const field = (name: string): StateField | undefined => {
+      const f = this.fieldOf[name]
+      if (!f && !unknown.has(name)) { unknown.add(name); this.host.fail('init', new Error(`state "${name}" does not exist: a set's state is what its init returns (or the scene's "state")`)) }
+      return f
+    }
+    try {
+      if (ctrl.initAll) {
+        for (const [name, v] of Object.entries((ctrl.initAll({ count: this.n }, params, ctx) ?? {}) as Record<string, unknown>)) {
+          const f = field(name)
+          if (!f) continue
+          const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
+          if (!data || data.length !== this.n) { this.host.fail('init', new Error(`"${name}" must have one value per cell (${this.n}), got ${data?.length ?? 'none'}`)); continue }
+          store(cols[name], f, data, this.n)
+        }
+        return
+      }
+      for (let r = 0; r < this.n; r++) {
+        const out = ctrl.init!({ index: r, count: this.n, x: r % nx, y: Math.floor(r / nx) % ny, z: Math.floor(r / (nx * ny)) }, params, ctx)
+        for (const [name, v] of Object.entries(initResult(out))) {
+          const f = field(name)
+          if (f) cols[name][r] = coerce(f, v) as never
+        }
+      }
+    } catch (e) {
+      this.host.fail('init', e)
+    }
   }
 
   /** Seed the starting state: each fill sets cells of one field, at random or inside a region. */
@@ -292,7 +331,7 @@ export class LatticeWorld implements World, PatchLayer {
     const L = this.host.def.lattice!
     const [nx, ny, nz] = this.dims
     const sp = L.spacing ?? 1.2
-    const showCol = this.table.cols[L.show]
+    const showCol = this.table.cols[L.show] ?? new Uint8Array(this.n) // a missing field is reported when the world is built
     const tintCol = L.color ? this.table.cols[L.color] : null
     const max = L.colorMax ?? 1
     const show = new Uint8Array(this.n)

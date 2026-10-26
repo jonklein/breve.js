@@ -1,3 +1,4 @@
+import { initResult } from './init-shape'
 import { Field, Nums, type NeighborTable } from '@breve/stdlib'
 import { adjacency, makeEdges, type Adjacency, type Edges } from './graph'
 import { layoutNodes } from './layout'
@@ -69,7 +70,7 @@ export class NetworkWorld implements World {
     this.Node = Node
     this.Nodes = Nodes
     for (let r = 0; r < this.n; r++) this.initState(r)
-    if (!from) this.fill()
+    if (!from) { this.applyInit(); this.fill() }
   }
 
   private initState(r: number): void {
@@ -86,6 +87,39 @@ export class NetworkWorld implements World {
         else if ('normal' in init) col[i] = init.normal * Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next())
         else col[i] = rng.range(init.uniform[0], init.uniform[1])
       }
+    }
+  }
+
+  /** Run the script's `init` (a node at a time) or `initAll` (every node at once): they say what the nodes start as. */
+  private applyInit(): void {
+    const ctrl = this.host.controller()
+    if (!ctrl?.init && !ctrl?.initAll) return
+    const ctx = this.host.ctx(), { params } = this.host
+    const unknown = new Set<string>()
+    const field = (name: string): StateField | undefined => {
+      const f = this.fieldOf[name]
+      if (!f && !unknown.has(name)) { unknown.add(name); this.host.fail('init', new Error(`state "${name}" does not exist: a set's state is what its init returns (or the scene's "state")`)) }
+      return f
+    }
+    try {
+      if (ctrl.initAll) {
+        for (const [name, v] of Object.entries((ctrl.initAll({ count: this.n }, params, ctx) ?? {}) as Record<string, unknown>)) {
+          const f = field(name)
+          if (!f) continue
+          const data = (v instanceof Field ? v.data : v) as ArrayLike<unknown>
+          if (!data || data.length !== this.n) { this.host.fail('init', new Error(`"${name}" must have one value per node (${this.n}), got ${data?.length ?? 'none'}`)); continue }
+          for (let r = 0; r < this.n; r++) this.write(f, r, data[r])
+        }
+        return
+      }
+      for (let r = 0; r < this.n; r++) {
+        for (const [name, v] of Object.entries(initResult(ctrl.init!({ index: r, count: this.n }, params, ctx)))) {
+          const f = field(name)
+          if (f) this.write(f, r, v)
+        }
+      }
+    } catch (e) {
+      this.host.fail('init', e)
     }
   }
 

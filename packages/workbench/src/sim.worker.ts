@@ -272,7 +272,13 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'script':
       await applyScript(m.script)
-      if (script) { sim?.setScript(script); if (group) for (const s of group.sims.values()) s.setScript(script) }
+      if (script) {
+        const shape = sim?.stateShape()
+        sim?.setScript(script)
+        if (group) for (const s of group.sims.values()) s.setScript(script)
+        // a script whose init returns different fields needs different columns: start over rather than run against the old ones
+        if (sim && !group && shape !== undefined && shape !== sim.stateShape()) await rebuild()
+      }
       break
     case 'keys':
       sim?.setInput(m.keys)

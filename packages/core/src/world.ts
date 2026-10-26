@@ -99,10 +99,18 @@ export interface Controller {
   decideAll?(fields: any, params: Params, ctx: Ctx): unknown
   update?(fields: any, params: Params, ctx: Ctx): unknown
   /**
-   * Called once for each new entity as it is created: `init({ index, count }, params, ctx)` may return
-   * `{ position, velocity, state }` to say where it starts and what it starts as.
+   * Called once for each new entity as it is created: `init({ index, count }, params, ctx)` returns what it starts as. The plain
+   * keys are its state (`return { alive: 1, age: 0 }`), and a field that `init` returns exists, with its kind and length taken
+   * from the value, so the scene needs no `state` block. Free agents may also return `position` and `velocity`. Lattice cells
+   * also get their grid position as `x`, `y`, `z`. The older `{ state: { ... } }` form still works.
    */
-  init?(obs: { index: number; count: number }, params: Params, ctx: Ctx): unknown
+  init?(obs: { index: number; count: number; x?: number; y?: number; z?: number }, params: Params, ctx: Ctx): unknown
+  /**
+   * The whole-set form of `init`, for big grids and networks: `initAll({ count }, params, ctx)` returns one array (or field)
+   * per state field, `count` long, for every entity at once: `return { alive: Float32Array.from({ length: count }, () => ctx.random() < p.density ? 1 : 0) }`.
+   * Single numbers (or booleans, or text) per entity only; it cannot place agents.
+   */
+  initAll?(obs: { count: number; probe?: boolean }, params: Params, ctx: Ctx): unknown
   /**
    * A slow, asynchronous step for each entity, every `think.every` ticks: look around, maybe ask a language model
    * (`await ctx.ask('...')`), and return a decision. The decision is stored and the fast `decide` reads it as

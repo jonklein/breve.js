@@ -1,4 +1,4 @@
-export type Page = 'home' | 'explore' | 'sim' | 'gallery' | 'docs' | 'about'
+export type Page = 'home' | 'explore' | 'sim' | 'gallery' | 'blog' | 'docs' | 'about'
 
 export const SOURCE_URL = 'https://github.com/jonklein/breve.js'
 
@@ -7,6 +7,7 @@ const LINKS: { page: Page; href: string; label: string }[] = [
   { page: 'explore', href: '/explore/', label: 'Explore' },
   { page: 'sim', href: '/sim/', label: 'Simulations' },
   { page: 'gallery', href: '/gallery/', label: 'Gallery' },
+  { page: 'blog', href: '/blog/', label: 'Blog' },
   { page: 'docs', href: '/sim/?tab=docs', label: 'Docs' },
   { page: 'about', href: '/about/', label: 'About' },
 ]

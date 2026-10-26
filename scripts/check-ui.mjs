@@ -135,6 +135,17 @@ check('MuJoCo engine runs a population as tiles', (await page.locator('#tiles .t
 await sim('evolved-creatures')
 await page.waitForTimeout(1500)
 
+// the blog: drafts stay hidden until asked for, and a post renders from its markdown
+await page.goto(`${base}/blog/`)
+await page.waitForTimeout(800)
+check('blog hides drafts', (await page.locator('.post-card').count()) === 0)
+await page.goto(`${base}/blog/?drafts`)
+await page.waitForTimeout(800)
+check('blog lists a draft when asked', (await page.locator('.post-card').count()) >= 1)
+await page.click('.post-card a')
+await page.waitForTimeout(500)
+check('a post renders its markdown', (await page.locator('article.post h1').count()) === 1 && (await page.locator('article.post h2').count()) >= 2)
+
 // click one sim: breadcrumbs say where you are, and "All runs" returns to the population where it was left
 await page.locator('#tiles .tile').nth(2).click()
 await page.waitForTimeout(1500)

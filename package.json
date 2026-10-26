@@ -12,8 +12,9 @@
     "mjcf": "node --import tsx scripts/mjcf.mjs",
     "docs": "node scripts/gen-docs.mjs",
     "build": "npm run build -w @breve/workbench",
-    "test": "npm test -w @breve/stdlib && npm test -w @breve/experiment && npm test -w @breve/core && npm test -w @breve/server && npm test -w @breve/inference && npm test -w @breve/physics-mujoco",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "test": "npm test -w @breve/stdlib && npm test -w @breve/experiment && npm test -w @breve/core && npm test -w @breve/server && npm test -w @breve/inference && npm test -w @breve/physics-mujoco && npm test -w @breve/workbench",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "blog": "node scripts/blog.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

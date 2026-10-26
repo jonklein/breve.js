@@ -53,3 +53,14 @@ footer.site-footer a { color: var(--muted); }
 .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0 8px; }
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .actions a.button, .actions button { padding: 4px 12px; font-size: 13px; }
+
+/* blog */
+.blog-title { font-size: 32px; margin: 40px 0 16px; }
+.post-card { padding: 14px 0; border-bottom: 1px solid var(--border); max-width: 70ch; }
+.post-card h2 { margin: 0 0 4px; font-size: 20px; }
+.post-card h2 a { color: var(--text); text-decoration: none; }
+.post-card h2 a:hover { color: var(--accent); }
+.post-card p { margin: 4px 0; color: var(--muted); line-height: 1.5; }
+.post-meta { font-size: 13px; margin: 0 0 14px; }
+.post-back { display: inline-block; margin: 28px 0 0; color: var(--accent); text-decoration: none; font-size: 14px; }
+.post.prose h1 { margin: 16px 0 4px; }

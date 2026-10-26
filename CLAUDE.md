@@ -47,10 +47,11 @@ packages/
   render/        renderer reading world state
   physics-*/     adapters (for now: packages/core/src/physics/, Rapier loaded lazily)
   controllers/   built-in controllers
-  experiment/    Strategy interface and runners
+  experiment/    Strategy interface and runners, plus mutate/crossover helpers for hand-written searches
+  inference/     the only package that knows ONNX Runtime Web: loads models (path, URL or hf:owner/repo/file) into sim.models (docs/decisions/inference.md)
   view/          Three.js drawing of a world (agents, cells, graphs, creatures), shared by the workbench and the embed
   embed/         `breve.run(selector, script, config)` for other web pages, built with esbuild (docs/decisions/embed.md)
-  workbench/     the UI
+  workbench/     the site: home (/), workbench (/sim/), gallery, about; one HTML file per page (docs/decisions/site.md)
 examples/        demo scenes and scripts
 docs/decisions/  decision records
 docs/perf.md     benchmark results

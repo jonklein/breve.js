@@ -25,9 +25,17 @@ npm test        # core and server tests
 npm run typecheck
 ```
 
-### The assistant (LLM)
+### In the workbench
 
-The workbench records the run as it goes: the **Timeline** slider under the view goes back to an earlier moment and pauses there, and Play carries on from it as a new branch. **Tree view** (above the editor) edits `scene.json` and `experiment.json` as a tree of fields over the same text, and **Share** copies a link that carries the whole project.
+- **Gallery** (`/gallery/`): every example with a picture; Open it, Fork it into your own projects, or copy a link.
+- **Timeline** slider under the view: go back to an earlier moment and pause there; Play carries on from it as a new branch.
+- **Tree view** (above the editor): edit `scene.json` and `experiment.json` as a tree of fields (number inputs, color pickers, dropdowns, `$param` pickers) over the same text, so the file keeps its formatting.
+- **Share**: copies a link that carries the whole project. A project opened from a link is held until you read its script and press Run.
+- **Thinking bar** (for scenes where something thinks): lockstep or realtime, and save or replay a decision log.
+
+Command line (no browser): `npm run run -- <example>` runs an example headless, `npm run urdf -- robot.urdf` and `npm run mjcf -- model.xml` convert a robot description into a body, `npm run docs` regenerates `docs/stdlib.md`, and `node scripts/thumbs.mjs` remakes the gallery pictures (it needs Playwright and the dev server).
+
+### The assistant (LLM)
 
 The workbench has an **Assistant** tab: describe a change in words, review the proposed diff, and apply or dismiss it (with undo). It needs an Anthropic API key. Copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. The key stays on the local API server (`packages/server`, bound to 127.0.0.1) and never reaches the browser. The model defaults to `claude-opus-5-5`; set `BREVE_MODEL` to change it. The assistant is given [docs/script-api.md](docs/script-api.md) and the example projects, and its proposals are validated against the scene schema and checked for script syntax (with automatic repair attempts) before you see them.
 

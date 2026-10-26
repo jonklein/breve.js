@@ -112,6 +112,14 @@ await page.waitForTimeout(3000)
 check('a population of sub-sims is shown as tiles', (await page.locator('#tiles .tile').count()) === 12, `${await page.locator('#tiles .tile').count()} tiles`)
 check('the progress line names the generation', /generation \d+/.test(await page.textContent('#stats')), await page.textContent('#stats'))
 
+// click one sim: breadcrumbs say where you are, and "All runs" returns to the population where it was left
+await page.locator('#tiles .tile').nth(2).click()
+await page.waitForTimeout(1500)
+check('breadcrumbs show the picked sim', (await page.textContent('#crumbs')).includes('All runs') && (await page.textContent('#crumbs')).includes('c03'), await page.textContent('#crumbs'))
+await page.click('#crumbs button')
+await page.waitForTimeout(2000)
+check('"All runs" shows the population again', (await page.locator('#tiles .tile').count()) === 12 && !(await page.textContent('#crumbs')).includes('c03'), await page.textContent('#crumbs'))
+
 check('no page errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '))
 await browser.close()
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed')

@@ -92,6 +92,10 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 .tile-spark { width: 100%; height: 28px; pointer-events: none; }
 #sweepbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--border); font-size: 12px; }
 #sweepbar input { width: 70px; }
+#crumbs { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--border); font-size: 13px; }
+#crumbs button { padding: 2px 8px; }
+#crumbs .crumb-here { font-weight: 600; }
+#crumbs .crumb-sep { color: var(--muted); }
 #thinkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--border); font-size: 12px; }
 
 .docs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -127,7 +131,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 #sweepbar { justify-content: space-between; }
 
 /* ?embed: just the simulation */
-.embed header, .embed #editors, .embed #panel, .embed #inspector, .embed #thinkbar, .embed #sweepbar { display: none !important; }
+.embed header, .embed #editors, .embed #panel, .embed #inspector, .embed #thinkbar, .embed #crumbs, .embed #sweepbar { display: none !important; }
 .embed main { display: block; height: 100vh; }
 .embed #right { height: 100vh; }
 

@@ -432,10 +432,19 @@ async function main(): Promise<void> {
         lastTime = now
         $('stats').textContent = `tick ${m.tick} · ${m.frames.map((f) => `${f.count} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
       }
+    } else if (m.type === 'crumbs') {
+      // a trail like "All runs › c04": every step but the last goes back to that level
+      const bar = $('crumbs')
+      bar.classList.toggle('hidden', m.trail.length === 0)
+      bar.replaceChildren(...m.trail.flatMap((name, i) => {
+        const last = i === m.trail.length - 1
+        const el = last ? Object.assign(document.createElement('span'), { className: 'crumb-here', textContent: name }) : Object.assign(document.createElement('button'), { textContent: name, title: 'Back to all the runs, where you left them', onclick: () => send({ type: 'unfocus' }) })
+        return last ? [el] : [el, Object.assign(document.createElement('span'), { className: 'crumb-sep', textContent: '›' })]
+      }))
     } else if (m.type === 'population') {
-      // a script with a `parent` runs its own group of sims: show them as tiles, with no way back to a single view
+      // a script with a `parent` runs its own group of sims: show them as tiles (the breadcrumbs say where you are)
       showSweep(m.on)
-      $('sweepbar').classList.toggle('hidden', m.on)
+      $('sweepbar').classList.toggle('hidden', true)
     } else if (m.type === 'tiles') {
       if (sweeping) tiles.update(m.tiles, '')
       const now = performance.now()

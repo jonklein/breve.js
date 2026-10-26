@@ -23,6 +23,8 @@ export type ToWorker =
   | { type: 'single' }
   /** Continue from one sweep tile as the single sim. */
   | { type: 'focus'; name: string }
+  /** Go back from one picked sim to the whole population, exactly where it was left. */
+  | { type: 'unfocus' }
   /** Go back to the recorded moment at or before this tick, and pause there. Playing on from it starts a new branch. */
   | { type: 'seek'; tick: number }
   /** Realtime thoughts land whenever they arrive; lockstep waits for every answer before each tick, so the run repeats exactly. */
@@ -53,6 +55,8 @@ export interface WorldFrameMsg {
 
 export type FromWorker =
   | { type: 'population'; on: boolean }
+  /** Where you are in a multi-sim setup, root first: `['All runs', 'c04']`. Empty when there is nothing to go back to. */
+  | { type: 'crumbs'; trail: string[] }
   | { type: 'tiles'; tick: number; rate: number; stepMs: number; /** a parent's progress line, when a parent runs the sims */ status?: string; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
   | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
@@ -76,6 +80,7 @@ let group: SimGroup | null = null
 let sweepRuns = new Map<string, Record<string, number>>()
 // population mode: the script's `parent` makes and replaces the sims in `group` (an evolving population)
 let population: ParentRun | null = null
+let parked: { run: ParentRun; name: string } | null = null // the population, paused, while one of its sims is open alone
 let populationBusy = false // the parent is between generations, adding sims
 
 function applyScene(text: string): void {
@@ -85,7 +90,7 @@ function applyScene(text: string): void {
     scene = r.scene
     sceneErrors = []
     sim?.setScene(r.scene)
-    if (population) population.setScene(r.scene) // its sub-sims keep the scenes the parent made for them
+    if (population || parked) (population ?? parked!.run).setScene(r.scene) // its sub-sims keep the scenes the parent made for them
     else if (group) for (const [name, s] of group.sims) s.setScene(withParams(r.scene, sweepRuns.get(name) ?? {}))
   } else {
     sceneErrors = r.errors
@@ -115,6 +120,9 @@ async function askModel(prompt: string, options?: { json?: boolean; images?: str
 function leavePopulation(): void {
   population?.dispose()
   population = null
+  parked?.run.dispose()
+  parked = null
+  postMessage({ type: 'crumbs', trail: [] } satisfies FromWorker)
   group = null
   postMessage({ type: 'population', on: false } satisfies FromWorker)
 }
@@ -135,11 +143,14 @@ async function startPopulation(parent: Parent, mine: number): Promise<void> {
   sim?.dispose()
   sim = null
   population?.dispose()
+  parked?.run.dispose()
+  parked = null
   population = run
   group = run.group
   groupTick = -1
   lastSent = ''
   postMessage({ type: 'population', on: true } satisfies FromWorker)
+  postMessage({ type: 'crumbs', trail: ['All runs'] } satisfies FromWorker)
 }
 
 async function rebuild(): Promise<void> {
@@ -147,7 +158,7 @@ async function rebuild(): Promise<void> {
   const mine = ++builds
   const parent = parentOf(script)
   if (parent) return startPopulation(parent, mine)
-  if (population) leavePopulation()
+  if (population || parked) leavePopulation()
   const next = await Sim.create(scene, script ?? undefined)
   next.provider = askModel
   if (mine !== builds) return next.dispose() // a newer rebuild started while this one loaded
@@ -415,7 +426,13 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         // physics scenes cannot be forked yet: start a fresh run with that param value instead
         copy = await Sim.create(withParams(scene!, params), script ?? undefined)
       }
-      if (population) leavePopulation()
+      if (population) {
+        // keep the population, paused, so "All runs" can return to it exactly as it was
+        parked = { run: population, name: m.name }
+        population = null
+        group = null
+        postMessage({ type: 'crumbs', trail: ['All runs', m.name] } satisfies FromWorker)
+      }
       group?.dispose()
       group = null
       sim?.dispose()
@@ -424,6 +441,18 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       postMessage({ type: 'focused', params } satisfies FromWorker)
       break
     }
+    case 'unfocus':
+      if (!parked) break
+      sim?.dispose()
+      sim = null
+      population = parked.run
+      parked = null
+      group = population.group
+      groupTick = -1
+      lastSent = ''
+      postMessage({ type: 'population', on: true } satisfies FromWorker)
+      postMessage({ type: 'crumbs', trail: ['All runs'] } satisfies FromWorker)
+      break
     case 'reset':
       applyScene(sceneText)
       if (population) await rebuild()

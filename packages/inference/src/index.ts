@@ -1,4 +1,7 @@
 import type { Model, ModelDef } from '@breve/core'
+import { remoteModel } from './remote'
+
+export { remoteModel, type RemoteOptions } from './remote'
 
 /**
  * Trained models for simulations: ONNX files run with ONNX Runtime Web (WebAssembly on the CPU, or WebGPU where the browser
@@ -80,6 +83,7 @@ async function fetchBytes(url: string, opts: LoadOptions): Promise<Uint8Array> {
 /** Load a model a scene declares under `models`. Rejects with a readable message when the file or the runtime fails. */
 export async function loadModel(def: ModelDef, opts: LoadOptions = {}): Promise<Model> {
   const url = resolveUrl(def.url, opts.base)
+  if (/^wss?:/i.test(url)) return remoteModel(url) // a process on the other end of a WebSocket, not a file
   let bytes: Uint8Array
   try { bytes = await fetchBytes(url, opts) } catch (e) { throw new Error(e instanceof Error ? e.message : String(e)) }
   return onnxModel(bytes, def.device ?? 'cpu', opts, def.url)
@@ -106,6 +110,7 @@ export async function onnxModel(bytes: Uint8Array, device: 'cpu' | 'webgpu' = 'c
     inputWidth: fixed(dims),
     outputWidth: fixed(odims),
     deterministic: device === 'cpu',
+    dispose: () => void session.release(),
     async run(data, rows) {
       if (rows <= 0) return new Float32Array(0)
       const width = data.length / rows

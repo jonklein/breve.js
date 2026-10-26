@@ -13,5 +13,9 @@
   "dependencies": {
     "@breve/core": "*",
     "onnxruntime-web": "^1.30.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.0",
+    "ws": "^8.18.0"
   }
 }

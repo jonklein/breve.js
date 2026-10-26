@@ -1,14 +1,19 @@
 // Run an example with no browser and no renderer, and print its metrics.
 //   node --import tsx scripts/run.mjs <example id> [ticks] [every]
 // Example: node --import tsx scripts/run.mjs epidemic 200 20
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { Sim, parseScene } from '../packages/core/src/index.ts'
 import { loadSceneModels } from '../packages/inference/src/index.ts'
 
 const [id, ticks = '300', every = '50'] = process.argv.slice(2)
 const index = JSON.parse(readFileSync(new URL('../examples/index.json', import.meta.url), 'utf8'))
-const ex = index.find((e) => e.id === id)
+let ex = index.find((e) => e.id === id)
+if (!ex && existsSync(new URL(`../examples/${id}/scene.json`, import.meta.url))) {
+  // an example kept out of the gallery (it needs something running, say): its scene names its script
+  const named = JSON.parse(readFileSync(new URL(`../examples/${id}/scene.json`, import.meta.url), 'utf8')).entities?.find((e) => e.controller)?.controller
+  if (named) ex = { id, scene: 'scene.json', script: named }
+}
 if (!ex) { console.error(`no example "${id}". Try one of: ${index.map((e) => e.id).join(', ')}`); process.exit(1) }
 const dir = new URL(`../examples/${id}/`, import.meta.url)
 const scene = parseScene(readFileSync(new URL(ex.scene, dir), 'utf8'))

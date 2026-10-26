@@ -98,3 +98,11 @@ test('only sets that asked a language model are flagged, and a very long decisio
   assert.equal(long.decisionLogComplete, false)
   assert.equal(long.decisionLog[long.decisionLog.length - 1].tick, 19, 'the newest decisions are the ones kept')
 })
+
+test('disposing a sim lets go of its models (sockets, runtime sessions)', () => {
+  let closed = 0
+  const s = new Sim(scene(), script)
+  s.models.policy = { ...fake([]), dispose: () => { closed++ } }
+  s.dispose()
+  assert.equal(closed, 1)
+})

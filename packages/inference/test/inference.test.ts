@@ -72,3 +72,42 @@ test('a simulation steered by an ONNX policy: one batched call a tick, and the r
   for (let t = 0; t < 30; t++) { await again.think(); again.step() }
   assert.equal(again.hash(), sim.hash(), 'replay reaches the same state with no model loaded')
 })
+
+test('a remote model: a process on a WebSocket answers batches, and the simulation still replays without it', async () => {
+  const { WebSocketServer } = await import('ws')
+  const { remoteModel } = await import('../src/index')
+  const asked: { rows: number; width: number }[] = []
+  const server = new WebSocketServer({ port: 0 })
+  await new Promise<void>((r) => server.on('listening', () => r()))
+  const port = (server.address() as { port: number }).port
+  // the "trainer": answers each row with [sum of its numbers, number of numbers]
+  server.on('connection', (sock) => sock.on('message', (data: Buffer) => {
+    const rows = data.readUInt32LE(0), width = data.readUInt32LE(4)
+    asked.push({ rows, width })
+    const out = Buffer.alloc(8 + rows * 2 * 4)
+    out.writeUInt32LE(rows, 0); out.writeUInt32LE(2, 4)
+    for (let r = 0; r < rows; r++) {
+      let s = 0
+      for (let k = 0; k < width; k++) s += data.readFloatLE(8 + (r * width + k) * 4)
+      out.writeFloatLE(s, 8 + r * 8); out.writeFloatLE(width, 8 + r * 8 + 4)
+    }
+    sock.send(out)
+  }))
+  try {
+    const model = await loadModel({ url: `ws://127.0.0.1:${port}` })
+    assert.equal(model.deterministic, false)
+    const out = await model.run(Float32Array.from([1, 2, 3, 4, 5, 6]), 2)
+    assert.deepEqual(Array.from(out), [6, 3, 15, 3])
+    // two calls at once are sent one after the other, each getting its own answer
+    const [a, b] = await Promise.all([model.run(Float32Array.from([1, 1]), 1), model.run(Float32Array.from([2, 2, 2]), 1)])
+    assert.deepEqual([Array.from(a), Array.from(b)], [[2, 2], [6, 3]])
+    assert.deepEqual(asked, [{ rows: 2, width: 3 }, { rows: 1, width: 2 }, { rows: 1, width: 3 }])
+    // when the server goes away, the next call says so
+    for (const c of server.clients) c.close()
+    await new Promise((r) => setTimeout(r, 100))
+    await assert.rejects(model.run(Float32Array.from([1]), 1), /closed/)
+  } finally {
+    server.close()
+  }
+  await assert.rejects(loadModel({ url: 'ws://127.0.0.1:1' }), /could not connect to ws:\/\/127.0.0.1:1.*is the server running/)
+})

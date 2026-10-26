@@ -1,0 +1,24 @@
+{
+  "name": "remote-policy",
+  "seed": 3,
+  "bounds": { "size": 20, "mode": "clamp" },
+  "world": { "sky": { "top": "#0e1a2b", "horizon": "#3c5a4a" }, "grid": true },
+  "models": { "policy": { "url": "ws://localhost:8765" } },
+  "params": {
+    "count": { "value": 60, "min": 5, "max": 400, "step": 5 },
+    "push": { "value": 14, "min": 1, "max": 30, "step": 1, "label": "how hard they follow the network" },
+    "speed": { "value": 5, "min": 1, "max": 10, "step": 0.5 }
+  },
+  "entities": [
+    {
+      "name": "walkers",
+      "controller": "policy.js",
+      "count": "$count",
+      "color": "#8fd3ff",
+      "size": 1.6,
+      "think": { "every": 1 },
+      "motion": { "maxSpeed": "$speed", "minSpeed": 0, "maxAccel": 40, "plane": "xz" }
+    }
+  ],
+  "metrics": ["meanRadius"]
+}

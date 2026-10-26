@@ -131,7 +131,7 @@ async function syncModels(): Promise<void> {
   const key = JSON.stringify(scene.models ?? {})
   if (key === modelsKey) return
   modelsKey = key
-  for (const k of Object.keys(sim.models)) delete sim.models[k]
+  for (const k of Object.keys(sim.models)) { void sim.models[k].dispose?.(); delete sim.models[k] }
   const target = sim
   modelProblems = await loadSceneModels(target, { base: modelBase || undefined })
   lastSent = '' // show (or clear) the problems

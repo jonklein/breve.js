@@ -10,6 +10,8 @@ export interface Model {
   readonly outputWidth?: number
   /** False when the same input may give a different output (GPU math, say). Such a model makes its sets non-repeatable. */
   readonly deterministic: boolean
+  /** Let go of what the model holds (a socket, a runtime session). Called when the sim is disposed. */
+  dispose?(): void | Promise<void>
   /** Run `rows` input rows (laid out one after another in `input`) and return the output rows the same way. */
   run(input: Float32Array, rows: number): Promise<Float32Array>
 }

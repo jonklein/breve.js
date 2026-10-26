@@ -147,6 +147,7 @@ export class Sim {
   /** Free engine resources. Only physics scenes hold any. */
   dispose(): void {
     for (const w of this.worlds) w.dispose?.()
+    for (const m of Object.values(this.models)) void Promise.resolve(m.dispose?.()).catch(() => undefined) // close sockets, free runtimes
   }
 
   setScript(script: ScriptModule): void {

@@ -131,3 +131,24 @@ test('morphology: a search can change body shape because geometry may use params
   assert.ok(new Set(r.trials.map((t) => t.params.legLength)).size >= 2, 'runs had different leg lengths')
   assert.ok(r.trials.every((t) => Number.isFinite(t.value)))
 })
+
+test('running a batch of candidates side by side gives the same trials, in the same order, as one after another', async () => {
+  const { scene, script } = await boids()
+  const spec: ExperimentSpec = { strategy: { type: 'grid', steps: 3 }, space: ['alignment', 'cohesion'], objective: { metric: 'polarization', goal: 'max' }, ticks: 60 } as ExperimentSpec
+  const seq = await runExperiment(spec, { scene, script })
+  // stand-in for a worker pool: candidates finish out of order (later ones faster), but runExperiment must still record them in the order asked
+  let inFlight = 0, peak = 0
+  const { evaluate } = await import('../src/index')
+  const par = await runExperiment(spec, { scene, script }, {
+    evaluate: async (params) => {
+      inFlight++; peak = Math.max(peak, inFlight)
+      await new Promise((r) => setTimeout(r, 30 - 5 * (Object.keys(params).length + inFlight)))
+      const out = await evaluate(spec, { scene, script }, params)
+      inFlight--
+      return out
+    },
+  })
+  assert.ok(peak > 1, `candidates ran at the same time (peak ${peak})`)
+  assert.deepEqual(par.trials.map((t) => [t.id, t.params, t.value]), seq.trials.map((t) => [t.id, t.params, t.value]))
+  assert.deepEqual(par.ranked.map((t) => t.id), seq.ranked.map((t) => t.id))
+})

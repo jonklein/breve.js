@@ -30,6 +30,7 @@ export class ExperimentPanel {
   private trials: Trial[] = []
   private result: ExperimentResult | null = null
   private total = 0
+  private workers = 1
   private running = false
 
   constructor(private h: {
@@ -91,10 +92,11 @@ export class ExperimentPanel {
   private onMessage(m: FromExperiment): void {
     if (m.type === 'started') {
       this.total = m.total
+      this.workers = m.workers
       this.h.problems([])
     } else if (m.type === 'trial') {
       this.trials.push(m.trial)
-      q('exp-status').textContent = `${m.done} of ${this.total} runs`
+      q('exp-status').textContent = `${m.done} of ${this.total} runs${this.workers > 1 ? ` · ${this.workers} workers` : ''}`
       this.render()
     } else if (m.type === 'done') {
       this.running = false

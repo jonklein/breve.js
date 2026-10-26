@@ -71,12 +71,15 @@ export async function evaluate(spec: ExperimentSpec, base: { scene: Scene; scrip
 
 /**
  * Run an experiment: ask the strategy for candidates, run each, tell it the scores, until it is done.
- * `batch` is how many candidates are asked for at a time (they run one after another here; a worker pool can run them side by side).
+ * `batch` is how many candidates are asked for at a time. With the default evaluator they run one after another. A host with
+ * several workers passes `evaluate` (run one candidate somewhere) and the whole batch runs side by side, but the trials still
+ * come back in order and the strategy hears the same scores, so the result does not depend on how many workers there were.
+ * Keep `batch` the same across machines (the default is 4) so a search is repeatable.
  */
 export async function runExperiment(
   spec: ExperimentSpec,
   base: { scene: Scene; script?: ScriptModule },
-  opts: { batch?: number; onTrial?: (t: Trial, done: number) => void; shouldStop?: () => boolean } = {},
+  opts: { batch?: number; evaluate?: (params: Record<string, number>) => Promise<Omit<Trial, 'id'>>; onTrial?: (t: Trial, done: number) => void; shouldStop?: () => boolean } = {},
 ): Promise<ExperimentResult> {
   const dims = makeDims(spec.space, base.scene)
   const strategy = makeStrategy(spec, dims)
@@ -85,13 +88,24 @@ export async function runExperiment(
     const points = strategy.ask(opts.batch ?? 4)
     if (!points.length) break
     const scores: number[] = []
-    for (const p of points) {
-      const params = Object.fromEntries(dims.map((d, i) => [d.name, d.decode(p[i])]))
-      const t: Trial = { id: trials.length, ...(await evaluate(spec, base, params)) }
-      trials.push(t)
-      scores.push(t.score)
-      opts.onTrial?.(t, trials.length)
-      if (opts.shouldStop?.()) break
+    const paramsOf = points.map((p) => Object.fromEntries(dims.map((d, i) => [d.name, d.decode(p[i])])))
+    if (opts.evaluate) {
+      // the whole batch runs at once; trials are recorded in the order they were asked for
+      const results = await Promise.all(paramsOf.map((params) => opts.evaluate!(params)))
+      for (const r of results) {
+        const t: Trial = { id: trials.length, ...r }
+        trials.push(t)
+        scores.push(t.score)
+        opts.onTrial?.(t, trials.length)
+      }
+    } else {
+      for (const params of paramsOf) {
+        const t: Trial = { id: trials.length, ...(await evaluate(spec, base, params)) }
+        trials.push(t)
+        scores.push(t.score)
+        opts.onTrial?.(t, trials.length)
+        if (opts.shouldStop?.()) break
+      }
     }
     if (scores.length === points.length) strategy.tell(points, scores)
     else break

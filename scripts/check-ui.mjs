@@ -69,6 +69,13 @@ for (const id of ['boids', 'creature']) {
   check(`timeline resumes as a branch (${id})`, (await tickOf()) > to)
 }
 
+// experiments: candidates run side by side on several workers and the table fills in
+await sim('boids')
+await page.click('[data-tab=experiment]')
+await page.click('#exp-run')
+await page.waitForFunction(() => /^done/.test(document.getElementById('exp-status').textContent), null, { timeout: 120000 })
+check('an experiment runs to the end and ranks every run', (await page.locator('#exp-results tr').count()) === 17, await page.textContent('#exp-status'))
+
 // thinking controls: lockstep, save a log, replay it with no new questions
 let asked = 0
 await page.route('**/api/decide', async (r) => { asked++; await r.fulfill({ json: { text: '{"dx":0.5,"dz":-0.5}' } }) })

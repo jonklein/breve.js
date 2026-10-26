@@ -12,7 +12,7 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 |---|---|---|---|
 | M0 | Playable slice | **Done** | `boids` |
 | M1 | Kernel hardening | **Done**, with two gaps (relation tables, 1M-cell tick time) | `life2d`, `life3d` |
-| M2 | Sim as a value | **Done**, no multi-worker pool | Sweep / Watch, `neural` |
+| M2 | Sim as a value | **Done** | Sweep / Watch, `neural` |
 | M3 | Controllers and inspector | **Done** | `ants`, `herding` |
 | M4 | Experiment layer | **Done** | `boids`, `creature`, `ants`, `morphology` experiments |
 | M5 | Abstract worlds | **Done** | `epidemic`, `epidemic-grid`, `market` |
@@ -55,7 +55,7 @@ Added to finish the milestone:
 - [x] General relation tables: named, directed, attributed edges with CSR neighbor lookup, owned by the `Sim` (`sim.relations`), included in snapshot, fork and hash. Scripts reach them as `ctx.relations`; `via` sensors read them (M5).
 - [x] Object columns (`'obj'`) for arbitrary structured-cloneable values: deep-copied by snapshots, hashed as canonical JSON, flagged as the slow escape hatch.
 
-## M2 — Sim as a value — Done, no worker pool
+## M2 — Sim as a value — Done
 
 - [x] `Sim.create / step / snapshot / restore / fork / dispose`, fork with an edited scene
 - [x] `SimGroup`: sweeps, forks, parent-mediated messages with a replayable log
@@ -65,9 +65,9 @@ Added to finish the milestone:
 
 Added to finish the milestone:
 
-- [ ] A pool of workers and a budget-aware scheduler across them. One worker runs a whole group today, under a per-frame time budget.
+- [x] A pool of workers for experiments: the candidates of each batch run side by side (up to four workers), measured about 2.3 times faster on a four-core box (23.8 s to 10.4 s for the boids grid), with results independent of core count (fixed batch size, trials recorded in order; tested). Not done: spreading the live **Watch** tiles across workers. They share one display clock, so they stay in one worker under its per-frame time budget.
 
-## M3 — Controllers and inspector — Done, two small gaps
+## M3 — Controllers and inspector — Done
 
 - [x] Several entity sets per scene; controllers by named export (`type`); `every`; cross-set sensors; agents read and add to the cells under them
 - [x] Script and Human (keyboard) controllers; `ctx.blend` for composition; `self.reset()` and fences

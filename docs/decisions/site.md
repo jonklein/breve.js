@@ -13,3 +13,7 @@
 - A project opened from a share link is **held**: the workers get a do-nothing script and the page shows a banner (read the script, then Run, or delete the project). Scripts are programs and run in the page's origin, where they can call the local assistant API (which holds the API key) and anything else the origin can reach, so running a stranger's script without a look is the real risk of sharing. Approval is trust, not a sandbox: once approved, the script has full power. Forks of a held project are held too. A QuickJS sandbox (milestones, "Later") would be the real fix.
 
 **Consequences.** Hosting must serve `/sim/`, `/gallery/` and `/about/` as directories (any static host does). Examples gain `tags` in `examples/index.json`. Long scripts make long share links; a hosted store can replace the code later without changing the page.
+
+## Editor drawer and tree-first JSON (2026-10-26)
+
+The workbench's editor (scene, script, experiment, assistant, docs) is a drawer that slides over the left edge instead of a permanent half of the page, so the simulation has the stage. It opens from the header button, the edge tab or the E key, closes with Esc or the close button, and the choice is remembered. It overlays rather than pushes, so the canvases never resize. A red dot on the button and tab says there is a problem to look at while the drawer is closed. JSON files open as the tree of fields by default (the text view is one click away, and the last choice is remembered); `?embed` hides all of this as before.

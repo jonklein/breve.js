@@ -16,7 +16,12 @@ await page.route('**/api/decide', (r) => r.fulfill({ json: { text: '{"dx":0.5,"d
 
 let failed = 0
 const check = (name, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'ok  ' : 'FAIL', name, detail) }
-const sim = async (hash) => { await page.goto(`${base}/sim/#${hash}`); await page.waitForTimeout(2500) }
+const sim = async (hash) => {
+  await page.goto(`${base}/sim/#${hash}`)
+  await page.waitForTimeout(2500)
+  if (await page.locator('main.drawer-open').count()) { await page.click('#drawer-close'); await page.waitForTimeout(300) } // the editor is remembered open between visits; the checks want the stage clear
+}
+const openDrawer = async () => { if (!(await page.locator('main.drawer-open').count())) await page.click('#drawer-toggle'); await page.waitForTimeout(350) }
 const tickOf = async () => Number((await page.textContent('#timeline-label')).match(/tick (\d+)/)[1])
 
 // home: three demos start when scrolled to, and an old workbench link still works
@@ -42,7 +47,12 @@ check('gallery Fork opens a copy', (await page.inputValue('#name')) === 'Boids c
 await sim('ants')
 const text = () => page.evaluate(() => window.breve.sceneEditor.getText())
 const before = await text()
-await page.click('#view-toggle')
+check('the editor is a drawer, closed until asked for', !(await page.isVisible('#editors')) && (await page.isVisible('#drawer-handle')))
+await openDrawer()
+check('JSON opens as a tree by default', (await page.isVisible('#tree-scene')) && !(await page.isVisible('#editor-scene')))
+await page.keyboard.press('Escape'); await page.waitForTimeout(350)
+check('Escape closes the drawer', !(await page.isVisible('#editors')))
+await openDrawer()
 await page.waitForSelector('#tree-scene .tree-row')
 const count = page.locator('#tree-scene .tree-node', { has: page.locator('> .tree-row > .tree-key', { hasText: /^count$/ }) }).first().locator('input[type=number]').first()
 await count.fill('120'); await count.dispatchEvent('change')
@@ -53,7 +63,8 @@ const size = page.locator('#tree-scene .tree-node', { has: page.locator('> .tree
 await size.fill('-5'); await size.dispatchEvent('change')
 await page.waitForTimeout(1200)
 check('tree shows validation errors inline', (await page.locator('#tree-scene .tree-err').count()) > 0)
-await page.click('#view-toggle')
+check('a problem shows as a dot on the closed drawer', (await page.evaluate(() => { document.getElementById('drawer-close').click(); return document.getElementById('drawer-toggle').classList.contains('has-problems') })))
+await page.waitForTimeout(350)
 
 // timeline: scrub back, stay paused, resume as a branch (a flocking scene and a physics scene)
 for (const id of ['boids', 'creature']) {
@@ -71,6 +82,7 @@ for (const id of ['boids', 'creature']) {
 
 // experiments: candidates run side by side on several workers and the table fills in
 await sim('boids')
+await openDrawer()
 await page.click('[data-tab=experiment]')
 await page.click('#exp-run')
 await page.waitForFunction(() => /^done/.test(document.getElementById('exp-status').textContent), null, { timeout: 120000 })

@@ -21,8 +21,17 @@ select, input { font: inherit; color: var(--text); background: var(--bg); border
 input { width: 160px; }
 button { font: inherit; color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
 button:hover { border-color: var(--muted); }
-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 42%) 1fr; }
-#editors { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+main { flex: 1; min-height: 0; position: relative; display: flex; }
+main > #right { flex: 1; }
+/* the editor is a drawer that slides over the left edge, so the simulation keeps the whole stage */
+#editors { position: absolute; top: 0; bottom: 0; left: 0; width: min(580px, 94vw); z-index: 30; display: flex; flex-direction: column; min-height: 0; background: var(--bg); border-right: 1px solid var(--border); box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35); transform: translateX(-102%); transition: transform 0.22s ease; visibility: hidden; }
+main.drawer-open #editors { transform: none; visibility: visible; }
+.drawer-handle { position: absolute; left: 0; top: 50%; z-index: 20; transform: translateY(-50%); writing-mode: vertical-rl; padding: 14px 6px; border-left: none; border-radius: 0 8px 8px 0; background: var(--panel); color: var(--muted); letter-spacing: 0.08em; }
+.drawer-handle:hover { color: var(--text); }
+main.drawer-open .drawer-handle { display: none; }
+.drawer-toggle[aria-expanded="true"] { border-color: var(--accent); }
+.drawer-close { padding: 2px 8px; margin-left: 6px; }
+.drawer-toggle.has-problems::after, .drawer-handle.has-problems::after { content: ' ●'; color: var(--danger); }
 #editors nav { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); }
 .tab { border-color: transparent; color: var(--muted); }
 .tab.active { color: var(--text); border-color: var(--border); background: var(--bg); }
@@ -49,8 +58,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 .metric .row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
 .metric canvas { width: 100%; height: 48px; display: block; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
 @media (max-width: 900px) {
-  main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1.2fr); }
-  #editors { border-right: none; border-bottom: 1px solid var(--border); }
+  #editors { width: 100vw; border-right: none; }
   #panel { grid-template-columns: 1fr; max-height: 45%; }
 }
 
@@ -133,6 +141,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 /* ?embed: just the simulation */
 .embed header, .embed #editors, .embed #panel, .embed #inspector, .embed #thinkbar, .embed #crumbs, .embed #sweepbar { display: none !important; }
 .embed main { display: block; height: 100vh; }
+.embed .drawer-handle { display: none !important; }
 .embed #right { height: 100vh; }
 
 /* site navigation, shared by every page */

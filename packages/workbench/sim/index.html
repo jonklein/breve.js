@@ -11,6 +11,7 @@
       <nav id="site-nav" class="site-nav" aria-label="Site"></nav>
       <select id="project" aria-label="Project"></select>
       <input id="name" class="hidden" aria-label="Project name" />
+      <button id="drawer-toggle" class="drawer-toggle" aria-expanded="false" aria-controls="editors" title="Show or hide the editor (E)">Editor</button>
       <button id="fork" title="Copy this project so you can change it freely">Fork</button>
       <button id="share" title="Copy a link that carries this scene and script">Share</button>
       <button id="delete" class="hidden" title="Delete this project">Delete</button>
@@ -29,7 +30,8 @@
       <button id="held-delete">Delete this project</button>
     </div>
     <main>
-      <section id="editors">
+      <button id="drawer-handle" class="drawer-handle" aria-label="Open the editor" title="Open the editor (E)">Editor</button>
+      <section id="editors" aria-label="Editor">
         <nav>
           <button class="tab active" data-tab="scene">scene.json</button>
           <button class="tab" data-tab="script" id="script-tab">script.js</button>
@@ -38,6 +40,7 @@
           <button class="tab" data-tab="docs">Docs</button>
           <button id="view-toggle" class="hidden" title="Edit this file as a tree of fields instead of text">Tree view</button>
           <span id="status" class="status ok">ok</span>
+          <button id="drawer-close" class="drawer-close" aria-label="Hide the editor" title="Hide the editor (Esc)">✕</button>
         </nav>
         <div id="editor-scene" class="editor"></div>
         <div id="tree-scene" class="editor hidden"></div>

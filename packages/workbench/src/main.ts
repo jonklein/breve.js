@@ -85,7 +85,10 @@ async function main(): Promise<void> {
   }
 
   // ---- the tree view: a second way to edit scene.json and experiment.json, over the same text ----
-  let treeView = false
+  // JSON opens as a tree of fields; the text view is one click away, and the last choice is remembered
+  const pref = (k: string, fallback: string) => { try { return localStorage.getItem(k) ?? fallback } catch { return fallback } }
+  const remember = (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* private window: the choice just lasts this visit */ } }
+  let treeView = pref('breve.json', 'tree') === 'tree'
   let tab = 'scene'
   const sceneTree = new JsonTree($('tree-scene'), sceneSchema, (text) => sceneEditor.setText(text))
   const experimentTree = new JsonTree($('tree-experiment'), experimentSchema, (text) => experimentEditor.setText(text))
@@ -304,6 +307,8 @@ async function main(): Promise<void> {
     add($('script-tab').textContent ?? 'script', script)
     add('runtime', runtime)
     const bad = scene.length + script.length + runtime.length > 0
+    $('drawer-toggle').classList.toggle('has-problems', bad) // the editor may be closed: a dot says something needs a look
+    $('drawer-handle').classList.toggle('has-problems', bad)
     status.textContent = bad ? 'error · last good version still running' : 'ok · live'
     status.className = 'status ' + (bad ? 'bad' : 'ok')
   }
@@ -341,7 +346,24 @@ async function main(): Promise<void> {
       showViews()
     }),
   )
-  $('view-toggle').addEventListener('click', () => { treeView = !treeView; showViews() })
+  $('view-toggle').addEventListener('click', () => { treeView = !treeView; remember('breve.json', treeView ? 'tree' : 'text'); showViews() })
+
+  // ---- the editor drawer: closed by default so the simulation has the stage; opens from the header, the edge tab or the E key ----
+  const mainEl = document.querySelector('main')!
+  const setDrawer = (open: boolean) => {
+    mainEl.classList.toggle('drawer-open', open)
+    $('drawer-toggle').setAttribute('aria-expanded', String(open))
+    remember('breve.drawer', open ? 'open' : 'closed')
+  }
+  const toggleDrawer = () => setDrawer(!mainEl.classList.contains('drawer-open'))
+  setDrawer(pref('breve.drawer', 'closed') === 'open' || new URLSearchParams(location.search).get('tab') === 'docs')
+  for (const id of ['drawer-toggle', 'drawer-handle']) $(id).addEventListener('click', toggleDrawer)
+  $('drawer-close').addEventListener('click', () => setDrawer(false))
+  document.addEventListener('keydown', (e) => {
+    const typing = (e.target as HTMLElement | null)?.closest('input, textarea, select, .cm-editor, [contenteditable]')
+    if (e.key === 'Escape' && mainEl.classList.contains('drawer-open')) setDrawer(false)
+    else if ((e.key === 'e' || e.key === 'E') && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) toggleDrawer()
+  })
   showViews()
 
   if (new URLSearchParams(location.search).get('tab') === 'docs') document.querySelector<HTMLButtonElement>('[data-tab=docs]')!.click()

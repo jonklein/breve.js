@@ -1,3 +1,4 @@
+import { fromEuler, mul, toEuler } from './rot'
 import Ajv from 'ajv'
 import { evalNumber } from './expr'
 import type { NumOrParam, Params } from './scene'
@@ -17,6 +18,8 @@ export interface PartDef {
   mass: number
   /** Where the part's center sits in the standing pose, relative to the creature's origin. x is forward, y is up. */
   position: Vec3Tuple
+  /** Turns the shape about its own center (radians about x, then y, then z). Joints and axes stay where they are; only the part's collider and drawing turn. */
+  rotation?: Vec3Tuple
   color?: string
   friction?: number
 }
@@ -117,6 +120,7 @@ const partItem = {
     size: { type: 'array', items: expr, minItems: 1, maxItems: 3 },
     mass: expr,
     position: vec3,
+    rotation: vec3,
     color: colorSchema,
     friction: { type: 'number', minimum: 0 },
   },
@@ -320,7 +324,10 @@ export function expandBody(input: BodyInput, where: string): { body: BodyDef; er
       return v
     }
     const local = (n: string) => `${a.name}.${n}`
-    for (const p of tpl.parts) parts.push({ ...(fill(p, w) as PartDef), name: local(p.name), position: place(p.position) })
+    // a turned attach also turns a rotated shape: Ry(yaw) * R
+    const spin = (r: Vec3Tuple | undefined): { rotation?: Vec3Tuple } =>
+      r && (a.yaw ?? 0) !== 0 ? { rotation: toEuler(mul(fromEuler([0, a.yaw!, 0]), fromEuler(r))).map(round) as Vec3Tuple } : {}
+    for (const p of tpl.parts) { const f = fill(p, w) as PartDef; parts.push({ ...f, name: local(p.name), position: place(p.position), ...spin(f.rotation) }) }
     for (const j of tpl.joints ?? []) {
       const f = fill(j, w) as JointDef
       joints.push({
@@ -343,7 +350,7 @@ export function expandBody(input: BodyInput, where: string): { body: BodyDef; er
 export function resolveGeometry(input: BodyInput, params: Params, where: string): BodyInput {
   const n = (v: unknown, w: string) => evalNumber(v as number | string, params, w)
   const vec = (v: unknown, w: string) => (v as unknown[]).map((x, i) => n(x, `${w}.${i}`)) as number[]
-  const part = (p: PartDef, w: string): PartDef => ({ ...p, size: vec(p.size, `${w}.size`), mass: n(p.mass, `${w}.mass`), position: vec(p.position, `${w}.position`) as Vec3Tuple })
+  const part = (p: PartDef, w: string): PartDef => ({ ...p, size: vec(p.size, `${w}.size`), mass: n(p.mass, `${w}.mass`), position: vec(p.position, `${w}.position`) as Vec3Tuple, ...(p.rotation ? { rotation: vec(p.rotation, `${w}.rotation`) as Vec3Tuple } : {}) })
   const joint = (j: JointDef, w: string): JointDef => ({
     ...j,
     anchor: vec(j.anchor, `${w}.anchor`) as Vec3Tuple,

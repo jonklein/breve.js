@@ -6,6 +6,8 @@ export interface Dim {
   /** Number of distinct values, or Infinity for a continuous range. */
   count: number
   decode(u: number): number
+  /** The inverse of `decode`: where a real value sits on [0, 1]. For a list, the middle of its slot. */
+  encode(v: number): number
   /** The values a grid visits when it takes `steps` samples of a continuous range (all of a list). */
   gridPoints(steps: number): number[]
 }
@@ -29,7 +31,7 @@ export function makeDims(space: SpaceSpec, scene: Scene): Dim[] {
     if (Array.isArray(spec)) {
       if (!spec.length) throw new Error(`space.${name}: the list of values is empty`)
       const values = [...spec]
-      return { name, count: values.length, decode: (u) => values[Math.min(values.length - 1, Math.floor(u * values.length))], gridPoints: () => values }
+      return { name, count: values.length, decode: (u) => values[Math.min(values.length - 1, Math.floor(u * values.length))], encode: (v) => (Math.max(0, values.indexOf(v)) + 0.5) / values.length, gridPoints: () => values }
     }
     const s = typeof spec === 'object' ? spec : {}
     const given: { min?: number; max?: number; step?: number } = typeof def === 'number' ? {} : def
@@ -44,6 +46,7 @@ export function makeDims(space: SpaceSpec, scene: Scene): Dim[] {
       name,
       count,
       decode: (u) => round(lo + Math.min(1, Math.max(0, u)) * (hi - lo), step, integer, lo, hi),
+      encode: (v) => Math.min(1, Math.max(0, (v - lo) / (hi - lo))),
       gridPoints: (steps) => {
         const n = Math.min(steps, count)
         return Array.from({ length: n }, (_, i) => round(lo + ((hi - lo) * i) / Math.max(1, n - 1), step, integer, lo, hi))

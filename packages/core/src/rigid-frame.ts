@@ -4,6 +4,8 @@ import type { ShapeKind } from './body'
 export interface PartShape {
   shape: ShapeKind
   size: number[]
+  /** Euler XYZ radians, turning the shape within its part. */
+  rotation?: [number, number, number]
   color?: string
 }
 

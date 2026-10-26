@@ -105,6 +105,13 @@ export class RigidView {
 
 /** Box `[w, h, d]`, sphere `[r]`, capsule and cylinder `[length, radius]` with the long axis along y: the same sizes the physics uses. */
 function geometryFor(p: PartShape): THREE.BufferGeometry {
+  const g = baseGeometry(p)
+  // a turned shape is turned in the geometry, so the instance matrices stay the body poses
+  if (p.rotation) g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(p.rotation[0], p.rotation[1], p.rotation[2], 'XYZ')))
+  return g
+}
+
+function baseGeometry(p: PartShape): THREE.BufferGeometry {
   const s = p.size
   switch (p.shape) {
     case 'box': return new THREE.BoxGeometry(s[0], s[1], s[2])

@@ -1,3 +1,4 @@
+import { quatFromEuler } from '../rot'
 import RAPIER from '@dimforge/rapier3d-deterministic-compat'
 import type { BodyDef, JointDef, PartDef } from '../body'
 import type { Articulation, HeightfieldDef, PhysicsEngine, PhysicsWorld } from './types'
@@ -242,6 +243,7 @@ function colliderFor(p: PartDef, groups: number): RAPIER.ColliderDesc {
     case 'capsule': d = RAPIER.ColliderDesc.capsule(s[0] / 2, s[1]); break
     default: d = RAPIER.ColliderDesc.cylinder(s[0] / 2, s[1])
   }
+  if (p.rotation) { const [x, y, z, w] = quatFromEuler(p.rotation); d.setRotation({ x, y, z, w }) }
   return d.setMass(p.mass).setFriction(p.friction ?? 1).setRestitution(0).setCollisionGroups(groups).setActiveHooks(RAPIER.ActiveHooks.FILTER_CONTACT_PAIRS)
 }
 

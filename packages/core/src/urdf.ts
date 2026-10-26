@@ -1,3 +1,4 @@
+import { IDENTITY, apply, fromRpy, mul, toEuler, transpose, type Mat3 } from './rot'
 import type { BodyInput, JointDef, PartDef, Vec3Tuple } from './body'
 
 interface XmlNode {
@@ -45,7 +46,8 @@ const round = (v: number) => Math.round(v * 1e6) / 1e6 || 0 // `|| 0` turns -0 i
 /**
  * Turn a URDF robot description into a body. URDF is z-up; bodies are y-up, so (x, y, z) becomes (x, z, -y).
  * Supported: box, sphere and cylinder shapes; revolute, continuous and fixed joints with axes and limits; link masses.
- * Not supported yet, and reported as errors: rotated links or joint frames (non-zero rpy), prismatic and other joint kinds, meshes.
+ * Rotated frames (rpy) work: link frames are composed down the tree, joint axes follow, and a turned shape becomes the part's `rotation`.
+ * Not supported yet, and reported as errors: prismatic and other joint kinds, meshes.
  * The robot is lifted so its lowest point rests just above the ground.
  */
 export function importUrdf(text: string, opts: { stiffness?: number; damping?: number } = {}): UrdfResult {
@@ -61,16 +63,20 @@ export function importUrdf(text: string, opts: { stiffness?: number; damping?: n
   const rootName = [...links.keys()].find((n) => !childOf.has(n))
   if (!rootName) return { body: { parts: [] }, warnings, errors: ['URDF: could not find the root link (every link is some joint\'s child)'] }
 
-  const origin = (n: XmlNode | undefined, where: string): Vec3Tuple => {
+  const origin = (n: XmlNode | undefined): { xyz: Vec3Tuple; rot: Mat3 } => {
     const o = n && kid(n, 'origin')
-    if (o && nums(o.attrs.rpy, [0, 0, 0]).some((v) => Math.abs(v) > 1e-9)) errors.push(`${where}: rotated frames (non-zero rpy) are not supported yet`)
     const [x, y, z] = nums(o?.attrs.xyz, [0, 0, 0])
-    return [x, y, z]
+    const [r, p, w] = nums(o?.attrs.rpy, [0, 0, 0])
+    return { xyz: [x, y, z], rot: fromRpy([r, p, w]) }
   }
   const toY = ([x, y, z]: Vec3Tuple): Vec3Tuple => [x, z, -y]
+  // the same change of axes for a rotation: R_y = C R_z-up C^T
+  const C: Mat3 = [1, 0, 0, 0, 0, 1, 0, -1, 0]
+  const rotToY = (m: Mat3): Mat3 => mul(C, mul(m, transpose(C)))
 
-  // world position of each link's frame, walking down from the root
+  // world position and orientation of each link's frame, walking down from the root
   const frame = new Map<string, Vec3Tuple>([[rootName, [0, 0, 0]]])
+  const turn = new Map<string, Mat3>([[rootName, IDENTITY]])
   const queue = [rootName]
   const jointsOf = (parent: string) => joints.filter((j) => kid(j, 'parent')?.attrs.link === parent)
   while (queue.length) {
@@ -78,8 +84,10 @@ export function importUrdf(text: string, opts: { stiffness?: number; damping?: n
     for (const j of jointsOf(p)) {
       const c = kid(j, 'child')?.attrs.link
       if (!c || !links.has(c)) { errors.push(`joint ${j.attrs.name}: unknown child link "${c}"`); continue }
-      const o = origin(j, `joint ${j.attrs.name}`), f = frame.get(p)!
-      frame.set(c, [f[0] + o[0], f[1] + o[1], f[2] + o[2]])
+      const o = origin(j), f = frame.get(p)!, rp = turn.get(p)!
+      const d = apply(rp, o.xyz)
+      frame.set(c, [f[0] + d[0], f[1] + d[1], f[2] + d[2]])
+      turn.set(c, mul(rp, o.rot))
       queue.push(c)
     }
   }
@@ -94,24 +102,27 @@ export function importUrdf(text: string, opts: { stiffness?: number; damping?: n
     if (!holder) { errors.push(`link ${name}: needs a <collision> or <visual> geometry`); continue }
     if (geoms.length > 2) warnings.push(`link ${name}: only the first shape is used`)
     const geo = kid(holder, 'geometry')!.children[0]
-    const o = origin(holder, `link ${name}`)
-    const at = toY([f[0] + o[0], f[1] + o[1], f[2] + o[2]])
+    const o = origin(holder), rl = turn.get(name)!
+    const d = apply(rl, o.xyz)
+    const at = toY([f[0] + d[0], f[1] + d[1], f[2] + d[2]])
+    const rot = rotToY(mul(rl, o.rot)) // the shape's orientation in the y-up world
     const mass = Number(kid(kid(link, 'inertial') ?? { tag: '', attrs: {}, children: [] }, 'mass')?.attrs.value ?? 1)
     let shape: PartDef['shape'], size: number[], halfY: number
     if (geo.tag === 'box') {
       const [sx, sy, sz] = nums(geo.attrs.size, [1, 1, 1])
-      shape = 'box'; size = [sx, sz, sy]; halfY = sz / 2
+      shape = 'box'; size = [sx, sz, sy]; halfY = (Math.abs(rot[3]) * sx + Math.abs(rot[4]) * sz + Math.abs(rot[5]) * sy) / 2
     } else if (geo.tag === 'sphere') {
       const r = Number(geo.attrs.radius ?? 0.5)
       shape = 'sphere'; size = [r]; halfY = r
     } else if (geo.tag === 'cylinder') {
       const r = Number(geo.attrs.radius ?? 0.5), len = Number(geo.attrs.length ?? 1) // URDF cylinders stand along z, ours along y
-      shape = 'cylinder'; size = [len, r]; halfY = len / 2
+      shape = 'cylinder'; size = [len, r]; halfY = (Math.abs(rot[4]) * len) / 2 + r * Math.sqrt(Math.max(0, 1 - rot[4] * rot[4]))
     } else {
       errors.push(`link ${name}: <${geo.tag}> shapes are not supported (use box, sphere or cylinder)`)
       continue
     }
-    parts.push({ name, shape, size: size.map(round), mass: mass > 0 ? mass : 1, position: at.map(round) as Vec3Tuple })
+    const euler = toEuler(rot)
+    parts.push({ name, shape, size: size.map(round), mass: mass > 0 ? mass : 1, position: at.map(round) as Vec3Tuple, ...(euler.some((v) => Math.abs(v) > 1e-6) ? { rotation: euler.map(round) as Vec3Tuple } : {}) })
     lowest.push(at[1] - halfY)
   }
   // the root part must come first
@@ -126,7 +137,7 @@ export function importUrdf(text: string, opts: { stiffness?: number; damping?: n
     const anchor = toY(f).map(round) as Vec3Tuple
     if (type === 'fixed') { out.push({ name: j.attrs.name, type: 'fixed', parent, child, anchor }); continue }
     if (type !== 'revolute' && type !== 'continuous') { errors.push(`joint ${j.attrs.name}: "${type}" joints are not supported yet (revolute, continuous and fixed are)`); continue }
-    const axis = toY(nums(kid(j, 'axis')?.attrs.xyz, [1, 0, 0]) as Vec3Tuple).map(round) as Vec3Tuple
+    const axis = toY(apply(turn.get(child)!, nums(kid(j, 'axis')?.attrs.xyz, [1, 0, 0]))).map(round) as Vec3Tuple // the axis is in the joint (child link) frame
     const lim = kid(j, 'limit')
     const joint: JointDef = { name: j.attrs.name, type: 'hinge', parent, child, anchor, axis, motor: { stiffness: opts.stiffness ?? 100, damping: opts.damping ?? 8 } }
     if (type === 'revolute' && lim?.attrs.lower !== undefined && lim.attrs.upper !== undefined) joint.limits = [Number(lim.attrs.lower), Number(lim.attrs.upper)]

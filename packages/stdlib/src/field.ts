@@ -82,6 +82,11 @@ export class Field {
     return new Field(out, this.table)
   }
 
+  /** For each cell, how many neighbors it has. */
+  neighborCount(): Field {
+    return new Field(Float32Array.from(this.table.count as ArrayLike<number>), this.table)
+  }
+
   /** For each cell, the average of its neighbors (0 for a cell with none). */
   neighborAverage(): Field {
     const { count } = this.table

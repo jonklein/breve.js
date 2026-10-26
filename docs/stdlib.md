@@ -291,6 +291,14 @@ neighborSum(): Field
 
 For each cell, the total of this field over its neighbors.
 
+### `Field.neighborCount`
+
+```ts
+neighborCount(): Field
+```
+
+For each cell, how many neighbors it has.
+
 ### `Field.neighborAverage`
 
 ```ts

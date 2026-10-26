@@ -1,14 +1,14 @@
 import { Picture } from './image'
 import { Agent, type AgentCols } from './agents'
-import { looksOf } from './display'
+import { looksOf, looksOfAll } from './display'
 import { initResult } from './init-shape'
 import type { Controller } from './world'
-import { Agents } from '@breve/stdlib'
+import { Agents, Field, type NeighborTable } from '@breve/stdlib'
 import { resolve, type StateField } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
 import { Nums, toVec } from '@breve/stdlib'
 import { spawnPosition } from './spawn'
-import type { FrameData, Host, MetricInput, World } from './world'
+import type { Ctx, FrameData, Host, MetricInput, World } from './world'
 
 const SCHEMA = {
   px: 'f32', py: 'f32', pz: 'f32',
@@ -91,10 +91,12 @@ export class AgentWorld implements World {
     const target = Math.max(0, Math.min(5000, Math.round(resolve(def.count, params, 0))))
     const c = this.cols
     while (this.table.size > target) this.table.despawn(this.table.idAt(this.table.size - 1))
+    const from = this.table.size
     while (this.table.size < target) {
       this.table.spawn()
       this.place(this.table.size - 1, target)
     }
+    if (this.table.size > from) this.applyInitAll(from)
     while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(c, this.handles.length))
     this.moved++
   }
@@ -157,7 +159,7 @@ export class AgentWorld implements World {
   private writeState(row: number, state: Record<string, unknown>, where = 'act'): void {
     for (const [name, v] of Object.entries(state)) {
       const f = this.extra.find((x) => x.name === name)
-      if (!f) { this.host.fail(where, new Error(`state "${name}" does not exist: a set's state is what its init returns (or the scene's "state")`)); continue }
+      if (!f) { this.host.fail(where, new Error(`state "${name}" does not exist: a set's state is what its init returns`)); continue }
       const col = this.table.cols[name]
       if (f.kind === 'string') { (col as unknown as string[])[row] = String(v); continue }
       if (f.kind === 'boolean') { col[row] = v ? 1 : 0; continue }
@@ -180,6 +182,40 @@ export class AgentWorld implements World {
     return Group
   }
 
+  /**
+   * The script's `initAll`, for the agents from row `from` on (the new ones): `{ count }` in, and a column of values per state name out,
+   * plus optional `position` and `velocity` as `{ x, y, z }` (each one value per agent).
+   */
+  private applyInitAll(from: number): void {
+    const initAll = this.host.controller()?.initAll
+    if (!initAll) return
+    const n = this.table.size - from
+    const flat = this.host.def.motion?.plane === 'xz'
+    const c = this.cols
+    const column = (v: unknown, what: string): ArrayLike<unknown> | null => {
+      const data = (v instanceof Field ? v.data : v) as ArrayLike<unknown> | undefined
+      if (!data || data.length !== n) { this.host.fail('init', new Error(`"${what}" must have one value per agent (${n}), got ${data?.length ?? 'none'}`)); return null }
+      return data
+    }
+    try {
+      const out = (initAll({ count: n }, this.host.params, this.host.ctx()) ?? {}) as Record<string, unknown>
+      for (const [name, v] of Object.entries(out)) {
+        if (name === 'position' || name === 'velocity') {
+          const t = v as Record<'x' | 'y' | 'z', unknown>
+          const xs = column(t?.x, `${name}.x`), ys = column(t?.y, `${name}.y`), zs = column(t?.z, `${name}.z`)
+          if (!xs || !ys || !zs) continue
+          const [X, Y, Z] = name === 'position' ? [c.px, c.py, c.pz] : [c.vx, c.vy, c.vz]
+          for (let i = 0; i < n; i++) { X[from + i] = xs[i] as number; Y[from + i] = flat ? 0 : (ys[i] as number); Z[from + i] = zs[i] as number }
+          continue
+        }
+        const data = column(v, name)
+        if (data) for (let i = 0; i < n; i++) this.writeState(from + i, { [name]: data[i] }, 'init')
+      }
+    } catch (e) {
+      this.host.fail('init', e)
+    }
+  }
+
   /** Apply the scene's `spawn` and the script's `init` to a freshly made agent. */
   private placeNew(r: number, count: number): void {
     const def = this.host.def
@@ -189,7 +225,7 @@ export class AgentWorld implements World {
     if (at) { c.px[r] = at[0]; c.py[r] = at[1]; c.pz[r] = at[2] }
     if (def.spawn?.velocity) { c.vx[r] = def.spawn.velocity[0]; c.vy[r] = flat ? 0 : def.spawn.velocity[1]; c.vz[r] = def.spawn.velocity[2] }
     const init = this.host.controller()?.init
-    if (!init) return
+    if (!init || this.host.controller()?.initAll) return
     try {
       const out = init({ index: r, count }, this.host.params, this.host.ctx()) as { position?: Parameters<typeof toVec>[0]; velocity?: Parameters<typeof toVec>[0]; state?: Record<string, unknown> } | void
       if (out?.position) { const p = toVec(out.position); c.px[r] = p.x; c.py[r] = flat ? 0 : p.y; c.pz[r] = p.z }
@@ -222,31 +258,35 @@ export class AgentWorld implements World {
     const setCtrl = this.host.controller()
     // an agent with a non-empty `controller` field runs that export instead of the set's own
     const pick = this.extra.some((f) => f.name === 'controller' && f.kind === 'string') ? (this.table.cols.controller as unknown as string[]) : null
-    const writes: { row: number; state: Record<string, unknown>; add?: Record<string, unknown> }[] = []
-    for (let i = 0; i < n; i++) {
-      let ax = 0, ay = 0, az = 0
-      const ctrl = pick && pick[i] ? this.host.controllerNamed(pick[i]) : setCtrl
-      const act = ctrl?.act
-      if (act) {
-        try {
-          const obs: Record<string, unknown> = { self: this.handles[i], neighbors: ownVia ? this.linkedTo(i, ownVia, this) : this.neighborsOf(i, radius) }
-          for (const o of others) obs[o.name] = o.via ? this.linkedTo(i, o.via, o.world) : o.world?.around(this.handles[i], o.radius) ?? new this.GroupClass(this.handles[i])
-          this.attachCameras(obs, i, cameras)
-          const out = act(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
-          if (out && ((out.state && typeof out.state === 'object') || (out.add && typeof out.add === 'object'))) writes.push({ row: i, state: out.state ?? {}, add: out.add })
-          if (out && out.steer) {
-            const s = toVec(out.steer)
-            if (Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.z)) { ax = s.x; ay = s.y; az = s.z }
+    if (setCtrl?.actAll && !pick) {
+      this.stepAll(setCtrl.actAll, radius, ctx)
+    } else {
+      const writes: { row: number; state: Record<string, unknown>; add?: Record<string, unknown> }[] = []
+      for (let i = 0; i < n; i++) {
+        let ax = 0, ay = 0, az = 0
+        const ctrl = pick && pick[i] ? this.host.controllerNamed(pick[i]) : setCtrl
+        const act = ctrl?.act
+        if (act) {
+          try {
+            const obs: Record<string, unknown> = { self: this.handles[i], neighbors: ownVia ? this.linkedTo(i, ownVia, this) : this.neighborsOf(i, radius) }
+            for (const o of others) obs[o.name] = o.via ? this.linkedTo(i, o.via, o.world) : o.world?.around(this.handles[i], o.radius) ?? new this.GroupClass(this.handles[i])
+            this.attachCameras(obs, i, cameras)
+            const out = act(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
+            if (out && ((out.state && typeof out.state === 'object') || (out.add && typeof out.add === 'object'))) writes.push({ row: i, state: out.state ?? {}, add: out.add })
+            if (out && out.steer) {
+              const s = toVec(out.steer)
+              if (Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.z)) { ax = s.x; ay = s.y; az = s.z }
+            }
+          } catch (e) {
+            this.host.fail('act', e)
           }
-        } catch (e) {
-          this.host.fail('act', e)
         }
+        c.ax[i] = ax; c.ay[i] = ay; c.az[i] = az
       }
-      c.ax[i] = ax; c.ay[i] = ay; c.az[i] = az
+  
+      // state returned by act lands now, after every agent has read the old values
+      for (const w of writes) { this.writeState(w.row, w.state); if (w.add) this.applyAdd(w.row, w.add) }
     }
-
-    // state returned by act lands now, after every agent has read the old values
-    for (const w of writes) { this.writeState(w.row, w.state); if (w.add) this.applyAdd(w.row, w.add) }
 
     // act: integrate steering into velocity, with entity-level limits
     const maxSpeed = resolve(def.motion?.maxSpeed, p, Infinity)
@@ -292,6 +332,62 @@ export class AgentWorld implements World {
     this.fence(setCtrl)
   }
 
+  /** Neighbors within `radius` of every agent in the fixed-width table `Field` works on (back to back, so each agent has `start[i]` onward). */
+  private neighborTable(radius: number): NeighborTable {
+    const n = this.table.size
+    const count = new Int32Array(n)
+    const start = new Int32Array(n + 1)
+    let items: number[] = []
+    const c = this.cols
+    for (let i = 0; i < n; i++) {
+      start[i] = items.length
+      this.rowsNear(c.px[i], c.py[i], c.pz[i], radius, i, (j) => items.push(j))
+      count[i] = items.length - start[i]
+    }
+    start[n] = items.length
+    const nbr = Int32Array.from(items)
+    items = []
+    return { nbr, count, stride: 0, start }
+  }
+
+  /**
+   * The whole-set rule: `actAll(fields, params, ctx)` gets position and velocity (`px`, `py`, `pz`, `vx`, `vy`, `vz`) and every
+   * single-number state field as a `Field` that follows the neighbors, and returns `steer: { x, y, z }` (fields) and new state
+   * fields. Steering, state and nothing else: no per-agent effects such as `add`.
+   */
+  private stepAll(actAll: NonNullable<Controller['actAll']>, radius: number, ctx: Ctx): void {
+    const n = this.table.size
+    const c = this.cols
+    const table = this.neighborTable(radius)
+    const fields: Record<string, Field> = {}
+    for (const k of ['px', 'py', 'pz', 'vx', 'vy', 'vz'] as const) fields[k] = new Field(c[k].subarray(0, n), table)
+    for (const f of this.extra) if (f.kind !== 'string' && f.length === 1) fields[f.name] = new Field(this.table.cols[f.name].subarray(0, n), table)
+    c.ax.fill(0, 0, n); c.ay.fill(0, 0, n); c.az.fill(0, 0, n)
+    try {
+      const out = (actAll(fields, this.host.params, ctx) ?? {}) as Record<string, unknown>
+      const column = (v: unknown, what: string): ArrayLike<number> | null => {
+        const data = (v instanceof Field ? v.data : v) as ArrayLike<number> | undefined
+        if (!data || data.length !== n) { this.host.fail('actAll', new Error(`"${what}" must be a field with one value per agent (${n})`)); return null }
+        return data
+      }
+      for (const [name, v] of Object.entries(out)) {
+        if (name === 'steer') {
+          const t = v as Record<'x' | 'y' | 'z', unknown>
+          const xs = column(t?.x, 'steer.x'), ys = column(t?.y, 'steer.y'), zs = column(t?.z, 'steer.z')
+          if (!xs || !ys || !zs) continue
+          for (let i = 0; i < n; i++) {
+            if (Number.isFinite(xs[i]) && Number.isFinite(ys[i]) && Number.isFinite(zs[i])) { c.ax[i] = xs[i]; c.ay[i] = ys[i]; c.az[i] = zs[i] }
+          }
+          continue
+        }
+        const data = column(v, name)
+        if (data) for (let i = 0; i < n; i++) this.writeState(i, { [name]: data[i] })
+      }
+    } catch (e) {
+      this.host.fail('actAll', e)
+    }
+  }
+
   /** Fire `onLeave` for agents that just crossed the fence, then carry out queued resets. */
   private fence(ctrl: Controller | undefined): void {
     const f = this.host.def.fence
@@ -317,8 +413,11 @@ export class AgentWorld implements World {
     const n = this.table.size
     const c = this.cols
     // a script's `display` colors each agent; it runs once per drawn frame, not every tick
-    const display = this.host.controller()?.display
-    const look = display ? looksOf(n, (i) => display({ self: this.handleAt(i) }, this.host.params, this.host.ctx()), (e) => this.host.fail('display', e)) : null
+    const ctrl = this.host.controller()
+    const display = ctrl?.display
+    const fail = (e: unknown) => this.host.fail('display', e)
+    // `displayAll` gets the same fields `actAll` does (no neighbors needed for a look, so the table is empty)
+    const look = ctrl?.displayAll ? this.lookAll(ctrl.displayAll, n) : display ? looksOf(n, (i) => display({ self: this.handleAt(i) }, this.host.params, this.host.ctx()), fail) : null
     return {
       kind: 'agents',
       count: n,
@@ -330,7 +429,15 @@ export class AgentWorld implements World {
     }
   }
 
-  /** What each agent was last told to do by a `think` (keyed by agent id so it follows the agent when rows move). */
+  private lookAll(displayAll: NonNullable<Controller['displayAll']>, n: number) {
+    const c = this.cols
+    const none: NeighborTable = { nbr: new Int32Array(0), count: new Int32Array(n), stride: 0, start: new Int32Array(n + 1) }
+    const fields: Record<string, Field> = {}
+    for (const k of ['px', 'py', 'pz', 'vx', 'vy', 'vz'] as const) fields[k] = new Field(c[k].subarray(0, n), none)
+    for (const f of this.extra) if (f.kind !== 'string' && f.length === 1) fields[f.name] = new Field(this.table.cols[f.name].subarray(0, n), none)
+    const fail = (e: unknown) => this.host.fail('display', e)
+    try { return looksOfAll(n, displayAll(fields, this.host.params, this.host.ctx()), fail) } catch (e) { fail(e); return null }
+  }
 
   /** The agents a `think` is due for right now, with what each should see. Empty when the controller does not think. */
   thinkers(): { row: number; obs: { self: unknown; neighbors: unknown } }[] {
@@ -491,6 +598,11 @@ export class AgentWorld implements World {
 
   /** Add to `out` every agent within `radius` of a point, except row `skip`. */
   private collect(out: Agents, x: number, y: number, z: number, radius: number, skip: number): void {
+    this.rowsNear(x, y, z, radius, skip, (j) => out.push(this.handles[j]))
+  }
+
+  /** Call `visit` with the row of every agent within `radius` of a point, except row `skip`. */
+  private rowsNear(x: number, y: number, z: number, radius: number, skip: number, visit: (row: number) => void): void {
     if (radius <= 0) return
     const axis = this.gridN
     const c = this.cols
@@ -507,7 +619,7 @@ export class AgentWorld implements World {
             const j = this.gridItems[k]
             if (j === skip) continue
             const ex = c.px[j] - x, ey = c.py[j] - y, ez = c.pz[j] - z
-            if (ex * ex + ey * ey + ez * ez <= r2) out.push(this.handles[j])
+            if (ex * ex + ey * ey + ez * ez <= r2) visit(j)
           }
         }
   }

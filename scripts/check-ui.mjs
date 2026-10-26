@@ -135,6 +135,14 @@ check('MuJoCo engine runs a population as tiles', (await page.locator('#tiles .t
 await sim('evolved-creatures')
 await page.waitForTimeout(1500)
 
+// click one sim: breadcrumbs say where you are, and "All runs" returns to the population where it was left
+await page.locator('#tiles .tile').nth(2).click()
+await page.waitForTimeout(1500)
+check('breadcrumbs show the picked sim', (await page.textContent('#crumbs')).includes('All runs') && (await page.textContent('#crumbs')).includes('c03'), await page.textContent('#crumbs'))
+await page.click('#crumbs button')
+await page.waitForTimeout(2000)
+check('"All runs" shows the population again', (await page.locator('#tiles .tile').count()) === 12 && !(await page.textContent('#crumbs')).includes('c03'), await page.textContent('#crumbs'))
+
 // the blog: drafts stay hidden until asked for, and a post renders from its markdown
 await page.goto(`${base}/blog/`)
 await page.waitForTimeout(800)
@@ -145,14 +153,6 @@ check('blog lists a draft when asked', (await page.locator('.post-card').count()
 await page.click('.post-card a')
 await page.waitForTimeout(500)
 check('a post renders its markdown', (await page.locator('article.post h1').count()) === 1 && (await page.locator('article.post h2').count()) >= 2)
-
-// click one sim: breadcrumbs say where you are, and "All runs" returns to the population where it was left
-await page.locator('#tiles .tile').nth(2).click()
-await page.waitForTimeout(1500)
-check('breadcrumbs show the picked sim', (await page.textContent('#crumbs')).includes('All runs') && (await page.textContent('#crumbs')).includes('c03'), await page.textContent('#crumbs'))
-await page.click('#crumbs button')
-await page.waitForTimeout(2000)
-check('"All runs" shows the population again', (await page.locator('#tiles .tile').count()) === 12 && !(await page.textContent('#crumbs')).includes('c03'), await page.textContent('#crumbs'))
 
 check('no page errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '))
 await browser.close()

@@ -20,6 +20,8 @@ export interface UserProject {
   name: string
   /** Id of the example or project it was forked from. */
   from?: string
+  /** Came from a shared link and its script has not been approved to run yet. */
+  untrusted?: boolean
 }
 
 const INDEX_KEY = 'breve:projects'
@@ -59,11 +61,16 @@ export const savedDoc = (id: string): Doc | null => read<Doc>(docKey(id))
 export const saveDoc = (id: string, doc: Doc): void => write(docKey(id), doc)
 export const clearDoc = (id: string): void => write(docKey(id), null)
 
-export function createProject(name: string, from: string | undefined, doc: Doc): UserProject {
-  const p: UserProject = { id: 'p-' + Date.now().toString(36), name, from }
+export function createProject(name: string, from: string | undefined, doc: Doc, untrusted = false): UserProject {
+  const p: UserProject = { id: 'p-' + Date.now().toString(36), name, from, ...(untrusted ? { untrusted: true } : {}) }
   write(INDEX_KEY, [...userProjects(), p])
   saveDoc(p.id, doc)
   return p
+}
+
+/** The person has read the script and says to run it. */
+export function approveProject(id: string): void {
+  write(INDEX_KEY, userProjects().map((p) => { if (p.id !== id) return p; const { untrusted: _u, ...rest } = p; return rest }))
 }
 
 export function renameProject(id: string, name: string): void {

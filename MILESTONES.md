@@ -154,7 +154,7 @@ Acceptance (met): the home page shows three working demos; the gallery lists eve
 ## Later (not started)
 
 - Server-side project storage and accounts; projects live in browser storage only today.
-- Sandboxed untrusted sims (QuickJS).
+- Sandboxed untrusted sims (QuickJS). Until then, projects opened from a share link are held back until you read the script and press Run (a trust prompt, not a sandbox).
 - ~~Timeline scrubber~~ done: the workbench records a snapshot every 10 ticks (within a 64 MB budget), a slider under the view goes back to any of them and pauses there, and Play carries on from that point as a new branch (the charts rewind too). Works for physics scenes. Not for sweeps. Moments between snapshots cannot be reached, because stepping forward from a snapshot would not match a run driven by a person or a model.
 - GPU-resident dense patch layers.
 - Remote controllers for Python training.

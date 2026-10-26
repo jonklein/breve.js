@@ -4,7 +4,7 @@ import { makeEditor, setParamInText } from './editors'
 import { parseScene, sceneSchema, setEntityKey } from '@breve/core'
 import { ParamsPanel, MetricsPanel } from './panel'
 import {
-  clearDoc, createProject, deleteProject, fetchExample, loadExamples, renameProject, saveDoc, savedDoc, userProjects,
+  approveProject, clearDoc, createProject, deleteProject, fetchExample, loadExamples, renameProject, saveDoc, savedDoc, userProjects,
   type Doc, type ExampleInfo,
 } from './projects'
 import { ChatPanel } from './chat'
@@ -56,6 +56,11 @@ async function main(): Promise<void> {
   }
 
   const projectName = () => exampleById.get(current)?.name ?? userProjects().find((p) => p.id === current)?.name ?? 'project'
+  // A project that came from a shared link carries someone else's code. Until you approve it, workers get a do-nothing
+  // script instead, and the real one is only shown in the editor.
+  const STUB = 'export default {}\n'
+  let unapproved = false
+  const live = (script: string) => (unapproved ? STUB : script)
   const docNow = (): Doc => ({ scene: sceneEditor.getText(), script: scriptEditor.getText(), experiment: experimentEditor.getText() })
 
   const params = new ParamsPanel($('params'), (name, value) => {
@@ -115,7 +120,7 @@ async function main(): Promise<void> {
   const scriptEditor = makeEditor($('editor-script'), '', 'js', (text) => {
     if (loading) return
     saveDoc(current, docNow())
-    debounce('script', () => send({ type: 'script', script: text }))
+    debounce('script', () => send({ type: 'script', script: live(text) }))
   })
   const experimentEditor = makeEditor($('editor-experiment'), '', 'json', () => {
     syncTrees()
@@ -177,7 +182,7 @@ async function main(): Promise<void> {
       saveDoc(current, { ...doc, experiment: experimentEditor.getText() })
       showScene(doc.scene)
       send({ type: 'scene', scene: doc.scene })
-      send({ type: 'script', script: doc.script })
+      send({ type: 'script', script: live(doc.script) })
     },
     scriptName: () => $('script-tab').textContent ?? 'script.js',
   })
@@ -238,7 +243,9 @@ async function main(): Promise<void> {
     history.replaceState(null, '', '#' + id)
     // relative model paths in a scene start at the example's folder (a copy of an example keeps using the original's files)
     const home = isExample(id) ? id : userProjects().find((p) => p.id === id)?.from
-    send({ type: 'init', scene: doc.scene, script: doc.script, base: `${location.origin}/${home && isExample(home) ? home + '/' : ''}` })
+    unapproved = !!userProjects().find((p) => p.id === id)?.untrusted
+    $('held').classList.toggle('hidden', !unapproved)
+    send({ type: 'init', scene: doc.scene, script: live(doc.script), base: `${location.origin}/${home && isExample(home) ? home + '/' : ''}` })
   }
 
   picker.addEventListener('change', () => open(picker.value))
@@ -246,7 +253,7 @@ async function main(): Promise<void> {
 
   $('fork').addEventListener('click', () => {
     const base = isExample(current) ? exampleById.get(current)!.name : userProjects().find((p) => p.id === current)?.name ?? 'Project'
-    const p = createProject(`${base} copy`, current, docNow())
+    const p = createProject(`${base} copy`, current, docNow(), unapproved)
     open(p.id).then(() => { nameBox.focus(); nameBox.select() })
   })
 
@@ -299,7 +306,7 @@ async function main(): Promise<void> {
     status.className = 'status ' + (bad ? 'bad' : 'ok')
   }
   const experiment = new ExperimentPanel({
-    texts: () => ({ scene: sceneEditor.getText(), script: scriptEditor.getText(), experiment: experimentEditor.getText() }),
+    texts: () => ({ scene: sceneEditor.getText(), script: live(scriptEditor.getText()), experiment: experimentEditor.getText() }),
     apply(params) {
       let next = sceneEditor.getText()
       for (const [name, value] of Object.entries(params)) next = setParamInText(next, name, value) ?? next
@@ -458,11 +465,14 @@ async function main(): Promise<void> {
   const openShared = async (code: string): Promise<boolean> => {
     const doc = await decodeShare(code)
     if (!doc) return false
-    const p = createProject(doc.name ?? 'Shared project', undefined, { scene: doc.scene, script: doc.script, experiment: doc.experiment })
+    const p = createProject(doc.name ?? 'Shared project', undefined, { scene: doc.scene, script: doc.script, experiment: doc.experiment }, true)
     await open(p.id)
     return true
   }
   window.addEventListener('hashchange', () => { if (location.hash.startsWith('#s=')) void openShared(location.hash.slice(3)) })
+
+  $('held-run').addEventListener('click', () => { approveProject(current); void open(current) })
+  $('held-delete').addEventListener('click', () => { const from = userProjects().find((p) => p.id === current)?.from; deleteProject(current); void open(from && isExample(from) ? from : examples[0].id) })
 
   $('share').addEventListener('click', async () => {
     const link = `${location.origin}/sim/#s=${await encodeShare({ name: projectName(), ...docNow() })}`

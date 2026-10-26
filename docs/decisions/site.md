@@ -10,4 +10,6 @@
 - Gallery pictures are `examples/<id>/thumb.jpg`, made by `scripts/thumbs.mjs` from the running workbench (Playwright is used by the script but is not a dependency). A missing picture shows a plain tile.
 - Sharing: `/sim/#s=<code>`, where the code is the project's JSON, deflated (`CompressionStream`) and base64url-encoded (`src/share.ts`). Opening one saves it as one of your own projects. The gallery's Fork opens `/sim/?fork=<id>`.
 
+- A project opened from a share link is **held**: the workers get a do-nothing script and the page shows a banner (read the script, then Run, or delete the project). Scripts are programs and run in the page's origin, where they can call the local assistant API (which holds the API key) and anything else the origin can reach, so running a stranger's script without a look is the real risk of sharing. Approval is trust, not a sandbox: once approved, the script has full power. Forks of a held project are held too. A QuickJS sandbox (milestones, "Later") would be the real fix.
+
 **Consequences.** Hosting must serve `/sim/`, `/gallery/` and `/about/` as directories (any static host does). Examples gain `tags` in `examples/index.json`. Long scripts make long share links; a hosted store can replace the code later without changing the page.

@@ -173,3 +173,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 #timeline { display: flex; align-items: center; gap: 10px; padding: 4px 12px; background: var(--panel); border-top: 1px solid var(--border); font-size: 12px; }
 #timeline input[type='range'] { flex: 1; min-width: 80px; padding: 0; }
 .embed #timeline { display: none !important; }
+
+.held { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 14px; background: #3a2e12; border-bottom: 1px solid #7a5c1a; color: #f5d98a; font-size: 13px; }
+.held span { flex: 1; min-width: 260px; }
+.embed .held { display: none !important; }

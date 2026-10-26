@@ -1,7 +1,7 @@
 {
   "name": "ants",
   "seed": 5,
-  "bounds": { "size": 20, "mode": "clamp" },
+  "bounds": { "size": 20 },
   "world": { "sky": { "top": "#0e1a2b", "horizon": "#3c5a4a" }, "grid": false, "boundsColor": "#2c3a33" },
   "params": {
     "count": { "value": 70, "min": 5, "max": 300, "step": 5, "label": "ants" },

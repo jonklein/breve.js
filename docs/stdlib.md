@@ -174,6 +174,31 @@ The closest agent, or null if the group is empty.
 isEmpty(): boolean
 ```
 
+## Bounds
+
+Keeping entities inside a box, for scripts that want it. The engine does not: an entity with no edge handling flies on forever.
+`ctx.world.size` is the scene's `bounds.size`, the half-width of the box around the origin.
+
+### `Bounds.soft`
+
+```ts
+static soft(position: VecLike, size: number, options:
+```
+
+A gentle push back toward the middle, as an acceleration to add to the steering. It is zero inside the box except for the outer
+`margin` (a share of the half-width, default 0.15) and grows with how far past that line an entity is, on each axis:
+`steer: yourSteering.plus(ctx.bounds.soft(self.position, ctx.world.size))`. `strength` is per second (default 4); `flat` leaves
+the vertical axis alone, for entities that live on the ground plane.
+
+### `Bounds.bounce`
+
+```ts
+static bounce(position: VecLike, velocity: VecLike, size: number):
+```
+
+Where to put an entity that has gone past a wall, and the velocity it leaves with, bouncing off each wall it crossed; `null` while it
+is inside. Hand the result to `self.place(...)`: `const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size); if (hit) self.place(hit)`.
+
 ## Rgb
 
 A color as red, green and blue between 0 and 1.

@@ -1,7 +1,7 @@
 {
   "name": "remote-policy",
   "seed": 3,
-  "bounds": { "size": 20, "mode": "clamp" },
+  "bounds": { "size": 20 },
   "world": { "sky": { "top": "#0e1a2b", "horizon": "#3c5a4a" }, "grid": true },
   "models": { "policy": { "url": "ws://localhost:8765" } },
   "params": {

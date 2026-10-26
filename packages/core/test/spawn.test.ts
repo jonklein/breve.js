@@ -44,7 +44,7 @@ test('at and box together are rejected', () => {
 
 test('self.place() moves an agent (and gives it a new velocity) at the end of the tick, and keeps its state', () => {
   const sc = scene({ at: [0, 0, 0], velocity: [30, 0, 0] }, { motion: { maxSpeed: 40 } })
-  sc.bounds = { size: 100, mode: 'clamp' }
+  sc.bounds = { size: 100 }
   const s = new Sim(sc, {
     default: {
       init: () => ({ sent: 0 }),

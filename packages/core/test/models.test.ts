@@ -4,7 +4,7 @@ import { Sim, parseScene, type Model, type ScriptModule } from '../src/index'
 
 const scene = (extra: object = {}) => {
   const r = parseScene(JSON.stringify({
-    seed: 2, params: {}, bounds: { size: 20, mode: 'clamp' },
+    seed: 2, params: {}, bounds: { size: 20 },
     models: { policy: { url: 'policy.onnx' } },
     entities: [{ name: 'a', count: 6, think: { every: 1 }, motion: { maxSpeed: 6, plane: 'xz' } }],
     metrics: [], ...extra,

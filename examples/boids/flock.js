@@ -5,6 +5,8 @@
 //   separation  don't crowd anyone
 //   wander      a little random jitter, so flocks keep changing instead of settling into one ball
 //
+// The world has soft walls: the stdlib's Bounds.soft pushes a bird back toward the middle once it gets near the edge.
+//
 // `neighbors` is a whole group of birds, so you can ask it questions
 // like neighbors.velocity.average() with no loops.
 
@@ -22,7 +24,8 @@ export default {
       steer: cohesion.times(p.cohesion)
         .plus(alignment.times(p.alignment))
         .plus(separation.times(p.separation))
-        .plus(wander.times(p.wander)),
+        .plus(wander.times(p.wander))
+        .plus(ctx.bounds.soft(self.position, ctx.world.size)),
     }
   },
 }

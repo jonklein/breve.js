@@ -1,7 +1,7 @@
 {
   "name": "neural",
   "seed": 11,
-  "bounds": { "size": 20, "mode": "soft" },
+  "bounds": { "size": 20 },
   "world": { "sky": { "top": "#10091f", "horizon": "#3b2a63" }, "grid": true, "boundsColor": "#4a3f6b", "agentColor": "heading" },
   "params": {
     "count": { "value": 100, "min": 10, "max": 400, "step": 10 },

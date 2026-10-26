@@ -1,7 +1,7 @@
 {
   "name": "llm-wanderers",
   "seed": 9,
-  "bounds": { "size": 20, "mode": "clamp" },
+  "bounds": { "size": 20 },
   "world": { "sky": { "top": "#10172b", "horizon": "#44536f" }, "grid": true },
   "params": {
     "speed": { "value": 4, "min": 1, "max": 10, "step": 0.5 },

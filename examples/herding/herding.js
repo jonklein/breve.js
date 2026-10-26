@@ -23,6 +23,8 @@ function runFromDog({ dogs }, p) {
 
 export const Sheep = {
   act(obs, p, ctx) {
+    const hit = ctx.bounds.bounce(obs.self.position, obs.self.velocity, ctx.world.size) // the world has walls: bounce off them
+    if (hit) obs.self.place(hit)
     return ctx.blend(graze(obs, p, ctx), stickTogether(obs, p), runFromDog(obs, p))
   },
 }
@@ -32,6 +34,8 @@ export const Dog = {
   spec: { nondeterministic: true },
 
   act({ self }, p, ctx) {
+    const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size) // the world has walls: bounce off them
+    if (hit) self.place(hit)
     const key = (name) => (ctx.input.pressed(name) ? 1 : 0)
     const push = ctx.vec(
       key('d') + key('arrowright') - key('a') - key('arrowleft'),

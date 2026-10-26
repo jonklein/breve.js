@@ -14,6 +14,8 @@ export const Ant = {
   },
 
   act({ self }, p, ctx) {
+    const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size) // the world has walls: bounce off them
+    if (hit) self.place(hit)
     const wobble = ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(p.wander)
 
     // heading home with food

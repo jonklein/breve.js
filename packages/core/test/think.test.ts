@@ -4,7 +4,7 @@ import { Sim, parseScene, type ScriptModule } from '../src/index'
 
 const scene = () => {
   const r = parseScene(JSON.stringify({
-    seed: 2, params: {}, bounds: { size: 20, mode: 'clamp' },
+    seed: 2, params: {}, bounds: { size: 20 },
     entities: [{ name: 'a', count: 5, think: { every: 30 }, motion: { maxSpeed: 6, plane: 'xz' } }], metrics: [],
   }))
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))

@@ -21,7 +21,7 @@ export default {
     const [x, y, z, ...memory] = brain.run(self.weights, seen)
 
     return {
-      steer: ctx.vec(x, y, z).times(p.push),
+      steer: ctx.vec(x, y, z).times(p.push).plus(ctx.bounds.soft(self.position, ctx.world.size)), // soft walls from the stdlib
       state: { memory },
     }
   },

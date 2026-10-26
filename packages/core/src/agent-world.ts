@@ -20,10 +20,8 @@ const SCHEMA = {
 type Cols = Record<keyof typeof SCHEMA, Float32Array>
 
 const DT = 1 / 60
-const SOFT_START = 0.85
-const SOFT_STRENGTH = 4
 const MAX_GRID_AXIS = 32
-const DEFAULT_BOUNDS = { size: 30, mode: 'soft' as const }
+const DEFAULT_BOUNDS = { size: 30 }
 
 /** Free-moving agents in continuous 3D space with a neighbor sensor. */
 export class AgentWorld implements World {
@@ -290,29 +288,11 @@ export class AgentWorld implements World {
       c.vx[i] = vx; c.vy[i] = vy; c.vz[i] = vz
     }
 
-    // rules: soft bounds push agents back toward the middle
-    const { size, mode } = this.bounds
-    if (mode !== 'clamp') {
-      const start = size * SOFT_START
-      for (let i = 0; i < n; i++) {
-        const px = c.px[i], py = c.py[i], pz = c.pz[i]
-        if (Math.abs(px) > start) c.vx[i] -= Math.sign(px) * (Math.abs(px) - start) * SOFT_STRENGTH * DT
-        if (Math.abs(py) > start) c.vy[i] -= Math.sign(py) * (Math.abs(py) - start) * SOFT_STRENGTH * DT
-        if (Math.abs(pz) > start) c.vz[i] -= Math.sign(pz) * (Math.abs(pz) - start) * SOFT_STRENGTH * DT
-      }
-    }
-
-    // physics: kinematic integration (stands in for a physics adapter)
-    const clamp = mode === 'clamp'
+    // move: plain integration. Keeping entities inside a box is the script's business (the stdlib's Bounds)
     for (let i = 0; i < n; i++) {
       c.px[i] += c.vx[i] * DT
       c.py[i] = flat ? 0 : c.py[i] + c.vy[i] * DT
       c.pz[i] += c.vz[i] * DT
-      if (clamp) {
-        if (Math.abs(c.px[i]) > size) { c.px[i] = Math.sign(c.px[i]) * size; c.vx[i] = -c.vx[i] }
-        if (Math.abs(c.py[i]) > size) { c.py[i] = Math.sign(c.py[i]) * size; c.vy[i] = -c.vy[i] }
-        if (Math.abs(c.pz[i]) > size) { c.pz[i] = Math.sign(c.pz[i]) * size; c.vz[i] = -c.vz[i] }
-      }
     }
     this.moved++
     this.placeQueued()

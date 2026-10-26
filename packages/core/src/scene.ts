@@ -138,7 +138,8 @@ export interface Scene {
   seed: number
   /** Ticks per second. Defaults to 60. */
   clock?: { rate: number }
-  bounds?: { size: number; mode?: 'soft' | 'clamp' }
+  /** The size of the world: the half-width of the box around the origin that is drawn and that scripts read as `ctx.world.size`. The engine keeps nothing inside it. */
+  bounds?: { size: number }
   world?: WorldDef
   /** Bumpy ground for creatures to walk on (needs an entity with a `body`). Shape changes apply on reset or respawn the creatures. */
   terrain?: TerrainDef
@@ -193,7 +194,6 @@ export const sceneSchema = {
       additionalProperties: false,
       properties: {
         size: { type: 'number', exclusiveMinimum: 0 },
-        mode: { enum: ['soft', 'clamp'] },
       },
     },
     terrain: {
@@ -363,6 +363,7 @@ const REMOVED: Record<string, string> = {
   'set.fence': "check where it is in the script's act and move it yourself, for example `if (self.y < -20) self.place({ x: 0, z: 0 })` (creatures) or `self.place({ position: [0, 0, 0] })` (agents)",
   'set.oscillator': "swing the joints from the script (the stdlib's `Gait` helps), for example `return { joints: Gait.targets(legs, phase) }`",
   'joint.drive': "swing the joint from the script, for example `act({ self }, p, ctx) { return { joints: { hip: 0.5 * Math.sin(ctx.tick / 10) } } }`, or use the stdlib's `Gait`",
+  'bounds.mode': "keep entities inside yourself with the stdlib's Bounds: `ctx.bounds.soft(self.position, ctx.world.size)` added to the steering, or `ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)` handed to `self.place(...)`",
   'look.show': "say what is drawn in the script's display, for example `display({ self }) { return { visible: self.alive } }`",
   'look.color': "say the color in the script's display, for example `display({ self }, p, ctx) { return { color: ctx.colors.ramp(['#ff0d0d', '#0dff0d'], self.age / 20) } }`",
   'look.colorMax': "scale the value yourself in the script's display (for example `self.age / 20`)",
@@ -377,7 +378,7 @@ export function validateScene(data: unknown): SceneResult {
         const where = e.instancePath ? e.instancePath.slice(1).replace(/\//g, '.') : 'scene'
         if (e.keyword === 'additionalProperties') {
           const prop = (e.params as { additionalProperty: string }).additionalProperty
-          const gone = REMOVED[`${/^entities\.\d+\.(lattice|network)$/.test(where) ? 'look' : /^entities\.\d+$/.test(where) ? 'set' : /\.joints\.\d+$/.test(where) ? 'joint' : ''}.${prop}`]
+          const gone = REMOVED[`${/^entities\.\d+\.(lattice|network)$/.test(where) ? 'look' : /^entities\.\d+$/.test(where) ? 'set' : where === 'bounds' ? 'bounds' : /\.joints\.\d+$/.test(where) ? 'joint' : ''}.${prop}`]
           return gone ? `${where}: "${prop}" is gone: ${gone}` : `${where}: unknown property "${prop}"`
         }
         if (e.keyword === 'required')

@@ -49,7 +49,7 @@ test('loadModel reads a path or a Hub name, caches the bytes, and says plainly w
 
 test('a simulation steered by an ONNX policy: one batched call a tick, and the run replays without the runtime', async () => {
   const scene = parseScene(JSON.stringify({
-    seed: 5, params: {}, bounds: { size: 20, mode: 'clamp' }, models: { policy: { url: 'policy.onnx' } },
+    seed: 5, params: {}, bounds: { size: 20 }, models: { policy: { url: 'policy.onnx' } },
     entities: [{ name: 'a', count: 8, think: { every: 1 }, motion: { maxSpeed: 6, plane: 'xz' } }], metrics: [],
   }))
   assert.ok(scene.ok)

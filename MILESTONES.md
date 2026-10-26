@@ -177,7 +177,7 @@ Karl Sims' creatures as a demo (`examples/evolved-creatures`, decisions in `docs
 See `docs/decisions/engine-mechanisms-only.md`.
 
 - [x] Removed from the core for creatures and agents: fence and `onLeave`, `self.reset()`, fall detection, the distance counter, the built-in oscillator (`drive`, `oscillator`, `self.gait`). Added `self.place(...)`, creature state, and the stdlib's `Gait` (`ctx.gait`). Examples and docs migrated.
-- [ ] Free agents' soft and clamped bounds move to the stdlib the same way.
+- [x] Free agents' soft and clamped bounds moved to the stdlib (`Bounds`, `ctx.bounds`, `ctx.world.size`); the agent examples ask for them in their scripts.
 - [ ] Ready-made controllers in the stdlib that scripts extend (a walker, a flocker), once the helpers are settled.
 
 ## Later

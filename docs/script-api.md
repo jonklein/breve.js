@@ -24,7 +24,7 @@ The per-entity form is the readable one and suits up to tens of thousands of ent
   "seed": 7,                              // required. Same seed + same scene = same run.
   "data": { "genome": { } },             // optional. Plain JSON for scripts, read as ctx.data: what is too structured for a slider (see Parents)
   "clock": { "rate": 60 },                // optional. Ticks per second (default 60, max 240).
-  "bounds": { "size": 30, "mode": "soft" },   // free agents only. Half-width of the cube. mode: "soft" | "clamp"
+  "bounds": { "size": 30 },               // free agents only. Half-width of the cube: the drawn box, and `ctx.world.size` in scripts. The engine keeps nothing inside it (see "Keeping entities inside")
   "world": {                              // optional, visual only
     "sky": { "top": "#0b1226", "horizon": "#2a4a7a" },   // or one color: "sky": "#112233"
     "grid": true,
@@ -69,6 +69,14 @@ Agents live in continuous 3D space. Each tick every agent's `act` is called and 
 ```
 
 For full control, the script's `init` runs for each new entity: `init({ index, count }, p, ctx)` returns `{ position, velocity, ...state }`, for example `{ position: ctx.vec(index * 2, 0, 0), energy: 10 }` to line them up and give each some energy. `init` wins over `spawn`.
+
+**Keeping entities inside.** The engine has no walls: with `bounds.size` it only draws the box and tells scripts its size as `ctx.world.size`. Soft or hard walls are a script's choice, and the stdlib has both: `ctx.bounds.soft(self.position, ctx.world.size)` returns a gentle push back toward the middle (zero until an entity is near an edge) to add to the steering, and `ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)` returns where to put an entity that has crossed a wall and the velocity it bounces off with (or `null` while it is inside), which you hand to `self.place(...)`:
+
+```js
+const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)
+if (hit) self.place(hit)
+return { steer: wander.plus(ctx.bounds.soft(self.position, ctx.world.size)) }
+```
 
 **Moving an entity yourself.** The engine has no fence, no automatic reset and no notion of "left the world": those are the script's business. Check where an entity is in `act` and move it with `self.place({ position, velocity })` (either may be left out; its state is kept; it happens at the end of the tick), for example `if (Math.abs(self.x) > 30) self.place({ position: [0, 0, 0] })`. Reset its state the same way as any other change: return it from `act`.
 

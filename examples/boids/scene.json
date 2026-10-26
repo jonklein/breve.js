@@ -1,7 +1,7 @@
 {
   "name": "boids",
   "seed": 7,
-  "bounds": { "size": 30, "mode": "soft" },
+  "bounds": { "size": 30 },
   "world": {
     "sky": { "top": "#0b1226", "horizon": "#2a4a7a" },
     "grid": true,

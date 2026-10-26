@@ -19,7 +19,9 @@ export default {
     return out.map(([dx, dz]) => ({ dx, dz }))
   },
 
-  act({ self }, p) {
+  act({ self }, p, ctx) {
+    const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size) // the world has walls: bounce off them
+    if (hit) self.place(hit)
     return { steer: [self.dx * p.push, 0, self.dz * p.push] }
   },
 }

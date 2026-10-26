@@ -12,7 +12,7 @@ The core provides mechanisms only: bodies, joints, motors that chase a target, c
 
 Removed from the core (no aliases; the parser says where each one went):
 - Creatures: `drive` on joints, the entity's `oscillator`, `self.gait`, `self.down`, `self.downFor`, `self.travelled`, `self.outside`, `self.reset()`, the `fence` and the `onLeave` hook. The body's default `motor` now fills in any joint that says `"motor": {}`.
-- Agents: `fence`, `onLeave`, `self.outside`, `self.reset()`.
+- Agents: `fence`, `onLeave`, `self.outside`, `self.reset()`, and the world's soft and clamped bounds (`bounds.mode`). `bounds.size` stays as the drawn box and as `ctx.world.size`; keeping entities inside is the script's job with the stdlib's `Bounds` (`ctx.bounds.soft`, `ctx.bounds.bounce`).
 
 Added as mechanisms:
 - `self.place(...)` for creatures (`{ x, z, yaw }`, stands a fresh body on the ground there) and agents (`{ position, velocity }`); state is kept, the move happens at the end of the tick. Where to and why is the script's call.
@@ -24,5 +24,5 @@ Added to the stdlib: `Gait` (`wave`, `targets`, `advance`), reached as `ctx.gait
 
 - The creature examples now read as the whole story: the script swings the legs, steers, stands a fallen creature up and counts distance. More code in the example, none hidden in the engine.
 - Behavior changes slightly: a respawn picks its spot from the script's seeded random, not the engine's, and "down" is judged from `self.up.y` (and height where a script wants it), since the engine no longer reads the terrain for it.
-- Free agents' soft and clamped `bounds` are the same kind of built-in behavior and are next to move.
+- The agent examples that relied on the old soft or clamped bounds (boids, neural, ants, herding, llm-wanderers, vlm-scouts, onnx-policy, remote-policy) now ask for them in their scripts. Wall handling now happens inside the entity's own step (soft pushes join the steering, bounces take effect at the end of the tick), so trajectories differ slightly from before.
 - Possible next layer: ready-made controllers in the stdlib that scripts extend (a walker, a flocker) built from these helpers.

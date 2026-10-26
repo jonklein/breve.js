@@ -19,6 +19,11 @@ export default {
     return { status, timer: new Float32Array(count), present: new Float32Array(count).fill(1) }
   },
 
+  // susceptible blue, infected red, recovered green (on the grid, `present` says which cells are drawn)
+  displayAll({ status, present }, p, ctx) {
+    return { visible: present, color: ctx.colors.rampField(['#6aa7ff', '#ff5b5b', '#7bd88f'], status.div(2)) }
+  },
+
   act({ self, neighbors }, p, ctx) {
     if (self.status === 0) {
       const sickNeighbors = neighbors.status.filter((s) => s === 1).length

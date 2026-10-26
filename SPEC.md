@@ -85,6 +85,7 @@ All entity state is stored **columnar** (structure-of-arrays). This is a core de
 
 - Entities with the same component set share an **archetype table** of typed-array columns. An entity is an index into its table.
 - Component schemas declare typed fields: scalar numbers (`f32`, `f64`, `i32`, `u8`...), fixed vectors, enums, entity refs, strings and arbitrary JSON.
+- In the implemented scene format, a set's state fields are not declared in the scene: they are what the script's `init` returns, and a type is only given (as an optional `"state"` entry) to save memory on very large grids. See `docs/decisions/x-and-xall.md`.
 - Spawn and despawn use dense arrays with swap-remove or a free list. Ids carry a generation counter so a stale reference cannot silently address a different entity.
 - A table may declare a **shape** (for example `[1000, 1000]`). Then adjacency is implicit index arithmetic and costs no storage. This is how a million-cell Life lattice is cheap. "A patch is an entity" remains true at the API level.
 - A spatial hash index can be built over a table's transform columns.

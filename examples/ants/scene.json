@@ -27,13 +27,7 @@
       "name": "ground",
       "type": "Ground",
       "every": 2,
-      "lattice": { "size": [40, 1, 40], "spacing": 1, "edges": "dead", "show": "mark", "color": "look", "colorMax": 1, "thickness": 0.12, "palette": ["#4f86f7", "#2f5a3c", "#7be495", "#ffd34a"] },
-      "state": { "food": 0, "scent": 0, "nest": false, "delivered": 0, "mark": 0, "look": 0 },
-      "fill": [
-        { "field": "nest", "region": { "center": [-12, 0, 0], "radius": 2.5 } },
-        { "field": "food", "value": 5, "region": { "center": [11, 0, 8], "radius": 3 } },
-        { "field": "food", "value": 5, "region": { "center": [5, 0, -13], "radius": 2.5 } }
-      ]
+      "lattice": { "size": [40, 1, 40], "spacing": 1, "edges": "dead", "thickness": 0.12 }
     }
   ],
   "metrics": ["delivered", "carrying"]

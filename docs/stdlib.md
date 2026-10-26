@@ -174,6 +174,46 @@ The closest agent, or null if the group is empty.
 isEmpty(): boolean
 ```
 
+## Rgb
+
+A color as red, green and blue between 0 and 1.
+
+## Colors
+
+Colors for `display`: a number turned into a color, or a whole field of numbers into a color per cell.
+
+### `Colors.hex`
+
+```ts
+static hex(c: string): Rgb
+```
+
+`'#4f86f7'` or `'#48f'` as red, green and blue between 0 and 1. Anything else is white.
+
+### `Colors.hsl`
+
+```ts
+static hsl(h: number, s: number, l: number): Rgb
+```
+
+Hue, saturation and lightness, each between 0 and 1 (hue goes around the color wheel).
+
+### `Colors.ramp`
+
+```ts
+static ramp(stops: string[], t: number): Rgb
+```
+
+Where `t` (0 to 1) falls along a list of colors, blending between neighbors: `Colors.ramp(['#4f86f7', '#7be495'], age / 20)`.
+
+### `Colors.rampField`
+
+```ts
+static rampField(stops: string[], t: Field | ArrayLike<number>):
+```
+
+`ramp` for a whole field at once: a color for every cell, for `displayAll`.
+
 ## NeighborTable
 
 For each cell, the rows of its neighbors: `count[row]` of them, starting at `start[row]` in `nbr` (a network, where degrees

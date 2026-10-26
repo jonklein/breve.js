@@ -26,6 +26,7 @@ Also built, outside the original list:
 
 - The site: a home page with live demos, a gallery with pictures and tags, share links (held until you approve the script), a JSON tree editor, a timeline scrubber, a thinking bar, and a non-repeatable flag (`docs/decisions/site.md`).
 - Trained models and other processes as controllers: ONNX files, Hugging Face addresses, and Python servers over WebSockets, all through one `Model` interface with logged, replayable decisions (`docs/decisions/inference.md`, `remote.md`); a camera sensor for vision models.
+- Scripts now carry what a thing is and looks like: hooks `init`, `act`, `think`, `display` with `All` forms for big sets, state inferred from `init`, `think` returning state, colors from `display` (`docs/decisions/x-and-xall.md`). The scene is down to setup and knobs.
 - Relation tables (`ctx.relations`), per-agent controller choice, whole-network `update` rules, glTF part visuals, an MJCF importer.
 - A standard library in its own package (`packages/stdlib`) with generated docs, and an in-app Docs tab.
 - `spawn`, `init`, fences with `onLeave`, and `self.reset()`; inferred state types (number, boolean, string); several entity sets per scene; controllers chosen by named export.

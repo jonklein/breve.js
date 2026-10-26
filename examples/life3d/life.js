@@ -16,6 +16,11 @@ export default {
     return { alive: ctx.random() < p.density ? 1 : 0, age: 0 }
   },
 
+  // only live cells are drawn: young ones red, old ones green
+  display({ self }, p, ctx) {
+    return { visible: self.alive, color: ctx.colors.ramp(['#ff0d0d', '#0dff0d'], self.age / 20) }
+  },
+
   act({ self, neighbors }) {
     const crowd = neighbors.alive.sum() // how many neighbors are alive
 

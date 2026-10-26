@@ -13,6 +13,11 @@ export default {
     return { alive: Float32Array.from({ length: count }, () => (ctx.random() < p.density ? 1 : 0)), age: new Float32Array(count) }
   },
 
+  // the same look as the 3D version, for every cell at once
+  displayAll({ alive, age }, p, ctx) {
+    return { visible: alive, color: ctx.colors.rampField(['#ff0d0d', '#0dff0d'], age.div(30)) }
+  },
+
   actAll({ alive, age }) {
     const crowd = alive.neighborSum()
     // born with exactly 3 neighbors, or alive with exactly 2 (comparisons give 1 or 0, so they combine like switches)

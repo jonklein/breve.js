@@ -41,16 +41,27 @@ export const Ant = {
   },
 }
 
+// the ground: where the nest and the food are, and the scent that spreads over it
+const FOOD = [[11, 0, 8, 3], [5, 0, -13, 2.5]] // x, y, z, radius of each patch
+const NEST_RADIUS = 2.5
+
 export const Ground = {
-  actAll({ scent, food, nest }, p) {
+  init({ at }, p, ctx) {
+    const inside = (c, r) => at.minus(ctx.vec(c[0], c[1], c[2])).length() <= r
+    return { food: FOOD.some((f) => inside(f, f[3])) ? 5 : 0, scent: 0, nest: inside(NEST, NEST_RADIUS), delivered: 0 }
+  },
+
+  // what to draw: the nest blue, food gold, scent green (brighter when stronger); bare ground is not drawn
+  displayAll({ scent, food, nest }, p, ctx) {
+    const look = food.gt(0).where(1, scent.gt(0.05).where(scent.div(4).min(1).div(3).add(1 / 3), -1))
+    const shown = nest.where(0, look)
+    return { visible: shown.ge(0), color: ctx.colors.rampField(['#4f86f7', '#2f5a3c', '#7be495', '#ffd34a'], shown.max(0)) }
+  },
+
+  actAll({ scent, food }, p) {
     // scent spreads into neighbors, then evaporates a little
     const mixed = scent.zip(scent.neighborAverage(), (s, around) => (s + (around - s) * p.spread) * p.evaporation)
-    const left = food.map((f) => Math.max(0, f))
-
-    // what to draw: food is gold, scent is green (brighter when stronger), the nest is blue
-    const look = mixed.zip(left, (s, f) => (f > 0 ? 1 : s > 0.05 ? 1 / 3 + Math.min(1, s / 4) / 3 : -1))
-    const shown = look.zip(nest, (l, n) => (n ? 0 : l))
-    return { scent: mixed, food: left, look: shown.map((l) => Math.max(0, l)), mark: shown.map((l) => (l >= 0 ? 1 : 0)) }
+    return { scent: mixed, food: food.max(0) }
   },
 }
 

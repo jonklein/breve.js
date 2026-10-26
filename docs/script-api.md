@@ -1,6 +1,20 @@
 # Scene and script reference
 
-A project is two files: `scene.json` (data: what exists and how it looks) and one script (behavior: how things decide what to do). The workbench shows both, runs them live, and hot-reloads edits. This file is also what the LLM assistant is given, so keep it accurate.
+A project is two files: `scene.json` (the setup and the knobs: what sets of things exist, how many, the world they live in, the sliders (`params`), which measurements to chart, which models to load) and one script (what each thing is, does and looks like). The workbench shows both, runs them live, and hot-reloads edits. This file is also what the LLM assistant is given, so keep it accurate.
+
+**Where a thing goes.** If a person would tweak it while the simulation runs, sweep it, or search over it, it is configuration: put it in the scene, usually as a `param`. If it changes what an entity is or does, it is code: put it in the script. A grid's size and spacing are configuration; the starting density is a param that `init` reads; the rule, the starting state and the colors are code.
+
+**The hooks.** A script exports a controller (an object) with these functions, each for one entity, and optionally an `All` form for a whole set at once:
+
+| hook | when | returns |
+|---|---|---|
+| `init(self, p, ctx)` / `initAll` | once per entity, when it is made | its starting state: `{ alive: 1, age: 0 }` (free agents may add `position` and `velocity`). The fields `init` returns are the entity's state; no declaration needed |
+| `act(obs, p, ctx)` / `actAll` | every tick | what it does now: `{ steer, state, add, exchange }` (the `All` form returns whole new fields) |
+| `think(obs, p, ctx)` / `thinkAll` | every `think.every` ticks; may be slow and async | state to write, such as `{ goal: 'go east' }`, which `act` then reads as `self.goal` |
+| `display({ self }, p, ctx)` / `displayAll` | when a frame is drawn; read-only | how it looks: `{ visible, color }` |
+
+The per-entity form is the readable one and suits up to tens of thousands of entities. The `All` form gets and returns whole fields (columns) instead, runs without a function call per entity, and is for big grids and networks. It has limits: `Field` arithmetic only, single-number state, and no per-entity effects (steering, trades, resets). See `docs/decisions/x-and-xall.md`. `decide` is the old name of `act`, and `update` and `decideAll` of `actAll`; they still work.
+
 
 ## scene.json
 
@@ -53,7 +67,7 @@ Agents live in continuous 3D space. Each tick every agent's `act` is called and 
 "spawn": { "box": [[-5, 0, -5], [5, 0, 5]] }                        // or anywhere inside a box
 ```
 
-For full control, the script may export an `init` function that runs for each new entity: `init({ index, count }, p, ctx)` returns `{ position, velocity, state }`, for example `{ position: ctx.vec(index * 2, 0, 0) }` to line them up. `init` wins over `spawn`.
+For full control, the script's `init` runs for each new entity: `init({ index, count }, p, ctx)` returns `{ position, velocity, ...state }`, for example `{ position: ctx.vec(index * 2, 0, 0), energy: 10 }` to line them up and give each some energy. `init` wins over `spawn`.
 
 **Fences and reset.** A set may have a `fence`: `"fence": { "size": 30, "floor": -20 }` (`size` is the half-width of a box around the origin, `floor` the lowest height allowed). A fence changes nothing by itself. When an entity crosses it, the script's `onLeave({ self }, p, ctx)` runs once, and the usual thing to do there is `self.reset()`, which puts that entity back at its start (same rules as a new one) at the end of the tick. `self.outside` tells you whether it is beyond the fence right now. `self.reset()` also works anywhere else: in `act`, say, when an ant runs out of energy.
 
@@ -64,13 +78,13 @@ export default {
 }
 ```
 
-**Per-agent state (memory, brains).** Free agents may declare `state`: extra numbers each agent carries. Say what a field starts as and its type follows: `"energy": 10` is a number, `"hungry": false` a boolean, `"mood": "calm"` text. An object makes an array of numbers and says how it starts: `"weights": { "length": 108, "init": { "normal": 0.7 } }`. To spell a type out, use `"int"`, `"float"`, `"boolean"` or `"string"` (`{ "type": "int", "init": 3 }`) (`init` can be a number, `{ "normal": spread }` or `{ "uniform": [low, high] }`, drawn from the seeded generator). In `act`, `self.energy` is a number (or boolean, or text, as declared) and `self.weights` is a read-only array. To change state, return it: `{ steer, state: { energy: self.energy - 1, memory: [..5 numbers..] } }`. Like everything else, new state is applied after all agents have decided. State is saved by snapshots and copied by forks.
+**State (memory, brains).** An entity carries whatever state its `init` returns: `init(self, p, ctx) { return { energy: 10, hungry: false, mood: 'calm', weights: Float32Array.from({ length: 108 }, () => 0.7 * ctx.normal()) } }`. A number is a number, `true`/`false` a boolean, text is text, and an array of numbers is a field of that length. In `act`, `self.energy` is the value (and `self.weights` a read-only array). To change state, return it: `{ steer, state: { energy: self.energy - 1, memory: [..5 numbers..] } }`; new state is applied after every entity has acted. State is saved by snapshots and copied by forks. `ctx.random()` and `ctx.normal()` (a normal draw, spread 1) are seeded, so a scene and seed always start the same way. The older way still works: a `"state"` block in the scene (`"energy": 10`, or `{ "length": 108, "init": { "normal": 0.7 } }`), and it is also how to ask for a smaller number type on a very large grid (`"alive": "u8"` uses one byte a cell instead of eight). A field in the scene's `state` wins over the same name from `init`. If a script edit changes which fields `init` returns, the workbench restarts the simulation.
 
 `ctx.mlp([11, 5, 8])` makes a small neural network (tanh layers) whose `run(weights, inputs)` returns the outputs; the weights for that shape are 11×5+5 + 5×8+8 = 108 numbers. See `examples/neural`.
 
 **Choosing a behavior per agent.** A set runs one controller (its `type`, or `export default`). To let each agent pick, declare a text state field called `controller` (`"state": { "controller": "" }`): an agent whose field names a script export (`export const flee = {...}`) runs that one, and an empty field uses the set's own. A controller can switch itself by returning `state: { controller: 'flee' }`, and in the inspector the controller menu then sets the field for the one entity you clicked instead of the whole set. Naming an export that does not exist is reported once.
 
-**Trained models (ONNX).** A scene can name models: `"models": { "policy": { "url": "policy.onnx" } }` (`url` is a path next to the scene, a full URL, or a Hugging Face file, `hf:owner/repo/path/model.onnx`, with `@revision` after the repo name to pin one; `"device": "webgpu"` tries the GPU first). A controller runs one from `think`, or from `thinkAll(agents, p, ctx)`, which is called once for all the entities of its set that are due, so a whole crowd is one call: `const out = await ctx.model('policy').runBatch(agents.map(({ self }) => [self.x, self.z]))` gives one row of outputs per agent; return one decision per agent from `thinkAll` and read it as `self.decision` in `act`. Set `"think": { "every": 1 }` to run it every tick; the workbench's lockstep mode waits for it. A model takes one input of shape `[batch, width]`. A `url` of the form `ws://localhost:8765` is not a file but a process on a WebSocket (a Python policy server or trainer, `examples/remote-policy`): it gets the same batches and answers the same way, and the sets using it are marked not repeatable. Decisions are logged, so a run can be replayed without the model. See `examples/onnx-policy` and `docs/decisions/inference.md`.
+**Trained models (ONNX).** A scene can name models: `"models": { "policy": { "url": "policy.onnx" } }` (`url` is a path next to the scene, a full URL, or a Hugging Face file, `hf:owner/repo/path/model.onnx`, with `@revision` after the repo name to pin one; `"device": "webgpu"` tries the GPU first). A controller runs one from `think`, or from `thinkAll(agents, p, ctx)`, which is called once for all the entities of its set that are due, so a whole crowd is one call: `const out = await ctx.model('policy').runBatch(agents.map(({ self }) => [self.x, self.z]))` gives one row of outputs per agent; return one state object per agent from `thinkAll` (`{ dx, dz }`, fields `init` declared) and read it as `self.dx` in `act`. Set `"think": { "every": 1 }` to run it every tick; the workbench's lockstep mode waits for it. A model takes one input of shape `[batch, width]`. A `url` of the form `ws://localhost:8765` is not a file but a process on a WebSocket (a Python policy server or trainer, `examples/remote-policy`): it gets the same batches and answers the same way, and the sets using it are marked not repeatable. Decisions are logged, so a run can be replayed without the model. See `examples/onnx-policy` and `docs/decisions/inference.md`.
 
 **Cameras (for vision models).** A sensor of type `camera` gives a controller a small picture of what is around it, as `obs.<name>`: `"sensors": [{ "type": "camera", "name": "view", "size": 24, "radius": 18 }]` (`size` is pixels per side, default 32; `radius` is how far it sees, from the center to the edge). The picture is top-down and turned so that up is the way the agent is heading (north when it is still): every agent in range is a dot in its set's color, the agent itself is white with a tick showing forward, and ground outside the world's bounds is dark. It is drawn from the simulation's state when a script reads it, so it costs nothing when unused and is the same in every run. A picture has `width`, `height`, `get(x, y)` and `toPng()`. Show it to a model from `think`: `await ctx.ask('where is the food?', { json: true, images: [obs.view] })`. See `examples/vlm-scouts`.
 
@@ -86,18 +100,25 @@ export default {
     "spacing": 1.2,                       // distance between cell centers
     "edges": "wrap",                      // "wrap" (opposite edges touch) or "dead" (nothing beyond the edge)
     "neighborhood": "moore",              // "moore" (26 neighbors) or "von-neumann" (6)
-    "show": "alive",                      // state field whose non-zero cells are drawn
-    "color": "age",                       // optional state field that tints cells
-    "colorMax": 20,                       // value that maps to the end of the color range (low = red, high = green)
     "fade": 0                             // optional: ease cells in and out over this fraction of a tick (0 = instant, 1 = a whole tick)
   },
-  "state": { "alive": 0, "age": 0 },   // per-cell fields; the starting value gives the type (numbers, true/false, text)
-  "fill": { "field": "alive", "density": "$density", "within": 1 },  // random start: density of cells, within the central fraction (default 1 = everywhere)
   "controller": "life.js"
 }
 ```
 
-Grid shape, fill, and seed only take effect when the simulation is reset. Params (rule numbers, etc.) apply live.
+The cells' state, starting values and look come from the script: `init({ index, count, x, y, z, at }, p, ctx)` returns a cell's starting state (`x, y, z` is its place in the grid and `at` its place in the world as a vector, so a region is `at.minus(centre).length() < radius`; `initAll({ count }, p, ctx)` returns one array per field for every cell at once), and `display` / `displayAll` say how it looks:
+
+```js
+export default {
+  init(self, p, ctx) { return { alive: ctx.random() < p.density ? 1 : 0, age: 0 } },
+  act({ self, neighbors }) { /* ... */ },
+  display({ self }, p, ctx) { return { visible: self.alive, color: ctx.colors.ramp(['#ff0d0d', '#0dff0d'], self.age / 20) } },
+}
+```
+
+`visible` says whether a cell is drawn (every cell is by default), and `color` is `'#rrggbb'`, `[r, g, b]` between 0 and 1, or a `ctx.colors` helper: `ctx.colors.ramp(stops, t)` (a color along a list of stops, `t` from 0 to 1), `ctx.colors.hsl(h, s, l)`, `ctx.colors.hex('#48f')`. For big grids use `displayAll({ alive, age }, p, ctx)`, which returns whole fields: `{ visible: alive, color: ctx.colors.rampField(stops, age.div(20)) }`. `display` only reads, so it cannot affect the run; it is called when a frame is drawn, not every tick. Free agents and network nodes use `color` too (`visible` is only honored on lattice cells). The older scene settings (`show`, `color`, `colorMax`, `palette`, `fill`, `state`) still work where a script gives no `display`/`init`.
+
+Grid shape and seed only take effect when the simulation is reset. Params (rule numbers, etc.) apply live.
 
 ### Entity set: network of nodes
 
@@ -110,13 +131,13 @@ Grid shape, fill, and seed only take effect when the simulation is reset. Params
     "degree": 6,                          // average links per node
     "rewire": 0.08,                       // small worlds: share of links rewired at random
     "layout": "force",                    // how nodes are placed for drawing: "force", "circle" or "sphere"
-    "radius": 24,                         // size of the drawn layout
-    "color": "status", "colorMax": 2, "palette": ["#6aa7ff", "#ff5b5b", "#7bd88f"]   // tint nodes by a state field
+    "radius": 24                          // size of the drawn layout
   },
-  "state": { "status": 0, "timer": 0 },
-  "fill": { "field": "status", "value": 1, "count": 3 }   // exactly 3 random nodes start with status 1
+  "controller": "contagion.js"
 }
 ```
+
+Starting state is the script's `init` (a node at a time) or `initAll` (all at once: `initAll({ count }, p, ctx)` returns an array per field, so "exactly 3 random nodes start infected" is a few lines in the script), and the colors are `display` / `displayAll`, as for lattices.
 
 A node's `neighbors` are the nodes it is linked to. `act` works exactly as it does for lattice cells: it reads `self` and `neighbors` (`neighbors.status` is a list of numbers) and returns the node's **new state**, applied for everyone at once. That is why one script can run on a grid and on a graph (see `examples/epidemic` and `examples/epidemic-grid`). `self.degree` is the number of links. Positions come from the layout and are only for drawing.
 
@@ -222,7 +243,7 @@ export const metrics = {
 
 `self` has `x, y, z` (grid coordinates), `position` (a vector), and every state field as a number: `self.alive`.
 
-**Big grids: `actAll` instead of `act`.** Every hook has a per-entity form and may have a whole-set form named with `All` (`init`/`initAll`, `act`/`actAll`, `think`/`thinkAll`, `display`/`displayAll`; see `docs/decisions/x-and-xall.md`). `decide` is the old name of `act` and still works. The `All` form is faster but limited: whole fields in and out, `Field` arithmetic only, single-number state, no per-entity effects. A script may export `actAll(fields, params)` instead of `act` (the old names `decideAll` and `update` still work). It runs once per tick, gets every state field as a whole (`{ alive, age }`) and returns the new fields. Fields have `neighborSum()`, `neighborAverage()`, `neighborMax()`, arithmetic and comparisons that take a number or another field (`add`, `sub`, `mul`, `div`, `min`, `max`, `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `and`, `or`, `not`, `clamp`, and `where(a, b)` to pick between two values), `map(fn)`, `zip(other, fn)`, `sum()` and `average()`; each makes a new field and none changes the original. Prefer the arithmetic over `map`/`zip` on big grids: it runs without a function call per cell, and a chain of it is worked out in one pass. Use it for grids above about 50,000 cells (a 1000×1000 flat grid works). A lattice with a dimension of 1, like `[200, 200, 1]`, is flat and its cells have no neighbors along that axis. Networks take `actAll` too: a field's `neighborSum()`, `neighborAverage()` and `neighborMax()` follow the links, however many each node has (a hub with hundreds of links is fine), and only single-number state fields are passed in.
+**Big grids: `actAll` instead of `act`.** A script may export `actAll(fields, params)` instead of `act` (the old names `decideAll` and `update` still work). It runs once per tick, gets every state field as a whole (`{ alive, age }`) and returns the new fields. Fields have `neighborSum()`, `neighborAverage()`, `neighborMax()`, arithmetic and comparisons that take a number or another field (`add`, `sub`, `mul`, `div`, `min`, `max`, `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `and`, `or`, `not`, `clamp`, and `where(a, b)` to pick between two values), `map(fn)`, `zip(other, fn)`, `sum()` and `average()`; each makes a new field and none changes the original. Prefer the arithmetic over `map`/`zip` on big grids: it runs without a function call per cell, and a chain of it is worked out in one pass. Use it for grids above about 50,000 cells (a 1000×1000 flat grid works). A lattice with a dimension of 1, like `[200, 200, 1]`, is flat and its cells have no neighbors along that axis. Networks take `actAll` too: a field's `neighborSum()`, `neighborAverage()` and `neighborMax()` follow the links, however many each node has (a hub with hundreds of links is fine), and only single-number state fields are passed in.
 
 ```js
 export default {
@@ -235,9 +256,9 @@ export default {
 
 ### Slow thinking: asking a language model
 
-A controller may also have an async `think(obs, p, ctx)`, run for each entity every `think.every` ticks (set on the entity set: `"think": { "every": 120 }`). It looks around, may `await ctx.ask(prompt, { json: true })` (a language model, reached through the local server and `ANTHROPIC_API_KEY`; `{ images: [obs.view] }` shows it a camera picture), and returns a decision of any JSON shape. The fast `act` reads it as `self.decision` (undefined until the first answer). In the workbench thinking runs beside the clock, so a slow model never stalls the sim; answers land when they arrive. A bar above the view appears for scenes that think: switch to **lockstep** (the clock waits for every answer before each tick, so answers land on the same ticks every run), **Save log** to download every decision, and **Replay log…** to restart and play a saved log back without calling the model.
+A controller may also have an async `think(obs, p, ctx)`, run for each entity every `think.every` ticks (set on the entity set: `"think": { "every": 120 }`). It looks around, may `await ctx.ask(prompt, { json: true })` (a language model, reached through the local server and `ANTHROPIC_API_KEY`; `{ images: [obs.view] }` shows it a camera picture), and returns what it decided as state: `return { dx: 1, dz: -1 }` writes those fields (declared by `init`, which also gives them a first value) and the fast `act` reads them as `self.dx`. (A result that is not state is kept as `self.decision`, the older way.) In the workbench thinking runs beside the clock, so a slow model never stalls the sim; answers land when they arrive. A bar above the view appears for scenes that think: switch between **async** (the simulation keeps running and answers land when they arrive) and **wait** (the clock waits for every answer before each tick, so answers land on the same ticks every run), **Save log** to download every decision, and **Replay log…** to restart and play a saved log back without calling the model.
 
-Every decision is logged with the tick it took effect (`sim.decisionLog`). `sim.replay(log)` reruns without the model: each decision lands on the same tick, so the run is identical. See `examples/llm-wanderers`.
+Every answer is logged with the tick it took effect (`sim.decisionLog`), whatever its shape. `sim.replay(log)` reruns without the model: each decision lands on the same tick, so the run is identical. See `examples/llm-wanderers`.
 
 ### Creatures
 

@@ -20,6 +20,11 @@ export default {
     return { cash: 60, goods: 2, ask: 10, bought: 0, used: 0 }
   },
 
+  // color by asking price: cheap blue, middling yellow, dear red
+  display({ self }, p, ctx) {
+    return { color: ctx.colors.ramp(['#4da3ff', '#ffd24d', '#ff5a4d'], self.ask / 40) }
+  },
+
   act({ self, neighbors }, p, ctx) {
     const producer = self.row % 3 === 0
     const makes = producer && ctx.tick % p.produceEvery === 0 ? 1 : 0

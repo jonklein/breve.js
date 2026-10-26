@@ -149,7 +149,7 @@ export class Sim {
       if (ctrl.initAll) {
         const out = ctrl.initAll({ count: 1, probe: true }, this.params, ctx) as Record<string, ArrayLike<unknown>> | undefined
         values = Object.fromEntries(Object.entries(out ?? {}).map(([k, v]) => [k, v && typeof v === 'object' ? (v as { data?: ArrayLike<unknown> }).data?.[0] ?? v[0] : v]))
-      } else values = initResult(ctrl.init!({ index: 0, count: 1, x: 0, y: 0, z: 0 }, this.params, ctx))
+      } else values = initResult(ctrl.init!({ index: 0, count: 1, x: 0, y: 0, z: 0, at: new Vec3(0, 0, 0) }, this.params, ctx))
     } catch {
       return null
     }

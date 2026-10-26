@@ -12,7 +12,7 @@
       "name": "people",
       "count": 300,
       "controller": "contagion.js",
-      "network": { "topology": "smallworld", "degree": 6, "rewire": 0.08, "layout": "force", "radius": 24, "color": "status", "colorMax": 2, "palette": ["#6aa7ff", "#ff5b5b", "#7bd88f"], "size": 1.3 }
+      "network": { "topology": "smallworld", "degree": 6, "rewire": 0.08, "layout": "force", "radius": 24, "size": 1.3 }
     }
   ],
   "metrics": ["susceptible", "infected", "recovered"],

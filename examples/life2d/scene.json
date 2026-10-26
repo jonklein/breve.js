@@ -13,7 +13,7 @@
   "entities": [
     {
       "name": "cell",
-      "lattice": { "size": [96, 96, 1], "spacing": 1, "edges": "wrap", "show": "alive", "color": "age", "colorMax": 30 },
+      "lattice": { "size": [96, 96, 1], "spacing": 1, "edges": "wrap" },
       "controller": "life.js"
     }
   ],

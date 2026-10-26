@@ -86,22 +86,10 @@ export interface SpawnDef {
   velocity?: [number, number, number]
 }
 
-/**
- * A fence: when an entity crosses it, its controller's `onLeave({ self })` runs once. The fence changes nothing by
- * itself; `self.reset()` inside the handler puts the entity back at its start. `size` is the half-width of a box
- * around the origin, `floor` the lowest height allowed.
- */
-export interface FenceDef {
-  size?: NumOrParam
-  floor?: NumOrParam
-}
-
 export interface EntityDef {
   name: string
   /** Which controller runs this set: the name of an export of the script. Leave it out to use `export default`. */
   type?: string
-  /** A boundary that fires `onLeave` when crossed (free agents and creatures). */
-  fence?: FenceDef
   /** Where entities start (free agents and creatures). */
   spawn?: SpawnDef
   /** How often the controller's slow `think` runs (it may call a language model). */
@@ -129,8 +117,6 @@ export interface EntityDef {
   }
   /** An articulated physics body. Makes this entity set a group of creatures (use with `count`). */
   body?: BodyInput
-  /** The built-in oscillator that drives joints with a `drive`. */
-  oscillator?: { frequency: NumOrParam }
 }
 
 /** Look of the world. Purely visual: it never affects the simulation. Every field has a default. */
@@ -287,7 +273,6 @@ export const sceneSchema = {
         properties: {
           name: { type: 'string' },
           type: { type: 'string', pattern: '^[A-Za-z_$][A-Za-z0-9_$]*$' },
-          fence: { type: 'object', additionalProperties: false, properties: { size: numOrParam, floor: numOrParam } },
           spawn: {
             type: 'object',
             additionalProperties: false,
@@ -331,12 +316,6 @@ export const sceneSchema = {
           },
           controller: { type: 'string' },
           body: bodySchema,
-          oscillator: {
-            type: 'object',
-            required: ['frequency'],
-            additionalProperties: false,
-            properties: { frequency: numOrParam },
-          },
           sensors: {
             type: 'array',
             items: {
@@ -381,6 +360,9 @@ export function parseScene(text: string): SceneResult {
 const REMOVED: Record<string, string> = {
   'set.state': "a set's state is what its script's init returns, for example `init() { return { alive: 0, age: 0 } }`",
   'set.fill': "set starting values in the script's init (or initAll), for example `init(self, p, ctx) { return { alive: ctx.random() < p.density ? 1 : 0 } }`",
+  'set.fence': "check where it is in the script's act and move it yourself, for example `if (self.y < -20) self.place({ x: 0, z: 0 })` (creatures) or `self.place({ position: [0, 0, 0] })` (agents)",
+  'set.oscillator': "swing the joints from the script (the stdlib's `Gait` helps), for example `return { joints: Gait.targets(legs, phase) }`",
+  'joint.drive': "swing the joint from the script, for example `act({ self }, p, ctx) { return { joints: { hip: 0.5 * Math.sin(ctx.tick / 10) } } }`, or use the stdlib's `Gait`",
   'look.show': "say what is drawn in the script's display, for example `display({ self }) { return { visible: self.alive } }`",
   'look.color': "say the color in the script's display, for example `display({ self }, p, ctx) { return { color: ctx.colors.ramp(['#ff0d0d', '#0dff0d'], self.age / 20) } }`",
   'look.colorMax': "scale the value yourself in the script's display (for example `self.age / 20`)",
@@ -395,7 +377,7 @@ export function validateScene(data: unknown): SceneResult {
         const where = e.instancePath ? e.instancePath.slice(1).replace(/\//g, '.') : 'scene'
         if (e.keyword === 'additionalProperties') {
           const prop = (e.params as { additionalProperty: string }).additionalProperty
-          const gone = REMOVED[`${/^entities\.\d+\.(lattice|network)$/.test(where) ? 'look' : /^entities\.\d+$/.test(where) ? 'set' : ''}.${prop}`]
+          const gone = REMOVED[`${/^entities\.\d+\.(lattice|network)$/.test(where) ? 'look' : /^entities\.\d+$/.test(where) ? 'set' : /\.joints\.\d+$/.test(where) ? 'joint' : ''}.${prop}`]
           return gone ? `${where}: "${prop}" is gone: ${gone}` : `${where}: unknown property "${prop}"`
         }
         if (e.keyword === 'required')
@@ -426,15 +408,12 @@ export function validateScene(data: unknown): SceneResult {
     }
     if (e.spawn?.at && e.spawn.box) errors.push(`entities.${i}.spawn: give "at" or "box", not both`)
     if (e.spawn?.spread !== undefined && !e.spawn.at) errors.push(`entities.${i}.spawn.spread: "spread" scatters entities around "at"`)
-    check(e.fence?.size, `entities.${i}.fence.size`)
-    check(e.fence?.floor, `entities.${i}.fence.floor`)
     check(e.count, `entities.${i}.count`)
     if (e.body) {
       if (e.lattice) errors.push(`entities.${i}.body: a lattice cannot have a body`)
       // check the body as it comes out at the params' starting values; the engine rebuilds it whenever params change
       errors.push(...buildBody(e.body, paramValues(scene), `entities.${i}.body`, names).errors)
-      check(e.oscillator?.frequency, `entities.${i}.oscillator.frequency`)
-    } else if (e.oscillator) errors.push(`entities.${i}.oscillator: needs a "body" with joint drives`)
+    }
     e.sensors?.forEach((s, j) => {
       check(s.radius, `entities.${i}.sensors.${j}.radius`)
       if (s.type === 'camera') {

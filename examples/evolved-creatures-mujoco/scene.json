@@ -67,9 +67,6 @@
         ]
       },
       "controller": "creatures.js",
-      "fence": {
-        "floor": -10
-      },
       "body": {
         "parts": [
           {

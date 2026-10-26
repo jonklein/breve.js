@@ -70,12 +70,14 @@ Agents live in continuous 3D space. Each tick every agent's `act` is called and 
 
 For full control, the script's `init` runs for each new entity: `init({ index, count }, p, ctx)` returns `{ position, velocity, ...state }`, for example `{ position: ctx.vec(index * 2, 0, 0), energy: 10 }` to line them up and give each some energy. `init` wins over `spawn`.
 
-**Fences and reset.** A set may have a `fence`: `"fence": { "size": 30, "floor": -20 }` (`size` is the half-width of a box around the origin, `floor` the lowest height allowed). A fence changes nothing by itself. When an entity crosses it, the script's `onLeave({ self }, p, ctx)` runs once, and the usual thing to do there is `self.reset()`, which puts that entity back at its start (same rules as a new one) at the end of the tick. `self.outside` tells you whether it is beyond the fence right now. `self.reset()` also works anywhere else: in `act`, say, when an ant runs out of energy.
+**Moving an entity yourself.** The engine has no fence, no automatic reset and no notion of "left the world": those are the script's business. Check where an entity is in `act` and move it with `self.place({ position, velocity })` (either may be left out; its state is kept; it happens at the end of the tick), for example `if (Math.abs(self.x) > 30) self.place({ position: [0, 0, 0] })`. Reset its state the same way as any other change: return it from `act`.
 
 ```js
 export default {
-  onLeave({ self }) { self.reset() },
-  act({ self }) { if (self.energy <= 0) self.reset() },
+  act({ self }) {
+    if (self.energy <= 0) self.place({ position: [0, 0, 0] })
+    return { state: { energy: self.energy <= 0 ? 10 : self.energy - 1 } }
+  },
 }
 ```
 
@@ -168,24 +170,20 @@ Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy t
     "name": "walker",
     "count": "$count",                    // number of creatures (max 200)
     "controller": "creature.js",
-    "oscillator": { "frequency": "$frequency" },   // the built-in rhythm generator, in cycles per second
     "body": {
-      "motor": { "stiffness": "$strength", "damping": 8 },   // default motor for every joint that has a drive
+      "motor": { "stiffness": "$strength", "damping": 8 },   // default for every joint's "motor"
       "parts": [                          // the FIRST part is the root (torso). Other parts can be listed here too.
         { "name": "torso", "shape": "box", "size": [0.9, 0.25, 0.45], "mass": 4, "position": [0, 0.62, 0] }
       ],
       "templates": {                      // a reusable piece, written once in its own coordinates (0,0,0 = where it attaches)
         "leg": {
-          "args": { "phase": 0 },         // "@phase" below is filled in by each attach
           "parts": [
             { "name": "upper", "shape": "capsule", "size": [0.25, 0.06], "mass": 0.4, "position": [0, -0.125, 0] },
             { "name": "lower", "shape": "capsule", "size": [0.25, 0.05], "mass": 0.3, "position": [0, -0.375, 0] }
           ],
           "joints": [                     // parent "^" means the part this copy is attached to
-            { "name": "hip", "parent": "^", "child": "upper", "anchor": [0, 0, 0], "limits": [-0.9, 0.9],
-              "drive": { "amplitude": "$stride", "phase": "@phase" } },
-            { "name": "knee", "parent": "upper", "child": "lower", "anchor": [0, -0.25, 0], "limits": [-1.6, 0.1],
-              "drive": { "amplitude": "$lift", "offset": -0.9, "phase": "@phase", "lag": "$kneeLag" } }
+            { "name": "hip", "parent": "^", "child": "upper", "anchor": [0, 0, 0], "limits": [-0.9, 0.9], "motor": {} },
+            { "name": "knee", "parent": "upper", "child": "lower", "anchor": [0, -0.25, 0], "limits": [-1.6, 0.1], "motor": {} }
           ]
         }
       },
@@ -202,17 +200,17 @@ Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy t
 ```
 
 - **Templates:** a template is a small body (parts and joints) in its own coordinates, where `[0, 0, 0]` is the attach point. Each `attach` makes a copy: `name` prefixes every part and joint of the copy (`FL` gives parts `FL.upper`, `FL.lower` and joints `FL.hip`, `FL.knee`, which are the names scripts and sensors use), `at` is the attach point relative to the center of the part it hangs from (`to`, default the root part), `yaw` turns the copy about the vertical axis (radians), and `args` fill the template's `"@name"` placeholders (a template's own `args` are the defaults). A joint whose `parent` is `"^"` hangs off the part the copy is attached to. Adding a leg, a tail or an arm is one more `attach` line, and you can still write parts and joints by hand next to templates, or use no templates at all.
-- **Default motor:** a joint that has a `drive` but no `motor` gets the body's `motor`, so legs don't each repeat it. A joint can still give its own.
+- **Default motor:** a joint's `motor` is filled in from the body's `motor`, so legs don't each repeat it (`"motor": {}` takes all the defaults). A joint can still give its own values. A joint with no `motor` is a free hinge.
 - **Coordinates:** x is forward, y is up, z is the creature's right side. Part `position` and joint `anchor` are in the standing pose, relative to the creature's origin: the ground is y = 0, so feet should end at y = 0. The creature is placed on the terrain and turned to a random heading.
 - **Parts:** `shape` is `box` (`size` = `[width, height, depth]`), `sphere` (`[radius]`), `capsule` or `cylinder` (`[length, radius]`, long axis along y; for a capsule `length` is the straight section). `mass` is in kilograms. Optional `color` (hex) and `friction` (default 1). Without a `color`, each creature gets its own hue. Optional `rotation` `[rx, ry, rz]` (radians, about x then y then z) turns the shape about its own center, so a capsule can lie sideways; joints, anchors and axes stay as written, in the standing pose. Inside a template, `attach.yaw` turns a rotated shape along with the rest of the copy. `$param` expressions work in `rotation` like everywhere else. Optional `visual` `{ "gltf": "beetle.glb", "scale": 1.2, "rotation": [0, 0, 0], "offset": [0, 0, 0] }` draws a glTF/GLB model in place of the shape (all its meshes merged, geometry and normals only; the part's color still tints it). The model's origin is the part's center, and the path starts at the scene's folder (or is a full URL). Physics keeps using `shape` and `size`, so size the primitive to match the model's outline. See `examples/creature-gltf`; an embedded `breve.run` takes `assetBase` for relative paths.
-- **Joints:** `parent` and `child` name parts. Parts must form a tree under the first part (every other part is the `child` of exactly one joint). `type` is `hinge` (default; turns around `axis`, default `[0, 0, 1]`), `ball` (turns freely) or `fixed`. Only hinges have `limits` (radians, `[min, max]`), `motor` and `drive`. Angle 0 is the standing pose; a positive hinge angle turns the child around the axis by the right-hand rule (about `[0, 0, 1]`, a positive angle swings a hanging leg forward).
+- **Joints:** `parent` and `child` name parts. Parts must form a tree under the first part (every other part is the `child` of exactly one joint). `type` is `hinge` (default; turns around `axis`, default `[0, 0, 1]`), `ball` (turns freely) or `fixed`. Only hinges have `limits` (radians, `[min, max]`) and `motor`. Angle 0 is the standing pose; a positive hinge angle turns the child around the axis by the right-hand rule (about `[0, 0, 1]`, a positive angle swings a hanging leg forward).
 - **Engine:** `physics.engine` picks the physics engine: `rapier` (the default: deterministic on every machine, supports creatures bumping into each other) or `mujoco` (about four times faster per tick, steadier for jointed bodies, but creatures never touch each other and bit-identical replay across different machines is not promised). `mujoco` is available in the workbench and in code that calls `registerMujoco()` from `@breve/physics-mujoco`. The body, motors and `minGyration` mean the same on both; `examples/evolved-creatures-mujoco` is the evolving creatures on MuJoCo.
 - **Part inertia floor:** the scene's `physics.minGyration` (metres, default 0 = off) makes every part at least as hard to spin as a body of that radius of gyration (inertia at least mass × minGyration²). Thin, light parts joined to heavy ones can otherwise be whipped around by the joint solver, which looks like a creature hurling itself into the air. Random or evolved bodies need it (the evolved-creatures example uses 0.3); a hand-built body that is already stable does not.
 - **Motor limits:** a joint's `motor` takes `stiffness` and `damping`, and optionally `maxTorque` (newton-metres: the most the motor can ever push) and `maxSpeed` (radians per second: how fast its target may move; a script that jumps the target is eased there). Without them a motor pushes as hard as its stiffness times the error says, which is how a brain that searches for forces (an evolving one) learns to throw its body into the air. Give evolved or learned controllers limits that scale with the limb, as `examples/evolved-creatures` does.
 - **Motor:** makes the hinge chase a target angle like a spring with damping: `stiffness` is torque per radian, `damping` torque per radian per second (defaults 100 and 8). Both may be `"$param"`. Too weak and the creature collapses; too strong and it gets jittery.
-- **Oscillator drive:** a joint with a `drive` follows `offset + amplitude * sin(2 pi * (t * frequency + phase - lag))`. `amplitude` and `offset` are radians (offset default 0); `phase` and `lag` are fractions of a cycle (0.5 = half a cycle). Each may be a number or a `"$param"`, so every phase gets a slider. `frequency` comes from the entity's `oscillator`. Without a `drive` the motor holds angle 0, unless the script sets it. A trot is: diagonal legs in phase (front-left with hind-right) and the other diagonal half a cycle later, with each knee trailing its hip by a fraction of a cycle (`lag`, about 0.4 in the example; the gait is sensitive to it).
+- **Rhythm is the script's job.** The engine has no oscillator: a motor holds angle 0 until `act` returns a target for it. The stdlib's `Gait` makes the usual rhythm: `ctx.gait.targets({ 'FL.hip': { amplitude: 0.7, phase: 0 }, 'FR.hip': { amplitude: 0.7, phase: 0.5 } }, cycle)` gives `offset + amplitude * sin(2 pi * (cycle + phase - lag))` for each joint, and `ctx.gait.advance(cycle, frequency, ctx.dt)` moves the shared `cycle` (kept in the creature's own state, so changing the frequency never makes the legs jump). A trot is: diagonal legs in phase (front-left with hind-right) and the other diagonal half a cycle later, with each knee trailing its hip by a fraction of a cycle (`lag`, about 0.4 in the example; the gait is sensitive to it). See `examples/creature/creature.js`.
 - **Sensors:** declare what `act` can read. `pose` (always available), `joints` (`self.joints`: hinge angles by joint name), `touch` (`self.touch`: which parts touch the ground by name; default the parts nothing hangs off, or give `"parts": ["FL.lower"]`). Each joint with a `motor` is an actuator.
-- Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains, drives and the script apply live. Nothing resets a creature on its own: add a `fence` and an `onLeave` handler, or check `self.downFor` in `act` (see below).
+- Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains and the script apply live. Nothing resets a creature on its own: check in `act` (`self.up.y`, `self.y`) and call `self.place(...)` (see below).
 - Validation rejects unknown joint or part names, parts not connected to the root, duplicate names, sizes that do not fit the shape, a template or placeholder that does not exist, and unknown `"$param"` names.
 
 ## Scripts
@@ -266,19 +264,19 @@ Every answer is logged with the tick it took effect (`sim.decisionLog`), whateve
 
 ### Creatures
 
-`act` receives `self` (the creature) and `neighbors` (always an empty group for now). Besides position and speed, `self.down` is true while the creature is flipped or lying flat and `self.downFor` is how many seconds that has lasted (`if (self.downFor > 3) self.reset()` stands it back up); `self.outside` and `self.reset()` work as for agents. By default it can return nothing and the oscillator drives the legs. It may return `{ joints: { 'FL.hip': 0.3, ... } }`: target angles in radians by joint name, which replace the oscillator for those joints only (targets are clamped to the joint's `limits`; an unknown name is an error).
+`act` receives `self` (the creature) and `neighbors` (always an empty group for now). It may return `{ joints: { 'FL.hip': 0.3, ... }, state: { ... } }`: target angles in radians by joint name (clamped to the joint's `limits`; an unknown name is an error; a joint left out rests at 0), and new state, as for agents. A creature can have state: `init({ index, count }, p, ctx)` returns it (`{ cycle: 0, flippedFor: 0 }`) and `self.cycle` reads it.
 
-`self` has `x, y, z`, `vx, vy, vz`, `position`, `velocity` (vectors), `speed` (horizontal), `travelled` (horizontal distance walked), `forward` (vector the torso faces), `up` (a vector: `up.y` is 1 standing, 0 on its side, -1 upside down), `yaw` (heading in radians: 0 faces +x and it grows toward -z, a counter-clockwise turn seen from above), `row` (a stable index), `joints` and `touch` (if the body declares those sensors) and `gait`: what the oscillator wants every motorized joint to do right now, by name. Scale or mix `self.gait` to steer, e.g. longer strides on the right turn the creature left:
+`self` has `x, y, z`, `vx, vy, vz`, `position`, `velocity` (vectors), `speed` (horizontal), `forward` (vector the torso faces), `up` (a vector: `up.y` is 1 standing, 0 on its side, -1 upside down), `yaw` (heading in radians: 0 faces +x and it grows toward -z, a counter-clockwise turn seen from above), `row` (a stable index), `joints` and `touch` (if the body declares those sensors), and its own state. `self.place({ x, z, yaw })` stands it on the ground there as a fresh body (its state is kept) at the end of the tick. Everything else a walker does is script: swinging the legs with `ctx.gait`, noticing it has been flipped over (count ticks of `self.up.y < 0.3` in state), noticing it fell off the edge (`self.y < -20`), and measuring how far it has walked (remember where it was last tick), as `examples/creature/creature.js` does. To steer, scale some of the targets, e.g. longer strides on the right turn the creature left:
 
 ```js
-const joints = {}
-for (const [name, angle] of Object.entries(self.gait)) {
-  if (name.endsWith('.hip')) joints[name] = angle * (1 + 0.5 * (name.split('.')[0].endsWith('R') ? turn : -turn))
+const joints = ctx.gait.targets(legs, self.cycle)
+for (const name of Object.keys(joints)) {
+  if (name.endsWith('.hip')) joints[name] *= 1 + 0.5 * (name.split('.')[0].endsWith('R') ? turn : -turn)
 }
-return { joints }
+return { joints, state: { cycle: ctx.gait.advance(self.cycle, p.frequency, ctx.dt) } }
 ```
 
-A turn factor above about 0.5 makes the example creature fall over. Creature groups in metrics (`creatures`) answer `.position`, `.velocity` (vector lists), `.speed`, `.travelled` (number lists) and `.isEmpty()`.
+A turn factor above about 0.5 makes the example creature fall over. Creature groups in metrics (`creatures`) answer `.position`, `.velocity` (vector lists), `.speed` (a number list), each state field as a number list (`creatures.travelled.average()`) and `.isEmpty()`.
 
 ### Parents: a program that runs many sims
 
@@ -316,7 +314,7 @@ Names listed in the scene's `"metrics"` must exist in the script's exported `met
 
 ## Examples
 
-Examples in `examples/` (`life2d` shows the whole-grid `actAll` rule, `neural` per-agent neural networks, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers) and `evolved-creatures` (bodies and neural brains evolve together, a population of sub-sims run by a `parent`). They are the best guide to the expected style: short, named steps, comments that explain the idea.
+Examples in `examples/` (`life2d` shows the whole-grid `actAll` rule, `neural` per-agent neural networks, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the script swings the legs with the stdlib's `Gait` and steers) and `evolved-creatures` (bodies and neural brains evolve together, a population of sub-sims run by a `parent`). They are the best guide to the expected style: short, named steps, comments that explain the idea.
 
 ## experiment.json
 

@@ -172,6 +172,14 @@ Karl Sims' creatures as a demo (`examples/evolved-creatures`, decisions in `docs
 - [x] `examples/evolved-creatures-mujoco` and `scripts/engine-compare.mjs`. First numbers: about 4 times faster per tick, no thrown creatures without an inertia floor. See `docs/decisions/physics-mujoco.md`.
 - [ ] Still to decide: whether it becomes the default for evolution (gait on the four-legged example, creature-creature contact, cross-machine replay).
 
+## M11 — Mechanisms in the engine, behavior in scripts
+
+See `docs/decisions/engine-mechanisms-only.md`.
+
+- [x] Removed from the core for creatures and agents: fence and `onLeave`, `self.reset()`, fall detection, the distance counter, the built-in oscillator (`drive`, `oscillator`, `self.gait`). Added `self.place(...)`, creature state, and the stdlib's `Gait` (`ctx.gait`). Examples and docs migrated.
+- [ ] Free agents' soft and clamped bounds move to the stdlib the same way.
+- [ ] Ready-made controllers in the stdlib that scripts extend (a walker, a flocker), once the helpers are settled.
+
 ## Later
 
 Not started:

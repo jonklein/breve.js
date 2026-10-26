@@ -55,9 +55,6 @@
       "name": "robot",
       "count": "$count",
       "controller": "urdf-bot.js",
-      "fence": {
-        "floor": -20
-      },
       "body": {
         "parts": [
           {

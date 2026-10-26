@@ -71,8 +71,8 @@ test('creatures stand on the terrain and walk: they cover ground, stay upright a
   sim.dispose()
 })
 
-test('without the oscillator drive a creature just stands', async () => {
-  const { scene } = await load({ count: 1, stride: 0, lift: 0 })
+test('with no script a creature just stands, its joints at rest', async () => {
+  const { scene } = await load({ count: 1 })
   const sim = await Sim.create(scene)
   const c = cols(sim)
   run(sim, 240)
@@ -98,14 +98,14 @@ test('act() can return joint targets; unknown joint names are reported', async (
   pin.dispose()
 })
 
-test('the script sees the oscillator output and the declared sensors', async () => {
+test('the script sees the declared sensors: joint angles and which feet touch', async () => {
   const { scene } = await load({ count: 1 })
-  let gait: Record<string, number> = {}
+  let joints: Record<string, number> = {}
   let touch: Record<string, boolean> = {}
-  const sim = await Sim.create(scene, { default: { act: ({ self }) => { gait = self.gait; touch = self.touch } } })
+  const sim = await Sim.create(scene, { default: { act: ({ self }) => { joints = self.joints; touch = self.touch } } })
   run(sim, 90)
-  assert.deepEqual(Object.keys(gait).sort(), ['FL.hip', 'FR.hip', 'HL.hip', 'HR.hip', 'FL.knee', 'FR.knee', 'HL.knee', 'HR.knee'].sort())
-  assert.ok(Math.abs(gait['FL.hip']) <= 0.7 + 1e-9)
+  assert.deepEqual(Object.keys(joints).sort(), ['FL.hip', 'FR.hip', 'HL.hip', 'HR.hip', 'FL.knee', 'FR.knee', 'HL.knee', 'HR.knee'].sort())
+  assert.ok(Object.values(joints).every((a) => Math.abs(a) < 0.3), 'with every target at rest the legs hang straight')
   assert.deepEqual(Object.keys(touch).sort(), ['FL.lower', 'FR.lower', 'HL.lower', 'HR.lower'].sort())
   assert.ok(Object.values(touch).some(Boolean), 'a standing creature has a foot on the ground')
   sim.dispose()
@@ -115,7 +115,20 @@ test('steering by stride works: more stride on one side turns the creature that 
   const { scene } = await load({ count: 8 })
   const meanTurn = async (sign: number) => {
     const sim = await Sim.create(structuredClone(scene), {
-      default: { act: ({ self }) => ({ joints: Object.fromEntries(Object.entries(self.gait as Record<string, number>).filter(([n]) => n.endsWith('.hip')).map(([n, a]) => [n, a * (1 + 0.5 * sign * (n.split('.')[0].endsWith('R') ? 1 : -1))])) }) },
+      default: {
+        init: () => ({ cycle: 0 }),
+        act: ({ self }, _p, ctx) => {
+          // a trot from the stdlib's Gait: diagonal legs together, with longer hip strides on one side
+          const legs: Record<string, object> = {}
+          for (const [leg, phase] of [['FL', 0], ['FR', 0.5], ['HL', 0.5], ['HR', 0]] as const) {
+            legs[`${leg}.hip`] = { amplitude: 0.7, phase }
+            legs[`${leg}.knee`] = { amplitude: 0.8, offset: -0.9, phase, lag: 0.4 }
+          }
+          const joints = ctx.gait.targets(legs, self.cycle)
+          for (const n of Object.keys(joints)) if (n.endsWith('.hip')) joints[n] *= 1 + 0.5 * sign * (n.split('.')[0].endsWith('R') ? 1 : -1)
+          return { joints, state: { cycle: ctx.gait.advance(self.cycle, 3, ctx.dt) } }
+        },
+      },
     })
     const c = cols(sim)
     const yaw = (i: number) => Math.atan2(-2 * (c.qx[i] * c.qz[i] - c.qw[i] * c.qy[i]), 1 - 2 * (c.qy[i] ** 2 + c.qz[i] ** 2))
@@ -162,7 +175,6 @@ test('editing the creature count or a param on a running sim keeps it going; edi
   taller.entities[0].body!.parts[0].size = [1.2, 0.25, 0.45]
   sim.setScene(taller)
   assert.equal(sim.table.size, 2)
-  assert.equal(cols(sim).travelled[0], 0, 'a new body means new creatures')
   run(sim, 30)
   assert.deepEqual(sim.takeErrors(), [])
   sim.dispose()

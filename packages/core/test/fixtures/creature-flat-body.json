@@ -145,10 +145,6 @@
       "motor": {
         "stiffness": "$strength",
         "damping": 8
-      },
-      "drive": {
-        "amplitude": "$stride",
-        "phase": 0
       }
     },
     {
@@ -167,12 +163,6 @@
       "motor": {
         "stiffness": "$strength",
         "damping": 8
-      },
-      "drive": {
-        "amplitude": "$lift",
-        "offset": -0.9,
-        "phase": 0,
-        "lag": "$kneeLag"
       }
     },
     {
@@ -191,10 +181,6 @@
       "motor": {
         "stiffness": "$strength",
         "damping": 8
-      },
-      "drive": {
-        "amplitude": "$stride",
-        "phase": "$diagonal"
       }
     },
     {
@@ -213,12 +199,6 @@
       "motor": {
         "stiffness": "$strength",
         "damping": 8
-      },
-      "drive": {
-        "amplitude": "$lift",
-        "offset": -0.9,
-        "phase": "$diagonal",
-        "lag": "$kneeLag"
       }
     },
     {
@@ -237,10 +217,6 @@
       "motor": {
         "stiffness": "$strength",
         "damping": 8
-      },
-      "drive": {
-        "amplitude": "$stride",
-        "phase": "$diagonal"
       }
     },
     {
@@ -259,12 +235,6 @@
       "motor": {
         "stiffness": "$strength",
         "damping": 8
-      },
-      "drive": {
-        "amplitude": "$lift",
-        "offset": -0.9,
-        "phase": "$diagonal",
-        "lag": "$kneeLag"
       }
     },
     {
@@ -283,10 +253,6 @@
       "motor": {
         "stiffness": "$strength",
         "damping": 8
-      },
-      "drive": {
-        "amplitude": "$stride",
-        "phase": "$hindOffset"
       }
     },
     {
@@ -305,12 +271,6 @@
       "motor": {
         "stiffness": "$strength",
         "damping": 8
-      },
-      "drive": {
-        "amplitude": "$lift",
-        "offset": -0.9,
-        "phase": "$hindOffset",
-        "lag": "$kneeLag"
       }
     }
   ],

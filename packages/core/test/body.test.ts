@@ -17,7 +17,7 @@ const small = (): BodyDef => ({
     { name: 'torso', shape: 'box', size: [1, 0.2, 0.5], mass: 2, position: [0, 1, 0] },
     { name: 'arm', shape: 'capsule', size: [0.4, 0.05], mass: 0.2, position: [0.7, 1, 0] },
   ],
-  joints: [{ name: 'shoulder', parent: 'torso', child: 'arm', anchor: [0.5, 1, 0], axis: [0, 0, 1], limits: [-1, 1], motor: { stiffness: 50, damping: 4 }, drive: { amplitude: 0.5, phase: 0.25 } }],
+  joints: [{ name: 'shoulder', parent: 'torso', child: 'arm', anchor: [0.5, 1, 0], axis: [0, 0, 1], limits: [-1, 1], motor: { stiffness: 50, damping: 4 } }],
 })
 
 const errors = (b: unknown): string => {
@@ -76,7 +76,7 @@ test('joints must name real parts and form a tree under the first part', () => {
   assert.match(errors(dup), /duplicate part name "torso"/)
 })
 
-test('joint details: limits order, zero axis, motors only on hinges, drives get a default motor', () => {
+test('joint details: limits order, zero axis, motors only on hinges, no motor is fine', () => {
   const a = small()
   a.joints![0].limits = [1, -1]
   assert.match(errors(a), /joints\.0\.limits: the first number must be less than the second/)
@@ -88,19 +88,20 @@ test('joint details: limits order, zero axis, motors only on hinges, drives get 
   assert.match(errors(c), /only hinge joints have "motor"/)
   const d = small()
   delete d.joints![0].motor
-  assert.equal(validateBody(d).ok, true, 'a drive without its own motor uses the default one')
+  assert.equal(validateBody(d).ok, true, 'a joint with no motor is a free hinge')
 })
 
-test('inside a scene, drives and motors may only name params that exist', () => {
+test('inside a scene, motors may only name params that exist, and the removed drive, oscillator and fence say where they went', () => {
   const s = example()
-  s.entities[0].body.templates.leg.joints[0].drive.amplitude = '$nope'
+  s.entities[0].body.templates.leg.joints[0].motor = { stiffness: '$nope' }
   const r = parseScene(JSON.stringify(s))
   assert.equal(r.ok, false)
-  assert.match(r.ok ? '' : r.errors.join('\n'), /entities\.0\.body\.joints\.0\.drive\.amplitude: unknown param "\$nope"/)
+  assert.match(r.ok ? '' : r.errors.join('\n'), /entities\.0\.body\.joints\.0\.motor\.stiffness: unknown param "\$nope"/)
 
-  const t = example()
-  t.entities[0].oscillator = { frequency: '$missing' }
-  assert.match(String((parseScene(JSON.stringify(t)) as { errors?: string[] }).errors), /oscillator\.frequency: unknown param "\$missing"/)
+  const gone = (mutate: (s: any) => void) => { const t = example(); mutate(t); const x = parseScene(JSON.stringify(t)); return x.ok ? '' : x.errors.join('\n') }
+  assert.match(gone((t) => { t.entities[0].oscillator = { frequency: 1 } }), /"oscillator" is gone: swing the joints from the script/)
+  assert.match(gone((t) => { t.entities[0].fence = { floor: -20 } }), /"fence" is gone: check where it is in the script/)
+  assert.match(gone((t) => { t.entities[0].body.templates.leg.joints[0].drive = { amplitude: 1 } }), /"drive" is gone: swing the joint from the script/)
 })
 
 test('scene-level terrain and physics are validated too', () => {

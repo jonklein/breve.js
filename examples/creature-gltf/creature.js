@@ -1,28 +1,41 @@
 // Creatures: four-legged walkers on bumpy ground.
 //
-// The legs already walk by themselves: every leg joint in scene.json has a "drive", and the built-in
-// oscillator swings them in a rhythm (try the phase sliders for other gaits). That walks in a
-// straight line, so this script only steers.
+// The legs swing in a rhythm that this script works out each tick (the stdlib's Gait: a sine per joint, started at
+// different points of one shared cycle; try the phase sliders for other gaits). The script keeps its place in the cycle in its
+// own state, so changing the step rate never makes the legs jump. That walks in a straight line, so the script also steers:
 //
 //   wander    each creature slowly changes its mind about where to go
 //   go home   too far from the middle? head back
 //   turn      take longer strides on one side than the other
 //
-// self.gait is what the oscillator wants each joint to do right now. Returning
-// { joints: { name: angle } } overrides those motors; any joint you leave out keeps its gait.
-//
-// Falling over: scene.json sets a fence 20 units under the ground, and onLeave runs when a creature
-// crosses it. A creature that has been down (flipped or flat) for 3 seconds gets stood up the same way.
-// self.reset() puts a creature back at its starting place at the end of the tick.
+// A joint the script leaves out rests at 0. Everything else the world might do for a creature is done here too:
+// a creature that has been flipped over for 3 seconds, or has fallen off the edge, is stood up somewhere new with self.place().
+
+const SECOND = 60 // ticks
+
+// which point of the cycle each leg starts at (diagonal pairs move together), and the shape of a leg's hip and knee swing
+function legs(p) {
+  const out = {}
+  for (const [leg, phase] of [['FL', 0], ['FR', p.diagonal], ['HL', p.diagonal], ['HR', p.hindOffset]]) {
+    out[`${leg}.hip`] = { amplitude: p.stride, phase }
+    out[`${leg}.knee`] = { amplitude: p.lift, offset: -0.9, phase, lag: p.kneeLag }
+  }
+  return out
+}
 
 export default {
-  // walked off the edge of the world
-  onLeave({ self }) {
-    self.reset()
-  },
+  // what each creature remembers: where it is in the step cycle, and how long it has been flipped over
+  init: () => ({ cycle: 0, flippedFor: 0, started: false, travelled: 0, lastX: 0, lastZ: 0 }),
 
   act({ self }, p, ctx) {
-    if (self.downFor > 3) self.reset()
+    // a creature that fell off the edge of the world, or lay flipped for 3 seconds, is stood up at a new spot
+    const flippedFor = self.up.y < 0.3 ? self.flippedFor + 1 : 0
+    let placed = null
+    if (flippedFor > 3 * SECOND || self.y < -20) {
+      const spot = () => (ctx.random() * 2 - 1) * p.radius
+      placed = { x: spot(), z: spot() }
+      self.place({ ...placed, yaw: ctx.random() * 2 * Math.PI })
+    }
 
     // where do I want to go? an angle, 0 = +x, growing toward -z (the same as self.yaw)
     let want = self.row * 2.4 + p.wander * 1.5 * Math.sin(ctx.tick * 0.002 * (1 + (self.row % 3)))
@@ -33,14 +46,24 @@ export default {
     const turn = Math.max(-1, Math.min(1, off * p.steering))
 
     // longer strides on the right turn me left, and the other way around
-    const joints = {}
-    for (const [name, angle] of Object.entries(self.gait)) {
+    const joints = ctx.gait.targets(legs(p), self.cycle)
+    for (const name of Object.keys(joints)) {
       const [leg, joint] = name.split('.') // joint names look like "FL.hip": front-left leg, hip joint
-      if (joint !== 'hip') continue
-      const rightSide = leg.endsWith('R')
-      joints[name] = angle * (1 + 0.5 * (rightSide ? turn : -turn))
+      if (joint === 'hip') joints[name] *= 1 + 0.5 * (leg.endsWith('R') ? turn : -turn)
     }
-    return { joints }
+
+    return {
+      joints,
+      state: {
+        cycle: ctx.gait.advance(self.cycle, p.frequency, ctx.dt),
+        flippedFor: placed ? 0 : flippedFor,
+        started: true,
+        // distance walked: each tick's step, but not the jump when it is stood up somewhere new
+        travelled: self.travelled + (self.started && !placed ? Math.hypot(self.x - self.lastX, self.z - self.lastZ) : 0),
+        lastX: placed ? placed.x : self.x,
+        lastZ: placed ? placed.z : self.z,
+      },
+    }
   },
 }
 

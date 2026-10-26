@@ -22,7 +22,13 @@ const params = paramValues(scene)
 const def = scene.entities.find((e) => e.body)
 const { body } = buildBody(def.body, params, 'body', null)
 const TAU = Math.PI * 2
-const freq = resolve(def.oscillator?.frequency, params, 1)
+// the rhythm each leg joint follows (bodies no longer carry a drive: this is what examples/creature/creature.js asks of them)
+const gaitFor = (name) => {
+  const [leg, joint] = name.split('.')
+  const phase = { FL: 0, FR: params.diagonal, HL: params.diagonal, HR: params.hindOffset }[leg]
+  return joint === 'hip' ? { amplitude: params.stride, phase } : { amplitude: params.lift, offset: -0.9, phase, lag: params.kneeLag }
+}
+const freq = params.frequency ?? 1 // the example's step rate param
 
 // ---- the same body as MJCF (our y-up becomes MuJoCo's z-up: (x, y, z) -> (x, -z, y)) ----
 const up = ([x, y, z]) => [x, -z, y]
@@ -74,7 +80,7 @@ function mjRun() {
   for (let t = 0; t < TICKS; t++) {
     for (const s of sims) {
       driven.forEach((j, k) => {
-        const d = j.drive ?? {}
+        const d = gaitFor(j.name)
         s.data.ctrl[k] = resolve(d.offset, params, 0) + resolve(d.amplitude, params, 0) * Math.sin(TAU * (phase + resolve(d.phase, params, 0) - resolve(d.lag, params, 0)))
       })
       for (let k = 0; k < SUBSTEPS; k++) mujoco.mj_step(s.model, s.data)

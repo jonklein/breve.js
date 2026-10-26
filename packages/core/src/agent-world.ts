@@ -2,6 +2,7 @@ import { Picture } from './image'
 import { Agent, type AgentCols } from './agents'
 import { looksOf, looksOfAll } from './display'
 import { initResult } from './init-shape'
+import { writeState } from './state-columns'
 import type { Controller } from './world'
 import { Agents, Field, type NeighborTable } from '@breve/stdlib'
 import { resolve, type StateField } from './scene'
@@ -14,7 +15,6 @@ const SCHEMA = {
   px: 'f32', py: 'f32', pz: 'f32',
   vx: 'f32', vy: 'f32', vz: 'f32',
   ax: 'f32', ay: 'f32', az: 'f32',
-  out: 'f32',
 } as const
 
 type Cols = Record<keyof typeof SCHEMA, Float32Array>
@@ -39,7 +39,8 @@ export class AgentWorld implements World {
   private gridItems = new Int32Array(0)
   private cellOf = new Int32Array(0)
   /** Bumped whenever positions change, so the grid knows when it is out of date. */
-  resets = new Set<number>()
+  /** `place` calls scripts made this tick, carried out at its end. */
+  placements = new Map<number, { position: [number, number, number] | null; velocity: [number, number, number] | null }>()
   private moved = 1
   private builtAt = 0
 
@@ -79,7 +80,6 @@ export class AgentWorld implements World {
     c.vx[r] = Math.cos(th) * s * sp
     c.vy[r] = def.motion?.plane === 'xz' ? 0 : u * sp
     c.vz[r] = Math.sin(th) * s * sp
-    c.out[r] = 0
     for (const f of this.extra) this.table.cols[f.name].fill((f.kind === 'string' ? '' : 0) as never, r * f.length, (r + 1) * f.length)
     this.placeNew(r, count)
   }
@@ -108,10 +108,8 @@ export class AgentWorld implements World {
     class Stateful extends Agent {
       /** This agent's id: what relations store (`ctx.relations.get('follows').add(self.id, other.id)`). */
       get id(): number { return table.idAt(this.row) }
-      /** True while beyond the set's `fence`. */
-      get outside(): boolean { return table.cols.out[this.row] !== 0 }
-      /** Put it back at its starting place and state. Happens at the end of the tick. */
-      reset(): void { world.resets.add(this.row) }
+      /** Move it (a position, and optionally a velocity, as vectors or `[x, y, z]`), keeping its state. Happens at the end of the tick. */
+      place(at: { position?: Parameters<typeof toVec>[0]; velocity?: Parameters<typeof toVec>[0] }): void { world.queuePlace(this.row, at) }
       /** The cell of the first lattice layer under this agent, or null when it is outside the grid or there is no layer. */
       /** The cell at an offset from this agent (a vector), or null off the grid: `self.patchAt(heading.times(3))`. */
       patchAt(offset: Parameters<typeof toVec>[0]): unknown | null { const o = toVec(offset); return world.layer()?.patchAt(this.x + o.x, this.y + o.y, this.z + o.z) ?? null }
@@ -157,19 +155,7 @@ export class AgentWorld implements World {
   }
 
   private writeState(row: number, state: Record<string, unknown>, where = 'act'): void {
-    for (const [name, v] of Object.entries(state)) {
-      const f = this.extra.find((x) => x.name === name)
-      if (!f) { this.host.fail(where, new Error(`state "${name}" does not exist: a set's state is what its init returns`)); continue }
-      const col = this.table.cols[name]
-      if (f.kind === 'string') { (col as unknown as string[])[row] = String(v); continue }
-      if (f.kind === 'boolean') { col[row] = v ? 1 : 0; continue }
-      const vals = typeof v === 'number' ? [v] : Array.isArray(v) || ArrayBuffer.isView(v) ? Array.from(v as ArrayLike<number>) : null
-      if (!vals || vals.length !== f.length || vals.some((x) => !Number.isFinite(x))) {
-        this.host.fail(where, new Error(`state "${name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`))
-        continue
-      }
-      for (let k = 0; k < f.length; k++) col[row * f.length + k] = f.type === 'i32' ? Math.round(vals[k]) : vals[k]
-    }
+    writeState(this.table, this.extra, row, state, where, (w, e) => this.host.fail(w, e))
   }
 
   private makeGroupClass(): new (origin: Agent | null) => Agents {
@@ -329,7 +315,7 @@ export class AgentWorld implements World {
       }
     }
     this.moved++
-    this.fence(setCtrl)
+    this.placeQueued()
   }
 
   /** Neighbors within `radius` of every agent in the fixed-width table `Field` works on (back to back, so each agent has `start[i]` onward). */
@@ -388,25 +374,26 @@ export class AgentWorld implements World {
     }
   }
 
-  /** Fire `onLeave` for agents that just crossed the fence, then carry out queued resets. */
-  private fence(ctrl: Controller | undefined): void {
-    const f = this.host.def.fence
-    const c = this.cols
-    if (f) {
-      const { params } = this.host
-      const size = resolve(f.size, params, Infinity), floor = resolve(f.floor, params, -Infinity)
-      const ctx = this.host.ctx()
-      for (let i = 0; i < this.table.size; i++) {
-        const out = Math.abs(c.px[i]) > size || Math.abs(c.pz[i]) > size || Math.abs(c.py[i]) > size || c.py[i] < floor
-        if (out && !c.out[i] && ctrl?.onLeave) {
-          try { ctrl.onLeave({ self: this.handles[i] }, params, ctx) } catch (e) { this.host.fail('onLeave', e) }
-        }
-        c.out[i] = out ? 1 : 0
-      }
+  queuePlace(row: number, at: { position?: Parameters<typeof toVec>[0]; velocity?: Parameters<typeof toVec>[0] }): void {
+    const triple = (v: Parameters<typeof toVec>[0] | undefined): [number, number, number] | null => {
+      if (v === undefined) return null
+      const t = toVec(v)
+      return Number.isFinite(t.x + t.y + t.z) ? [t.x, t.y, t.z] : null
     }
-    for (const i of [...this.resets].sort((a, b) => a - b)) if (i < this.table.size) this.place(i, this.table.size)
-    this.resets.clear()
-    if (this.resets.size === 0) this.moved++
+    this.placements.set(row, { position: triple(at.position), velocity: triple(at.velocity) })
+  }
+
+  /** Carry out the `place` calls scripts made this tick. */
+  private placeQueued(): void {
+    const c = this.cols
+    const flat = this.host.def.motion?.plane === 'xz'
+    for (const [i, at] of [...this.placements].sort((a, b) => a[0] - b[0])) {
+      if (i >= this.table.size) continue
+      if (at.position) { c.px[i] = at.position[0]; c.py[i] = flat ? 0 : at.position[1]; c.pz[i] = at.position[2] }
+      if (at.velocity) { c.vx[i] = at.velocity[0]; c.vy[i] = flat ? 0 : at.velocity[1]; c.vz[i] = at.velocity[2] }
+    }
+    this.placements.clear()
+    this.moved++
   }
 
   frame(): FrameData {

@@ -30,18 +30,6 @@ export interface PartDef {
   friction?: number
 }
 
-/** The built-in oscillator (a central pattern generator): target angle = offset + amplitude * sin(2 pi (t * frequency + phase)). */
-export interface DriveDef {
-  /** Radians. */
-  amplitude?: NumOrParam
-  /** Fraction of a cycle (0.5 = half a cycle behind or ahead). */
-  phase?: NumOrParam
-  /** Radians. The angle the joint swings around. */
-  offset?: NumOrParam
-  /** Cycles this joint trails behind, a fixed lag on top of `phase` (a knee that bends a quarter cycle after its hip). */
-  lag?: NumOrParam
-}
-
 /** What a hinge motor does: chase a target like a spring with damping, within limits on how hard and how fast. */
 export interface MotorDef {
   /** Torque per radian of error. */
@@ -66,10 +54,8 @@ export interface JointDef {
   axis?: Vec3Tuple
   /** Hinge angle range in radians. */
   limits?: [number, number]
-  /** A motor makes the joint chase a target angle like a spring with damping (torque per radian, torque per radian per second). */
+  /** A motor makes the joint chase a target angle like a spring with damping (torque per radian, torque per radian per second). Its target is 0 unless `act` returns one by joint name. Say `"motor": {}` to take the body's default motor. */
   motor?: MotorDef
-  /** Oscillator settings for this joint's motor. Without it the target stays at the joint's rest angle (0) unless `act` sets it. */
-  drive?: DriveDef
 }
 
 /** What a creature can sense; `act` only sees what is declared. */
@@ -112,7 +98,7 @@ export interface AttachDef {
 
 /** The compact form you write: the flat body plus templates, attachments, and a default motor. */
 export interface BodyInput extends BodyDef {
-  /** Default motor for every joint with a `drive` that doesn't give its own. */
+  /** Default for every joint's `motor` (a joint's own values win). */
   motor?: MotorDef
   templates?: Record<string, TemplateDef>
   attach?: AttachDef[]
@@ -169,11 +155,6 @@ const jointItem = {
       type: 'object',
       additionalProperties: false,
       properties: { stiffness: numOrParamOrArg, damping: numOrParamOrArg, maxTorque: numOrParamOrArg, maxSpeed: numOrParamOrArg },
-    },
-    drive: {
-      type: 'object',
-      additionalProperties: false,
-      properties: { amplitude: numOrParamOrArg, phase: numOrParamOrArg, offset: numOrParamOrArg, lag: numOrParamOrArg },
     },
   },
 } as const
@@ -258,13 +239,11 @@ export function checkBody(body: BodyDef, where: string, params: Set<string> | nu
     parentOf.set(j.child, j.parent)
     const type = j.type ?? 'hinge'
     if (type !== 'hinge') {
-      for (const k of ['axis', 'limits', 'motor', 'drive'] as const) if (j[k] !== undefined) errors.push(`${w}.${k}: only hinge joints have "${k}"`)
+      for (const k of ['axis', 'limits', 'motor'] as const) if (j[k] !== undefined) errors.push(`${w}.${k}: only hinge joints have "${k}"`)
     }
     if (j.axis && Math.hypot(...j.axis) < 1e-6) errors.push(`${w}.axis: must not be all zeros`)
     if (j.limits && !(j.limits[0] < j.limits[1])) errors.push(`${w}.limits: the first number must be less than the second`)
-    if (j.drive && !j.motor) errors.push(`${w}.drive: the oscillator needs a "motor" on the same joint to push with`)
     const refs: [string, NumOrParam | undefined][] = [
-      ...(['amplitude', 'phase', 'offset', 'lag'] as const).map((k): [string, NumOrParam | undefined] => [`drive.${k}`, j.drive?.[k]]),
       ['motor.stiffness', j.motor?.stiffness],
       ['motor.damping', j.motor?.damping],
       ['motor.maxTorque', j.motor?.maxTorque],
@@ -304,7 +283,10 @@ export function validateBody(data: unknown, params: Params = {}): BodyResult {
         .filter((e) => e.keyword !== 'anyOf')
         .map((e) => {
           const where = e.instancePath ? 'body.' + e.instancePath.slice(1).replace(/\//g, '.') : 'body'
-          if (e.keyword === 'additionalProperties') return `${where}: unknown property "${(e.params as { additionalProperty: string }).additionalProperty}"`
+          if (e.keyword === 'additionalProperties') {
+            const prop = (e.params as { additionalProperty: string }).additionalProperty
+            return prop === 'drive' ? `${where}: "drive" is gone: swing the joint from the script, for example \`act({ self }, p, ctx) { return { joints: { hip: 0.5 * Math.sin(ctx.tick / 10) } } }\`, or use the stdlib's \`Gait\``  : `${where}: unknown property "${prop}"`
+          }
           if (e.keyword === 'required') return `${where}: missing "${(e.params as { missingProperty: string }).missingProperty}"`
           return `${where}: ${e.message}`
         }),
@@ -319,7 +301,7 @@ const round = (v: number) => Math.round(v * 1e9) / 1e9
 /**
  * Turn the compact form into the flat body the engine uses: every attached template becomes real
  * parts and joints, named `<attach name>.<template name>`, in the order attached. Bodies with no
- * templates pass through (a joint with a `drive` still gets the body's default motor).
+ * templates pass through (a joint's `motor` is filled in from the body's default motor).
  */
 export function expandBody(input: BodyInput, where: string): { body: BodyDef; errors: string[] } {
   const errors: string[] = []
@@ -370,12 +352,12 @@ export function expandBody(input: BodyInput, where: string): { body: BodyDef; er
     }
   })
 
-  // a joint with a drive gets the default motor, so legs don't each repeat it
-  for (const j of joints) if (j.drive && !j.motor) j.motor = { ...input.motor }
+  // the body's default motor fills in what a joint's own leaves out, so legs don't each repeat it
+  for (const j of joints) if (j.motor) j.motor = { ...input.motor, ...j.motor }
   return { body: { parts, joints, ...(input.sensors ? { sensors: input.sensors } : {}) }, errors }
 }
 
-/** Work out every `$param` expression in the body's geometry (sizes, positions, masses, anchors, axes, limits, attach points). Drive and motor fields are left for the engine to read live. */
+/** Work out every `$param` expression in the body's geometry (sizes, positions, masses, anchors, axes, limits, attach points). Motor fields are left for the engine to read live. */
 export function resolveGeometry(input: BodyInput, params: Params, where: string): BodyInput {
   const n = (v: unknown, w: string) => evalNumber(v as number | string, params, w)
   const vec = (v: unknown, w: string) => (v as unknown[]).map((x, i) => n(x, `${w}.${i}`)) as number[]

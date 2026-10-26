@@ -42,19 +42,19 @@ test('at and box together are rejected', () => {
   assert.equal(r.ok, false)
 })
 
-test('a fence fires onLeave once per crossing, and self.reset() sends the agent back to its start', () => {
-  const sc = scene({ at: [0, 0, 0], velocity: [30, 0, 0] }, { fence: { size: 2 }, motion: { maxSpeed: 40 } })
+test('self.place() moves an agent (and gives it a new velocity) at the end of the tick, and keeps its state', () => {
+  const sc = scene({ at: [0, 0, 0], velocity: [30, 0, 0] }, { motion: { maxSpeed: 40 } })
   sc.bounds = { size: 100, mode: 'clamp' }
-  const left: number[] = []
   const s = new Sim(sc, {
     default: {
-      onLeave: ({ self }) => { left.push(s.tick); self.reset() },
-      act: () => ({}),
+      init: () => ({ sent: 0 }),
+      // the script is the fence: past x = 2 it sends the agent back to the start, counting how often
+      act: ({ self }) => (self.x > 2 ? (self.place({ position: [0, 0, 0], velocity: [30, 0, 0] }), { state: { sent: self.sent + 1 } }) : {}),
     },
   })
   for (let i = 0; i < 30; i++) s.step()
-  assert.ok(left.length >= 2, `crossed ${left.length} times`)
-  assert.ok(new Set(left).size === left.length || left.length > 0)
+  const sent = Array.from(s.table.cols.sent as Float64Array).slice(0, 20)
+  assert.ok(sent.every((n) => n >= 2), `each agent was sent back ${sent.join(',')} times`)
   const x = Array.from(s.table.cols.px as Float32Array).slice(0, 20)
   assert.ok(x.every((v) => Math.abs(v) < 2.6), 'everyone was sent back near the start')
 })

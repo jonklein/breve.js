@@ -1,7 +1,7 @@
 import type { Picture } from './image'
 import type { ModelHandle } from './inference'
 import type { Relations } from './relations'
-import type { Colors, Mlp } from '@breve/stdlib'
+import type { Colors, Gait, Mlp } from '@breve/stdlib'
 import type { Look } from './display'
 import type { Rng } from './rng'
 import type { EntityDef, Params, Scene, StateField } from './scene'
@@ -46,6 +46,8 @@ export interface Ctx {
   readonly relations: Relations
   /** Colors for `display`: `ctx.colors.ramp(['#4f86f7', '#7be495'], age / 20)`, `ctx.colors.hsl(h, s, l)`, `ctx.colors.hex('#48f')`, and `ctx.colors.rampField(stops, field)` for `displayAll`. */
   readonly colors: typeof Colors
+  /** Rhythmic joint targets for creatures: `ctx.gait.targets({ 'FL.hip': { amplitude: 0.7 } }, cycle)` and `ctx.gait.advance(cycle, frequency, ctx.dt)`. */
+  readonly gait: typeof Gait
   /** The scene's `data`: structured, fixed input that is not a slider (a genome, a list of weights). Read-only. */
   readonly data: Readonly<Record<string, unknown>>
   /** A small neural network of the given layer sizes: `const brain = ctx.mlp([6, 5, 3])`, then `brain.run(self.weights, inputs)`. */
@@ -124,11 +126,6 @@ export interface Controller {
    * written to state exactly like `think`'s, so replaying a log needs neither the model nor its runtime.
    */
   thinkAll?(obs: { self: any; neighbors: any }[], params: Params, ctx: ThinkCtx): Promise<unknown[]>
-  /**
-   * Called once when an entity crosses the set's `fence`. Do something about it here, usually `self.reset()`.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onLeave?(obs: { self: any }, params: Params, ctx: Ctx): void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   act?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
   /**
@@ -158,7 +155,7 @@ export interface MetricInput {
   /** Every node of a network, as a group: `nodes.status.sum()`. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   nodes?: any
-  /** Every creature in a physics scene, as a group: `creatures.travelled.average()`. */
+  /** Every creature in a physics scene, as a group: `creatures.speed.average()`. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   creatures?: any
   count: number

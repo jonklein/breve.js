@@ -49,22 +49,23 @@ test('mistakes in templates are reported where they were made', () => {
   assert.match(expandBody({ ...base, attach: [{ template: 'nope', name: 'x' }] }, 'body').errors.join(), /attach\.0\.template: unknown template "nope"/)
   const needsArg: BodyInput = {
     ...base,
-    templates: { t: { parts: [{ name: 'p', shape: 'box', size: [1, 1, 1], mass: 1, position: [0, 0, 0] }], joints: [{ name: 'j', parent: '^', child: 'p', anchor: [0, 0, 0], drive: { phase: '@phase' } }] } },
+    templates: { t: { parts: [{ name: 'p', shape: 'box', size: [1, 1, 1], mass: 1, position: [0, 0, 0] }], joints: [{ name: 'j', parent: '^', child: 'p', anchor: [0, 0, 0], motor: { stiffness: '@power' } }] } },
     attach: [{ template: 't', name: 'x' }],
   }
-  assert.match(expandBody(needsArg, 'body').errors.join(), /needs a value for "phase"/)
+  assert.match(expandBody(needsArg, 'body').errors.join(), /needs a value for "power"/)
   assert.match(expandBody({ ...base, attach: [{ template: 'nope', name: 'x', to: 'ghost' }] }, 'body').errors.join(), /unknown/)
 })
 
-test('a drive without its own motor gets the body default, and a plain body passes through unchanged', () => {
+test('a joint\'s motor is filled in from the body default, its own values win, and a joint without one stays free', () => {
   const body: BodyInput = {
     motor: { stiffness: 50 },
-    parts: [{ name: 'a', shape: 'box', size: [1, 1, 1], mass: 1, position: [0, 1, 0] }, { name: 'b', shape: 'box', size: [1, 1, 1], mass: 1, position: [1, 1, 0] }],
-    joints: [{ name: 'j', parent: 'a', child: 'b', anchor: [0.5, 1, 0], drive: { amplitude: 0.3 } }],
+    parts: [{ name: 'a', shape: 'box', size: [1, 1, 1], mass: 1, position: [0, 1, 0] }, { name: 'b', shape: 'box', size: [1, 1, 1], mass: 1, position: [1, 1, 0] }, { name: 'c', shape: 'box', size: [1, 1, 1], mass: 1, position: [-1, 1, 0] }],
+    joints: [{ name: 'j', parent: 'a', child: 'b', anchor: [0.5, 1, 0], motor: {} }, { name: 'k', parent: 'a', child: 'c', anchor: [-0.5, 1, 0], motor: { stiffness: 9 } }],
   }
   const r = validateBody(body)
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
   assert.deepEqual(r.ok ? r.body.joints![0].motor : null, { stiffness: 50 })
+  assert.deepEqual(r.ok ? r.body.joints![1].motor : null, { stiffness: 9 })
 })
 
 test('geometry can be arithmetic on params, and the creature is rebuilt when a param changes', async () => {

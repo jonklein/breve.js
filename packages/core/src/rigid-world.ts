@@ -1,7 +1,9 @@
 import { buildBody, MOTOR_DEFAULTS, type BodyDef, type PartDef } from './body'
-import { resolve } from './scene'
+import { initResult } from './init-shape'
+import { defineGroupGetters, defineStateGetters, writeState } from './state-columns'
+import { resolve, type StateField } from './scene'
 import { spawnPosition } from './spawn'
-import { Table, type TableSnapshot } from './store'
+import { Table, type ColumnType, type TableSnapshot } from './store'
 import { Terrain } from './terrain'
 import { Nums, Vec3, Vecs } from '@breve/stdlib'
 import type { Articulation, PhysicsEngine, PhysicsWorld } from './physics/types'
@@ -12,25 +14,14 @@ const SCHEMA = {
   px: 'f32', py: 'f32', pz: 'f32',
   vx: 'f32', vy: 'f32', vz: 'f32',
   qx: 'f32', qy: 'f32', qz: 'f32', qw: 'f32',
-  /** Horizontal distance the torso has covered. f64 so long walks keep their precision. */
-  travelled: 'f64',
-  /** Oscillator phase in cycles, so changing the frequency never makes the legs jump. */
-  phase: 'f64',
-  /** Ticks spent flipped over or flat on the ground. */
-  down: 'f32',
-  out: 'f32',
 } as const
 
-type Cols = Record<keyof typeof SCHEMA, Float64Array>
+type Cols = Record<keyof typeof SCHEMA, Float64Array> & Record<string, Float64Array>
 
 const DT = 1 / 60
 const MAX_CREATURES = 200
 const DEFAULT_PHYSICS = { gravity: 9.81, substeps: 4 }
 const TOUCH_MARGIN = 0.04
-const TAU = Math.PI * 2
-const TICKS_PER_SECOND = 60
-/** Torso height above the ground that counts as collapsed (standing is about 0.6). */
-const DOWN_HEIGHT = 0.22
 
 /** Readable view of one creature. Only valid for the duration of an act() call. */
 export class Creature {
@@ -44,18 +35,10 @@ export class Creature {
   get vz() { return this.c.vz[this.row] }
   get position(): Vec3 { return new Vec3(this.x, this.y, this.z) }
   get velocity(): Vec3 { return new Vec3(this.vx, this.vy, this.vz) }
-  /** True while the torso is tilted over or lying low (see `downFor`). */
-  get down(): boolean { return this.c.down[this.row] > 0 }
-  /** How many seconds it has been down without getting up. */
-  get downFor(): number { return this.c.down[this.row] / TICKS_PER_SECOND }
-  /** True while it is beyond the set's `fence`. */
-  get outside(): boolean { return this.c.out[this.row] !== 0 }
-  /** Put it back on its feet at its starting place (where `spawn` says, or a random spot). Happens at the end of the tick. */
-  reset(): void { this.world.queueReset(this.row) }
+  /** Stand it on the ground at (x, z), facing `yaw` (radians; 0 faces +x), as a fresh body: poses and joint angles start over, its state is kept. Happens at the end of the tick. */
+  place(at: { x: number; z: number; yaw?: number }): void { this.world.queuePlace(this.row, at) }
   /** Horizontal speed. */
   get speed(): number { return Math.hypot(this.vx, this.vz) }
-  /** Horizontal distance covered since the start. */
-  get travelled(): number { return this.c.travelled[this.row] }
   /** The way the torso faces (its local x axis). */
   get forward(): Vec3 {
     const { qx, qy, qz, qw } = this.quat()
@@ -75,21 +58,18 @@ export class Creature {
   get joints(): Record<string, number> { return this.world.jointAngles(this.row) }
   /** Which feet touch the ground by name, if the body declares a `touch` sensor. */
   get touch(): Record<string, boolean> { return this.world.touching(this.row) }
-  /** What the built-in oscillator wants each motor to do right now, by joint name. Scale it, mix it, or ignore it. */
-  get gait(): Record<string, number> { return this.world.gaitTargets(this.row) }
   private quat() {
     const c = this.c, r = this.row
     return { qx: c.qx[r], qy: c.qy[r], qz: c.qz[r], qw: c.qw[r] }
   }
 }
 
-/** A group of creatures: `creatures.travelled.average()`. */
+/** A group of creatures: `creatures.speed.average()`. */
 export class Creatures extends Array<Creature> {
   static get [Symbol.species]() { return Array }
   get position(): Vecs { return Vecs.from(this, (c) => c.position) as Vecs }
   get velocity(): Vecs { return Vecs.from(this, (c) => c.velocity) as Vecs }
   get speed(): Nums { return Nums.from(this, (c) => c.speed) as Nums }
-  get travelled(): Nums { return Nums.from(this, (c) => c.travelled) as Nums }
   isEmpty(): boolean { return this.length === 0 }
 }
 
@@ -101,7 +81,10 @@ interface JointRuntime {
 
 /** Articulated creatures walking on a noise terrain, simulated by a physics engine behind the adapter interface. */
 export class RigidWorld implements World {
-  readonly table = new Table(SCHEMA, 64)
+  readonly table: Table<string>
+  private fields: StateField[]
+  private CreatureClass: new (world: RigidWorld, row: number) => Creature
+  private GroupClass: new () => Creatures
   private physics!: PhysicsWorld
   private terrain!: Terrain
   private arts: Articulation[] = []
@@ -112,8 +95,7 @@ export class RigidWorld implements World {
   private jointIndex = new Map<string, number>()
   private poses = new Float32Array(0)
   private angles = new Float32Array(0)
-  /** Oscillator output and the final targets, `jointCount` numbers per creature. */
-  private gait = new Float32Array(0)
+  /** What the script asked each motor to do this tick, `jointCount` numbers per creature (0 unless it said). */
   private targets = new Float32Array(0)
   /** Where each motor's target actually is after `maxSpeed` has eased it toward what the script asked for, and whether it has started yet. */
   private applied = new Float32Array(0)
@@ -124,6 +106,18 @@ export class RigidWorld implements World {
   private builtFrom: { raw: unknown; params: string; body: BodyDef } | null = null
 
   constructor(private host: Host, private engine: PhysicsEngine) {
+    this.fields = host.fields
+    const schema: Record<string, ColumnType> = { ...SCHEMA }
+    const strides: Record<string, number> = {}
+    for (const f of this.fields) { schema[f.name] = f.type as ColumnType; strides[f.name] = f.length }
+    this.table = new Table(schema, 64, strides)
+    const table = this.table
+    class Stateful extends Creature {}
+    defineStateGetters(Stateful.prototype, table, this.fields)
+    class Group extends Creatures {}
+    defineGroupGetters(Group.prototype, this.fields)
+    this.CreatureClass = Stateful
+    this.GroupClass = Group as unknown as new () => Creatures
     this.lastBody = this.body
     this.build()
   }
@@ -153,7 +147,7 @@ export class RigidWorld implements World {
     const b = this.body
     return JSON.stringify([
       scene.seed, scene.terrain, scene.physics, b.parts,
-      (b.joints ?? []).map((j) => ({ ...j, drive: undefined, motor: !!j.motor })),
+      (b.joints ?? []).map((j) => ({ ...j, motor: !!j.motor })),
     ])
   }
 
@@ -187,18 +181,19 @@ export class RigidWorld implements World {
       this.table.despawn(this.table.idAt(this.table.size - 1))
       this.physics.removeArticulation(this.arts.pop()!)
     }
+    const from = this.table.size
     while (this.table.size < target) this.spawn()
-    while (this.handles.length < this.table.size) this.handles.push(new Creature(this, this.handles.length))
+    if (this.table.size > from) this.applyInit(from)
+    while (this.handles.length < this.table.size) this.handles.push(new this.CreatureClass(this, this.handles.length))
     const J = this.joints.length, parts = this.body.parts.length, n = this.table.size
     if (this.poses.length !== n * parts * 7) this.poses = new Float32Array(n * parts * 7)
     if (this.angles.length !== n * J) {
       this.angles = new Float32Array(n * J)
-      this.gait = new Float32Array(n * J)
       this.targets = new Float32Array(n * J)
       this.applied = new Float32Array(n * J)
       this.appliedReady = false
     }
-    this.record(false)
+    this.record()
   }
 
   /** Stand the body on the highest ground under it so no foot starts buried. */
@@ -213,7 +208,7 @@ export class RigidWorld implements World {
     const half = this.terrain.size / 2
     const x = rng.range(-1, 1) * half * 0.6
     const z = rng.range(-1, 1) * half * 0.6
-    const yaw = rng.range(0, TAU)
+    const yaw = rng.range(0, Math.PI * 2)
     const set = spawnPosition(this.host.def.spawn, rng)
     if (set) return { x: set[0], y: this.groundAt(set[0], set[2]) + 0.05, z: set[2], yaw }
     return { x, y: this.groundAt(x, z) + 0.05, z, yaw }
@@ -235,37 +230,26 @@ export class RigidWorld implements World {
     // sense: joint angles come back from the physics engine
     for (let i = 0; i < n; i++) this.arts[i].readAngles(this.angles, i * J)
 
-    // oscillator settings, resolved once per tick so sliders act live
-    const freq = resolve(this.host.def.oscillator?.frequency, p, 1)
-    const amp = new Float64Array(J), off = new Float64Array(J), pha = new Float64Array(J)
     const kp = new Float64Array(J), kd = new Float64Array(J)
     const maxTorque = new Float64Array(J).fill(Infinity), maxStep = new Float64Array(J).fill(Infinity)
     for (let j = 0; j < J; j++) {
-      const d = bj[j].drive
-      amp[j] = resolve(d?.amplitude, p, 0)
-      off[j] = resolve(d?.offset, p, 0)
-      pha[j] = resolve(d?.phase, p, 0) - resolve(d?.lag, p, 0)
       kp[j] = resolve(bj[j].motor?.stiffness, p, MOTOR_DEFAULTS.stiffness)
       kd[j] = resolve(bj[j].motor?.damping, p, MOTOR_DEFAULTS.damping)
       maxTorque[j] = resolve(bj[j].motor?.maxTorque, p, Infinity)
       maxStep[j] = resolve(bj[j].motor?.maxSpeed, p, Infinity) * DT
     }
-    for (let i = 0; i < n; i++)
-      for (let j = 0; j < J; j++) {
-        const t = off[j] + amp[j] * Math.sin(TAU * (c.phase[i] + pha[j]))
-        this.gait[i * J + j] = this.clampToLimits(j, t)
-      }
-
-    // act: a script may set any motor target by joint name; the rest follow the oscillator
-    this.targets.set(this.gait)
+    // act: a script sets motor targets by joint name; any it leaves out go to the joint's rest angle (0)
+    for (let j = 0; j < J; j++) { const rest = this.clampToLimits(j, 0); for (let i = 0; i < n; i++) this.targets[i * J + j] = rest }
+    const writes: { row: number; state: Record<string, unknown> }[] = []
     const ctrl = this.host.controller()
     const act = ctrl?.act
     if (act) {
       const ctx = this.host.ctx()
-      const none = new Creatures()
+      const none = new this.GroupClass()
       for (let i = 0; i < n; i++) {
         try {
-          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number> } | void
+          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number>; state?: Record<string, unknown> } | void
+          if (out && out.state && typeof out.state === 'object') writes.push({ row: i, state: out.state })
           if (out && out.joints) {
             for (const [name, v] of Object.entries(out.joints)) {
               const j = this.jointIndex.get(name)
@@ -277,6 +261,8 @@ export class RigidWorld implements World {
           this.host.fail('act', e)
         }
       }
+      // state returned by act lands now, after every creature has read the old values
+      for (const w of writes) writeState(this.table, this.fields, w.row, w.state, 'act', (where, e) => this.host.fail(where, e))
     }
 
     // act: ease each target toward what was asked (at most `maxSpeed`), then point the motors, which push no harder than `maxTorque`
@@ -289,7 +275,6 @@ export class RigidWorld implements World {
     for (let i = 0; i < n; i++) {
       const t = this.applied.subarray(i * J, (i + 1) * J)
       this.arts[i].setMotors(t, kp, kd, maxTorque)
-      c.phase[i] = (c.phase[i] + freq * DT) % 1
     }
 
     // physics
@@ -297,8 +282,8 @@ export class RigidWorld implements World {
     for (let s = 0; s < sub; s++) this.physics.step(DT / sub)
 
     // record
-    this.record(true)
-    this.afterRecord()
+    this.record()
+    this.placeQueued()
   }
 
   private clampToLimits(j: number, v: number): number {
@@ -307,7 +292,7 @@ export class RigidWorld implements World {
   }
 
   /** Copy poses out of the physics engine into the columns. */
-  private record(accumulate: boolean): void {
+  private record(): void {
     const n = this.table.size
     const P = this.body.parts.length
     const c = this.cols
@@ -315,60 +300,54 @@ export class RigidWorld implements World {
     for (let i = 0; i < n; i++) {
       const o = i * P * 7
       this.arts[i].readPoses(this.poses, o)
-      if (accumulate) c.travelled[i] += Math.hypot(this.poses[o] - c.px[i], this.poses[o + 2] - c.pz[i])
       c.px[i] = this.poses[o]; c.py[i] = this.poses[o + 1]; c.pz[i] = this.poses[o + 2]
       c.qx[i] = this.poses[o + 3]; c.qy[i] = this.poses[o + 4]; c.qz[i] = this.poses[o + 5]; c.qw[i] = this.poses[o + 6]
       this.arts[i].readRootVelocity(v, 0)
       c.vx[i] = v[0]; c.vy[i] = v[1]; c.vz[i] = v[2]
-      if (accumulate) {
-        const up = 1 - 2 * (c.qx[i] * c.qx[i] + c.qz[i] * c.qz[i])
-        const low = c.py[i] - this.terrain.heightAt(c.px[i], c.pz[i]) < DOWN_HEIGHT
-        c.down[i] = up < 0.3 || low ? c.down[i] + 1 : 0
-        const out = this.beyondFence(c.px[i], c.py[i], c.pz[i])
-        if (out && !c.out[i]) this.leavers.push(i)
-        c.out[i] = out ? 1 : 0
-      }
     }
   }
 
-  private leavers: number[] = []
-  private resets = new Set<number>()
+  private places = new Map<number, { x: number; z: number; yaw: number }>()
 
-  queueReset(row: number): void {
-    this.resets.add(row)
+  queuePlace(row: number, at: { x: number; z: number; yaw?: number }): void {
+    if (![at.x, at.z].every(Number.isFinite)) { this.host.fail('place', new Error('place needs x and z as numbers')); return }
+    this.places.set(row, { x: at.x, z: at.z, yaw: Number.isFinite(at.yaw) ? at.yaw! : 0 })
   }
 
-  private beyondFence(x: number, y: number, z: number): boolean {
-    const f = this.host.def.fence
-    if (!f) return false
-    const { params } = this.host
-    const size = resolve(f.size, params, Infinity), floor = resolve(f.floor, params, -Infinity)
-    return Math.abs(x) > size || Math.abs(z) > size || y < floor
+  /** Carry out the `place` calls scripts made this tick: a fresh body at the pose, on the ground there. Everything else about the creature stays. */
+  private placeQueued(): void {
+    for (const [i, at] of [...this.places].sort((a, b) => a[0] - b[0])) {
+      if (i >= this.table.size) continue
+      this.physics.removeArticulation(this.arts[i])
+      this.arts[i] = this.physics.addArticulation(this.body, { x: at.x, y: this.groundAt(at.x, at.z) + 0.05, z: at.z, yaw: at.yaw })
+      this.arts[i].readPoses(this.poses, i * this.body.parts.length * 7)
+      this.cols.px[i] = at.x; this.cols.pz[i] = at.z
+      this.appliedReady = false // new joints start from where they are
+    }
+    this.places.clear()
   }
 
-  /** Tell controllers who crossed the fence, then carry out the resets they (or `decide`) asked for. */
-  private afterRecord(): void {
+  /** The script's `init` (a creature at a time) or `initAll` (every one at once) for the creatures from row `from` on: what their state starts as. */
+  private applyInit(from: number): void {
     const ctrl = this.host.controller()
-    if (ctrl?.onLeave && this.leavers.length) {
-      const ctx = this.host.ctx()
-      for (const i of this.leavers) {
-        try { ctrl.onLeave({ self: this.handles[i] }, this.host.params, ctx) } catch (e) { this.host.fail('onLeave', e) }
+    if (!ctrl?.init && !ctrl?.initAll) return
+    const ctx = this.host.ctx(), { params } = this.host
+    const n = this.table.size - from
+    const write = (row: number, state: Record<string, unknown>) => writeState(this.table, this.fields, row, state, 'init', (where, e) => this.host.fail(where, e))
+    try {
+      if (ctrl.initAll) {
+        const out = (ctrl.initAll({ count: n }, params, ctx) ?? {}) as Record<string, unknown>
+        for (const [name, v] of Object.entries(out)) {
+          const data = (v && typeof v === 'object' && 'data' in v ? (v as { data: ArrayLike<unknown> }).data : v) as ArrayLike<unknown>
+          if (!data || data.length !== n) { this.host.fail('init', new Error(`"${name}" must have one value per creature (${n}), got ${data?.length ?? 'none'}`)); continue }
+          for (let i = 0; i < n; i++) write(from + i, { [name]: data[i] })
+        }
+      } else {
+        for (let i = 0; i < n; i++) write(from + i, initResult(ctrl.init!({ index: i, count: n }, params, ctx)))
       }
+    } catch (e) {
+      this.host.fail('init', e)
     }
-    this.leavers = []
-    for (const i of [...this.resets].sort((a, b) => a - b)) if (i < this.table.size) this.respawn(i)
-    this.resets.clear()
-  }
-
-  private respawn(i: number): void {
-    this.physics.removeArticulation(this.arts[i])
-    const { x, y, z, yaw } = this.spawnPoint()
-    this.arts[i] = this.physics.addArticulation(this.body, { x, y, z, yaw })
-    this.arts[i].readPoses(this.poses, i * this.body.parts.length * 7)
-    const c = this.cols
-    c.px[i] = x; c.pz[i] = z // keep the distance walked; the next tick measures from here
-    c.down[i] = 0
-    c.out[i] = 0
   }
 
   // ---- sensors, read by Creature handles ----
@@ -381,12 +360,6 @@ export class RigidWorld implements World {
     const out: Record<string, number> = {}
     if (!this.declares('joints')) return out
     this.joints.forEach((j, k) => { out[j.name] = this.angles[row * this.joints.length + k] })
-    return out
-  }
-
-  gaitTargets(row: number): Record<string, number> {
-    const out: Record<string, number> = {}
-    this.joints.forEach((j, k) => { if (j.motor) out[j.name] = this.gait[row * this.joints.length + k] })
     return out
   }
 
@@ -427,7 +400,7 @@ export class RigidWorld implements World {
   }
 
   metricInput(): MetricInput {
-    const creatures = new Creatures()
+    const creatures = new this.GroupClass()
     for (let i = 0; i < this.table.size; i++) creatures.push(this.handles[i])
     return { creatures, count: this.table.size, cols: this.table.cols }
   }
@@ -446,7 +419,7 @@ export class RigidWorld implements World {
     this.table.restore(x.table)
     this.physics.restore(x.physics, this.arts)
     if (x.applied && x.applied.length === this.applied.length) { this.applied.set(x.applied); this.appliedReady = !!x.appliedReady }
-    this.record(false) // refresh the pose buffers the renderer reads
+    this.record() // refresh the pose buffers the renderer reads
   }
 
   dispose(): void {

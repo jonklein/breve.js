@@ -22,7 +22,7 @@ export { Vec3, Vecs, Nums, Agents, Field, Mlp, type VecLike } from '@breve/stdli
 export { Agent } from './agents'
 export { Terrain, TERRAIN_DEFAULTS, type TerrainDef } from './terrain'
 export { Perlin2 } from './noise'
-export { validateBody, expandBody, bodySchema, type BodyInput, type TemplateDef, type AttachDef, type BodyDef, type PartDef, type JointDef, type DriveDef, type SensorDef, type ShapeKind } from './body'
+export { validateBody, expandBody, bodySchema, type BodyInput, type TemplateDef, type AttachDef, type BodyDef, type PartDef, type JointDef, type SensorDef, type ShapeKind } from './body'
 export { Creature, Creatures } from './rigid-world'
 export { quatFromEuler } from './rot'
 export type { RigidFrame, PartShape, TerrainMesh } from './rigid-frame'

@@ -22,9 +22,7 @@
     {
       "name": "walker",
       "count": "$count",
-      "fence": { "floor": -20 },
       "controller": "creature.js",
-      "oscillator": { "frequency": "$frequency" },
       "body": {
         "motor": { "stiffness": "$strength", "damping": 8 },
         "parts": [
@@ -32,24 +30,23 @@
         ],
         "templates": {
           "leg": {
-            "args": { "phase": 0 },
             "parts": [
               { "name": "upper", "shape": "capsule", "size": [0.25, 0.06], "mass": 0.4, "position": [0, -0.125, 0] },
               { "name": "lower", "shape": "capsule", "size": [0.25, 0.05], "mass": 0.3, "position": [0, -0.375, 0] }
             ],
             "joints": [
               { "name": "hip", "parent": "^", "child": "upper", "anchor": [0, 0, 0], "limits": [-0.9, 0.9],
-                "drive": { "amplitude": "$stride", "phase": "@phase" } },
+                "motor": {} },
               { "name": "knee", "parent": "upper", "child": "lower", "anchor": [0, -0.25, 0], "limits": [-1.6, 0.1],
-                "drive": { "amplitude": "$lift", "offset": -0.9, "phase": "@phase", "lag": "$kneeLag" } }
+                "motor": {} }
             ]
           }
         },
         "attach": [
-          { "template": "leg", "name": "FL", "at": [0.32, -0.07, -0.27], "args": { "phase": 0 } },
-          { "template": "leg", "name": "FR", "at": [0.32, -0.07, 0.27], "args": { "phase": "$diagonal" } },
-          { "template": "leg", "name": "HL", "at": [-0.32, -0.07, -0.27], "args": { "phase": "$diagonal" } },
-          { "template": "leg", "name": "HR", "at": [-0.32, -0.07, 0.27], "args": { "phase": "$hindOffset" } }
+          { "template": "leg", "name": "FL", "at": [0.32, -0.07, -0.27] },
+          { "template": "leg", "name": "FR", "at": [0.32, -0.07, 0.27] },
+          { "template": "leg", "name": "HL", "at": [-0.32, -0.07, -0.27] },
+          { "template": "leg", "name": "HR", "at": [-0.32, -0.07, 0.27] }
         ],
         "sensors": [{ "type": "pose" }, { "type": "joints" }, { "type": "touch" }]
       }

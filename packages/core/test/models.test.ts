@@ -106,3 +106,24 @@ test('disposing a sim lets go of its models (sockets, runtime sessions)', () => 
   s.dispose()
   assert.equal(closed, 1)
 })
+
+test('restoring an earlier snapshot also forgets the decisions (and inputs) made after it, so a saved log matches the new branch', async () => {
+  const sim = new Sim(scene(), script)
+  sim.models.policy = fake([])
+  for (let t = 0; t < 10; t++) { await sim.think(); sim.step() }
+  const snap = sim.snapshot() // tick 10
+  const kept = sim.decisionLog.length
+  for (let t = 0; t < 20; t++) { await sim.think(); sim.step() }
+  sim.setInput(['w'])
+  assert.ok(sim.decisionLog.length > kept)
+  sim.restore(snap)
+  assert.equal(sim.decisionLog.length, kept)
+  assert.ok(sim.decisionLog.every((d) => d.tick <= 10))
+  assert.equal(sim.inputLog.length, 0, 'the key press after tick 10 is forgotten too')
+  // the branch carries on and its log is replayable from the start
+  for (let t = 0; t < 20; t++) { await sim.think(); sim.step() }
+  const again = new Sim(scene(), script)
+  again.replay(sim.decisionLog)
+  for (let t = 0; t < 30; t++) { await again.think(); again.step() }
+  assert.equal(again.hash(), sim.hash())
+})

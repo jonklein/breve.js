@@ -23,7 +23,7 @@ export interface Inspected {
   fields: Record<string, number | boolean | string | number[]>
 }
 
-export interface SimSnapshot { tick: number; rng: number; worlds: unknown[]; waiting: Message[]; outbox: Message[]; keys: string[]; relations: RelationsSnapshot }
+export interface SimSnapshot { tick: number; rng: number; worlds: unknown[]; waiting: Message[]; outbox: Message[]; keys: string[]; relations: RelationsSnapshot; /** How long the decision and input logs were, so restoring can cut them back. */ decisions?: number; inputs?: number }
 
 export type { AskOptions, Ctx, Controller, FrameData, Message, MetricInput, ModelRequest, ScriptModule } from './world'
 
@@ -430,13 +430,16 @@ export class Sim {
    */
   snapshot(): SimSnapshot {
     if (this.worlds.some((w) => !w.snapshot)) throw new Error('this kind of world cannot be snapshotted yet ')
-    return { tick: this.tick, rng: this.rng.getState(), worlds: this.worlds.map((w) => w.snapshot!()), waiting: structuredClone(this.waiting), outbox: structuredClone(this.outbox), keys: [...this.keys], relations: this.relations.snapshot() }
+    return { tick: this.tick, rng: this.rng.getState(), worlds: this.worlds.map((w) => w.snapshot!()), waiting: structuredClone(this.waiting), outbox: structuredClone(this.outbox), keys: [...this.keys], relations: this.relations.snapshot(), decisions: this.decisionLog.length, inputs: this.inputLog.length }
   }
 
   /** Go back to a snapshot taken from this sim, or from any sim built from the same scene. */
   restore(s: SimSnapshot): void {
     if (this.worlds.some((w) => !w.restore)) throw new Error('this kind of world cannot be restored yet')
     this.tick = s.tick
+    // what was decided or pressed after this moment belongs to a future that no longer happens (the logs only grow, so a length says where to cut)
+    if (s.decisions !== undefined) this.decisionLog.length = Math.min(this.decisionLog.length, s.decisions)
+    if (s.inputs !== undefined) this.inputLog.length = Math.min(this.inputLog.length, s.inputs)
     this.rng.setState(s.rng)
     this.worlds.forEach((w, i) => w.restore!(s.worlds[i]))
     this.keys = [...s.keys]

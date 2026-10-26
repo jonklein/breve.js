@@ -173,6 +173,8 @@ Sensors and actuators are declared as data on entities and bodies. Their declara
 
 ### 6.0 Display
 
+**Naming rule (docs/decisions/x-and-xall.md).** Every controller hook has a per-entity form `x` and may have a whole-set form `xAll` that trades generality for speed (whole fields in and out, `Field` arithmetic, single-number state, no per-entity effects; a fixed graph of array operations that could later run on a GPU): `decide`/`decideAll`, `think`/`thinkAll`, `init`/`initAll`, `display`/`displayAll`. `update` is the old name of `decideAll`.
+
 How an entity looks is part of its controller, next to how it decides: `export default { decide(...) { return state }, display(...) { return look } }`. `display` is a pure function of the entity's state (and params and the tick) that returns display properties such as `color`, `scale`, and `opacity`. It cannot change the simulation, so it cannot affect determinism, forking, or replay, and it may be evaluated at render rate and only for visible entities. The results are stored as an optional `display` component (columns) that the renderer reads like any other state. When a controller has no `display`, the scene's declarative defaults apply (`world.agentColor`, `lattice.color`, `lattice.colorMax`), so existing projects keep working. Easing between display values (a fade) is a renderer option applied to the `display` columns, reusable for any entity kind. Aggregate measurements about the whole world stay separate (the exported `metrics`), because they belong to the world, not to one entity. `display` receives only `self` by default (cheap); anything that depends on the surroundings should be computed in `decide` and stored as state.
 
 ### 6.1 Built-in controller types

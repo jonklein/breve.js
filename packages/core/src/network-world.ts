@@ -177,10 +177,10 @@ export class NetworkWorld implements World {
   }
 
   /**
-   * The whole-network rule, like a lattice's: `update(fields, params, ctx)` gets every single-number state field as a
+   * The whole-network rule, like a lattice's: `decideAll(fields, params, ctx)` gets every single-number state field as a
    * `Field` whose neighbor operations follow the links, and returns the new fields (any it leaves out stay as they are).
    */
-  private stepFields(update: (f: Record<string, Field>, p: Params, ctx: Ctx) => unknown): void {
+  private stepFields(rule: (f: Record<string, Field>, p: Params, ctx: Ctx) => unknown): void {
     const table = this.table_()
     const cols = this.table.cols
     const numeric = this.fields.filter((f) => f.kind !== 'string' && f.length === 1)
@@ -188,17 +188,17 @@ export class NetworkWorld implements World {
     for (const f of numeric) fields[f.name] = new Field(cols[f.name], table)
     let out: Record<string, unknown> | null = null
     try {
-      const r = update(fields, this.host.params, this.host.ctx())
+      const r = rule(fields, this.host.params, this.host.ctx())
       out = r && typeof r === 'object' ? (r as Record<string, unknown>) : null
     } catch (e) {
-      this.host.fail('update', e)
+      this.host.fail('decideAll', e)
     }
     if (!out) return
     for (const f of numeric) {
       const v = out[f.name]
       if (v === undefined) continue
       const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
-      if (!data || data.length !== this.n) { this.host.fail('update', new Error(`"${f.name}" must be a field with ${this.n} nodes`)); continue }
+      if (!data || data.length !== this.n) { this.host.fail('decideAll', new Error(`"${f.name}" must be a field with ${this.n} nodes`)); continue }
       const dst = cols[f.name]
       for (let r = 0; r < this.n; r++) {
         const x = data[r]
@@ -209,7 +209,8 @@ export class NetworkWorld implements World {
 
   step(): void {
     const ctrl = this.host.controller()
-    if (ctrl?.update) return this.stepFields(ctrl.update)
+    const all = ctrl?.decideAll ?? ctrl?.update
+    if (all) return this.stepFields(all)
     if (!ctrl?.decide) return
     const ctx = this.host.ctx()
     const { params } = this.host

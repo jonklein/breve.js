@@ -38,7 +38,7 @@ export const Ant = {
 }
 
 export const Ground = {
-  update({ scent, food, nest }, p) {
+  decideAll({ scent, food, nest }, p) {
     // scent spreads into neighbors, then evaporates a little
     const mixed = scent.zip(scent.neighborAverage(), (s, around) => (s + (around - s) * p.spread) * p.evaporation)
     const left = food.map((f) => Math.max(0, f))

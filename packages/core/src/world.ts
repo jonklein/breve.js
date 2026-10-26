@@ -87,6 +87,8 @@ export interface Controller {
    * so it handles a million cells.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  decideAll?(fields: any, params: Params, ctx: Ctx): unknown
+  /** Old name for `decideAll`; still works. */
   update?(fields: any, params: Params, ctx: Ctx): unknown
   /**
    * Called once for each new entity as it is created: `init({ index, count }, params, ctx)` may return

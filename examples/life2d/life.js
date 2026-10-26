@@ -1,6 +1,6 @@
 // Conway's Game of Life on a flat grid, written for big grids.
 //
-// Instead of deciding one cell at a time, `update` gets each field as a whole:
+// Instead of deciding one cell at a time, `decideAll` gets each field as a whole:
 // `alive.neighborSum()` is the number of live neighbors of every cell at once, and `eq`, `and`, `or`
 // and `where` work on whole fields too, with no function call per cell. That makes it fast enough for
 // a million cells (try the headless benchmark).
@@ -8,7 +8,7 @@
 //   A dead cell with exactly 3 living neighbors comes alive.
 //   A living cell with 2 or 3 living neighbors stays alive.
 export default {
-  update({ alive, age }) {
+  decideAll({ alive, age }) {
     const crowd = alive.neighborSum()
     // born with exactly 3 neighbors, or alive with exactly 2 (comparisons give 1 or 0, so they combine like switches)
     const next = crowd.eq(3).or(alive.and(crowd.eq(2)))

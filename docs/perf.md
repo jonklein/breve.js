@@ -35,4 +35,4 @@ roughly 1.5 to 2 times faster. Per-cell `decide` rules cost about 3 µs/cell (3D
 so they suit grids up to roughly 50,000 cells.
 
 Per-cell handles are only built when a `decide` rule or a lattice metric asks for them; a metric such as
-`cells.alive.sum()` on a million cells therefore builds a million handle objects once and is slow. Prefer `update`.
+`cells.alive.sum()` on a million cells therefore builds a million handle objects once and is slow. Prefer `decideAll`.

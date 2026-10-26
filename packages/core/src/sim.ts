@@ -257,7 +257,7 @@ export class Sim {
 
   /** The names a set's `type` can take: every export of the script that is a controller. */
   controllerNames(): string[] {
-    const isController = (v: unknown) => !!v && typeof v === 'object' && ['decide', 'update', 'init'].some((k) => typeof (v as Record<string, unknown>)[k] === 'function')
+    const isController = (v: unknown) => !!v && typeof v === 'object' && ['decide', 'decideAll', 'update', 'init'].some((k) => typeof (v as Record<string, unknown>)[k] === 'function')
     return Object.entries(this.script ?? {}).filter(([k, v]) => k !== 'metrics' && isController(v)).map(([k]) => k)
   }
 

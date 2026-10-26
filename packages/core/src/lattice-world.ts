@@ -232,27 +232,27 @@ export class LatticeWorld implements World, PatchLayer {
   }
 
   /**
-   * The whole-lattice rule: `update(fields, params, ctx)` gets every state field as a `Field` and returns the
+   * The whole-lattice rule: `decideAll(fields, params, ctx)` gets every state field as a `Field` and returns the
    * new fields (any it leaves out stay as they are). It is the fast path for big grids.
    */
-  private stepFields(update: (f: Record<string, Field>, p: Params, ctx: Ctx) => unknown): void {
+  private stepFields(rule: (f: Record<string, Field>, p: Params, ctx: Ctx) => unknown): void {
     const table: NeighborTable = { nbr: this.nbr, count: this.nbrCount, stride: this.stride }
     const cols = this.table.cols
     const fields: Record<string, Field> = {}
     for (const f of this.fields) fields[f] = new Field(cols[f], table)
     let out: Record<string, unknown> | null = null
     try {
-      const r = update(fields, this.host.params, this.host.ctx())
+      const r = rule(fields, this.host.params, this.host.ctx())
       out = r && typeof r === 'object' ? (r as Record<string, unknown>) : null
     } catch (e) {
-      this.host.fail('update', e)
+      this.host.fail('decideAll', e)
     }
     if (!out) return
     for (const f of this.fields) {
       const v = out[f]
       if (v === undefined) continue
       const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
-      if (!data || data.length !== this.n) { this.host.fail('update', new Error(`"${f}" must be a field with ${this.n} cells`)); continue }
+      if (!data || data.length !== this.n) { this.host.fail('decideAll', new Error(`"${f}" must be a field with ${this.n} cells`)); continue }
       store(cols[f], this.fieldOf[f], data, this.n)
     }
   }
@@ -260,7 +260,8 @@ export class LatticeWorld implements World, PatchLayer {
   step(): void {
     this.applyPending()
     const ctrl = this.host.controller()
-    if (ctrl?.update) return this.stepFields(ctrl.update)
+    const all = ctrl?.decideAll ?? ctrl?.update
+    if (all) return this.stepFields(all)
     const ctx = this.host.ctx()
     const { params } = this.host
     const cols = this.table.cols

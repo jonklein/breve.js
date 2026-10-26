@@ -14,7 +14,9 @@ async function load() {
 }
 
 const normalOf = (r: Rng) => () => Math.sqrt(-2 * Math.log(1 - r.next())) * Math.cos(2 * Math.PI * r.next())
-const tiny = (scene: Scene): Scene => withParams(scene, { population: 4, ticks: 150, keep: 2 })
+// the core cannot load MuJoCo (the example's engine), so these run on Rapier
+const onRapier = (scene: Scene): Scene => ({ ...scene, physics: { ...scene.physics, engine: 'rapier' } })
+const tiny = (scene: Scene): Scene => onRapier(withParams(scene, { population: 4, ticks: 150, keep: 2 }))
 
 test('every genome the example can make is a valid body, and mutation and crossover keep it valid', async () => {
   const { scene, script } = await load()

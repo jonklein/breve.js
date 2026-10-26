@@ -38,6 +38,6 @@ So MuJoCo is about four times faster per tick here and does not need the inertia
 
 ## Consequences and open questions
 
-- Evaluating is a one-line scene change (`"physics": { "engine": "mujoco" }`); `examples/evolved-creatures-mujoco` has it on.
+- Evaluating is a one-line scene change (`"physics": { "engine": "mujoco" }`); `examples/evolved-creatures` has it on.
 - To decide whether MuJoCo becomes the default for evolution: compare how far evolved creatures get per wall-clock minute, check the creature example's gait with tuned contact settings (`TUNING` in `mjcf.ts` is the one place to adjust), and decide whether losing creature-creature contact and cross-machine bit-identical replay matters for the use.
 - Not done: creature collisions on MuJoCo (would need one shared model, rebuilt when creatures come and go), MuJoCo in the embed, joint types beyond hinge, ball and fixed.

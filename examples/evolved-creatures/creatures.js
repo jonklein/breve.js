@@ -27,9 +27,9 @@ const WEIGHTS = SIZES.slice(1).reduce((n, out, i) => n + (SIZES[i] + 1) * out, 0
 const SWING = 1.2 // radians a joint can turn either way
 const DENSITY = 50 // kg per cubic metre of block
 const MIN_MASS = 0.25 // no block is lighter than this, so no tiny limb is pushed around by a heavy trunk
-const STRENGTH = 6000 // newton-metres of motor torque per square metre of a block's cross-section
-const LIFT = 6 // times the torque it takes to hold its load out sideways
-const MAX_JOINT_SPEED = 8 // radians per second a joint's target can move
+const STRENGTH = 15000 // newton-metres of motor torque per square metre of a block's cross-section
+const LIFT = 12 // times the torque it takes to hold its load out sideways
+const MAX_JOINT_SPEED = 14 // radians per second a joint's target can move
 const SETTLE = 90 // ticks a creature gets to land before its walk is measured
 const AXES = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 const FACES = [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]] // [axis, direction]: which side of the parent block
@@ -107,7 +107,7 @@ export function overlap(g) {
 }
 
 /** The scene's body for a genome: a box for every block and a hinge motor between each block and the one it hangs from. */
-export function bodyOf(g) {
+export function bodyOf(g, { strength = STRENGTH, lift = LIFT, jointSpeed = MAX_JOINT_SPEED } = {}) {
   const parts = [], joints = []
   const items = layout(g)
   const massOf = (t) => Math.max(MIN_MASS, DENSITY * t.size[0] * t.size[1] * t.size[2])
@@ -130,8 +130,8 @@ export function bodyOf(g) {
     // It also cannot be stronger than a few times what it takes to hold up everything beyond it, so a thick block is not a catapult.
     const [small, mid] = [...t.size].sort((a, b) => a - b)
     const carried = load.get(t)
-    const maxTorque = Math.max(0.3, Math.min(STRENGTH * small * mid, LIFT * 9.81 * carried.mass * (Math.hypot(...t.center.map((c, a) => c - t.anchor[a])) + carried.reach)))
-    joints.push({ name: `J${nameOf(t.i, t.side, t.seg)}`, parent: `B${nameOf(t.parent.i, t.parent.side, t.parent.seg)}`, child: name, anchor: t.anchor, axis: AXES[t.hinge], limits: [-SWING, SWING], motor: { stiffness: maxTorque * 2, damping: maxTorque * 0.3, maxTorque, maxSpeed: MAX_JOINT_SPEED } })
+    const maxTorque = Math.max(0.3, Math.min(strength * small * mid, lift * 9.81 * carried.mass * (Math.hypot(...t.center.map((c, a) => c - t.anchor[a])) + carried.reach)))
+    joints.push({ name: `J${nameOf(t.i, t.side, t.seg)}`, parent: `B${nameOf(t.parent.i, t.parent.side, t.parent.seg)}`, child: name, anchor: t.anchor, axis: AXES[t.hinge], limits: [-SWING, SWING], motor: { stiffness: maxTorque * 2, damping: maxTorque * 0.3, maxTorque, maxSpeed: jointSpeed } })
   }
   return { parts, joints, sensors: [{ type: 'pose' }, { type: 'joints' }] }
 }
@@ -281,7 +281,7 @@ async function launch(host, run) {
   run.tickInGen = 0
   for (let i = 0; i < run.genomes.length; i++) {
     const scene = structuredClone(host.scene)
-    scene.entities[0].body = bodyOf(run.genomes[i])
+    scene.entities[0].body = bodyOf(run.genomes[i], host.params)
     scene.data = { genome: run.genomes[i] }
     await host.add(`c${String(i + 1).padStart(2, '0')}`, scene)
   }

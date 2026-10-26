@@ -169,7 +169,7 @@ Karl Sims' creatures as a demo (`examples/evolved-creatures`, decisions in `docs
 
 - [x] Engine registry and `physics.engine` in the scene (core knows only Rapier; others are registered by the host). Shared inertia helpers.
 - [x] `@breve/physics-mujoco`: body to MJCF (pure, tested), the adapter over the wasm, snapshots and fork, terrain checked against Rapier's, motors with torque limits. Registered lazily in the workbench.
-- [x] `examples/evolved-creatures-mujoco` and `scripts/engine-compare.mjs`. First numbers: about 4 times faster per tick, no thrown creatures without an inertia floor. See `docs/decisions/physics-mujoco.md`.
+- [x] `examples/evolved-creatures` runs on MuJoCo (torque limits are sliders) and `scripts/engine-compare.mjs`. First numbers: about 4 times faster per tick, no thrown creatures without an inertia floor. See `docs/decisions/physics-mujoco.md`.
 - [ ] Still to decide: whether it becomes the default for evolution (gait on the four-legged example, creature-creature contact, cross-machine replay).
 
 ## M11 — Mechanisms in the engine, behavior in scripts

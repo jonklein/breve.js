@@ -128,12 +128,8 @@ await page.waitForTimeout(3000)
 check('a population of sub-sims is shown as tiles', (await page.locator('#tiles .tile').count()) === 12, `${await page.locator('#tiles .tile').count()} tiles`)
 check('the progress line names the generation', /generation \d+/.test(await page.textContent('#stats')), await page.textContent('#stats'))
 
-// the same population on the MuJoCo engine: it loads on demand and the tiles run
-await sim('evolved-creatures-mujoco')
-await page.waitForTimeout(4000)
-check('MuJoCo engine runs a population as tiles', (await page.locator('#tiles .tile').count()) === 12 && (await page.locator('.problems li').count()) === 0, `${await page.locator('#tiles .tile').count()} tiles, problems: ${await page.locator('.problems li').allTextContents()}`)
-await sim('evolved-creatures')
-await page.waitForTimeout(1500)
+// the population runs on MuJoCo (loaded on demand): no problems listed
+check('MuJoCo engine runs a population as tiles', (await page.locator('.problems li').count()) === 0, `problems: ${await page.locator('.problems li').allTextContents()}`)
 
 // click one sim: breadcrumbs say where you are, and "All runs" returns to the population where it was left
 await page.locator('#tiles .tile').nth(2).click()

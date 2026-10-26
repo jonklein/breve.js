@@ -103,6 +103,8 @@ export class AgentWorld implements World {
     const world = this
     class Stateful extends Agent {
       /** What the controller's last `think` decided for this agent (anything JSON), or undefined before the first. */
+      /** This agent's id: what relations store (`ctx.relations.get('follows').add(self.id, other.id)`). */
+      get id(): number { return table.idAt(this.row) }
       get decision(): unknown { return world.decisions.get(table.idAt(this.row)) }
       /** True while beyond the set's `fence`. */
       get outside(): boolean { return table.cols.out[this.row] !== 0 }
@@ -223,8 +225,9 @@ export class AgentWorld implements World {
     // the sensor with no `of` looks at this set's own agents and shows up as `neighbors`; the rest are named
     const sensors = def.sensors ?? []
     const own = sensors.find((s) => !s.of || s.of === def.name)
-    const others = sensors.filter((s) => s !== own).map((s) => ({ name: s.name!, radius: resolve(s.radius, p, 0), world: this.agentWorld(s.of!) }))
+    const others = sensors.filter((s) => s !== own).map((s) => ({ name: s.name!, radius: resolve(s.radius, p, 0), via: s.via, world: this.agentWorld(s.of!) }))
     const radius = resolve(own?.radius, p, 0)
+    const ownVia = own?.via
 
     // sense: build the neighbor index from current positions
     this.ensureGrid(radius)
@@ -237,8 +240,8 @@ export class AgentWorld implements World {
       let ax = 0, ay = 0, az = 0
       if (ctrl) {
         try {
-          const obs: Record<string, unknown> = { self: this.handles[i], neighbors: this.neighborsOf(i, radius) }
-          for (const o of others) obs[o.name] = o.world?.around(this.handles[i], o.radius) ?? new this.GroupClass(this.handles[i])
+          const obs: Record<string, unknown> = { self: this.handles[i], neighbors: ownVia ? this.linkedTo(i, ownVia, this) : this.neighborsOf(i, radius) }
+          for (const o of others) obs[o.name] = o.via ? this.linkedTo(i, o.via, o.world) : o.world?.around(this.handles[i], o.radius) ?? new this.GroupClass(this.handles[i])
           const out = ctrl.decide!(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
           if (out && ((out.state && typeof out.state === 'object') || (out.add && typeof out.add === 'object'))) writes.push({ row: i, state: out.state ?? {}, add: out.add })
           if (out && out.steer) {
@@ -342,9 +345,10 @@ export class AgentWorld implements World {
     const ctrl = this.host.controller()
     const every = this.host.def.think?.every ?? 60
     if (!ctrl?.think || this.host.tick % every !== 0) return []
-    const radius = resolve(this.host.def.sensors?.find((s) => !s.of)?.radius, this.host.params, 0)
+    const own = this.host.def.sensors?.find((s) => !s.of)
+    const radius = resolve(own?.radius, this.host.params, 0)
     this.ensureGrid(radius)
-    return Array.from({ length: this.table.size }, (_, row) => ({ row, obs: { self: this.handles[row], neighbors: this.neighborsOf(row, radius) } }))
+    return Array.from({ length: this.table.size }, (_, row) => ({ row, obs: { self: this.handles[row], neighbors: own?.via ? this.linkedTo(row, own.via, this) : this.neighborsOf(row, radius) } }))
   }
 
   setDecision(row: number, decision: unknown): void {
@@ -414,6 +418,23 @@ export class AgentWorld implements World {
     for (let k = 0; k < cells; k++) this.gridStart[k + 1] += this.gridStart[k]
     const fill = this.gridStart.slice(0, cells)
     for (let i = 0; i < n; i++) this.gridItems[fill[this.cellOf[i]]++] = i
+  }
+
+  /** The agents of `world` that agent `i` points at in the named relation: declared neighbors instead of nearby ones. */
+  private linkedTo(i: number, relation: string, world: AgentWorld | null): Agents {
+    const out = new this.GroupClass(this.handles[i])
+    if (!world || !this.host.relations.has(relation)) return out
+    for (const id of this.host.relations.get(relation).targets(this.table.idAt(i))) {
+      const row = world.table.row(id)
+      if (row >= 0) out.push(world.handleAt(row))
+    }
+    return out
+  }
+
+  /** The handle for a row, created if the set has grown since handles were last made. */
+  handleAt(row: number): Agent {
+    while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(this.cols, this.handles.length))
+    return this.handles[row]
   }
 
   private neighborsOf(i: number, radius: number): Agents {

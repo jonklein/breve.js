@@ -77,3 +77,36 @@ test('a sim owns its relations: they fork, restore and show up in the hash', asy
   sim.restore(copy.snapshot())
   assert.equal(sim.relations.get('knows').size, 2)
 })
+
+test('a "via" sensor hands the controller the agents a relation links to, not the ones nearby', async () => {
+  const { Sim, parseScene } = await import('../src/index')
+  const r = parseScene(JSON.stringify({
+    seed: 3, params: {}, bounds: { size: 50 },
+    entities: [{ name: 'a', count: 4, sensors: [{ type: 'neighbors', via: 'follows' }] }], metrics: [],
+  }))
+  assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
+  const seen: Record<number, number[]> = {}
+  const sim = new Sim(r.scene, {
+    default: {
+      decide: ({ self, neighbors }, _p, ctx) => {
+        const s = self as unknown as { row: number; id: number }
+        seen[s.row] = Array.from(neighbors as unknown as { row: number }[], (n) => n.row)
+        if (ctx.tick === 0 && s.row === 0) ctx.relations.get('follows').add(s.id, (neighbors as never as { id: number }[])[0]?.id ?? s.id)
+        return {}
+      },
+    },
+  })
+  const ids = [0, 1, 2, 3].map((i) => (sim.worlds[0].table.idAt(i)))
+  const follows = sim.relations.get('follows')
+  follows.add(ids[0], ids[2])
+  follows.add(ids[0], ids[3])
+  follows.add(ids[1], ids[0])
+  sim.step()
+  assert.equal(sim.takeErrors().length, 0)
+  assert.deepEqual(seen[0], [2, 3])
+  assert.deepEqual(seen[1], [0])
+  assert.deepEqual(seen[2], [])
+  // a sensor with neither radius nor via says what is missing
+  const bad = parseScene(JSON.stringify({ seed: 1, params: {}, bounds: { size: 5 }, entities: [{ name: 'a', count: 1, sensors: [{ type: 'neighbors' }] }], metrics: [] }))
+  assert.ok(!bad.ok && /radius.*via/.test(bad.errors.join()))
+})

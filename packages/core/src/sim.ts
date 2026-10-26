@@ -40,6 +40,7 @@ class SetHost implements Host {
   get def(): EntityDef { return this.sim.scene.entities[this.index] }
   fail(where: string, e: unknown) { this.sim.fail(where, e) }
   ctx() { return this.sim.ctx() }
+  get relations() { return this.sim.relations }
   worlds(): readonly World[] { return this.sim.worlds }
 
   /** The controller this set is bound to: the script's `export default`, or the named export given by the set's `type`. */
@@ -186,7 +187,7 @@ export class Sim {
   }
 
   ctx(): Ctx {
-    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
+    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), relations: this.relations, inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
   }
 
   /** What to draw for each entity set, in scene order. */

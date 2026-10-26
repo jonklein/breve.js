@@ -1,3 +1,4 @@
+import type { Relations } from './relations'
 import type { Mlp } from '@breve/stdlib'
 import type { Rng } from './rng'
 import type { EntityDef, Params, Scene } from './scene'
@@ -31,6 +32,13 @@ export interface Ctx {
   readonly inbox: readonly Message[]
   /** Tell the parent something. Sims never talk to each other: the parent decides what, if anything, to pass on. `data` must be plain JSON. */
   send(topic: string, data?: unknown): void
+  /**
+   * The sim's relations: named, directed, attributed edges between entity ids (`self.id`). A sensor with
+   * `via: "follows"` hands a controller the agents it points at. Edits made while deciding are seen by agents
+   * decided later in the same tick (in row order), so write to a relation from a rule or an `onStep`, not
+   * from many agents at once, if that matters.
+   */
+  readonly relations: Relations
   /** A small neural network of the given layer sizes: `const brain = ctx.mlp([6, 5, 3])`, then `brain.run(self.weights, inputs)`. */
   mlp(sizes: number[]): Mlp
   /** Make a vector: `vec(1, 0, 0)`. */
@@ -124,6 +132,8 @@ export interface Host {
   worlds(): readonly World[]
   fail(where: string, e: unknown): void
   ctx(): Ctx
+  /** The sim's named edge tables. */
+  relations: Relations
 }
 
 /** Everything a renderer needs for one frame, as transferable buffers. */

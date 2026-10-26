@@ -68,6 +68,8 @@ export default {
 
 `ctx.mlp([11, 5, 8])` makes a small neural network (tanh layers) whose `run(weights, inputs)` returns the outputs; the weights for that shape are 11×5+5 + 5×8+8 = 108 numbers. See `examples/neural`.
 
+**Declared neighbors.** A sensor looks at whoever is within `radius`, or, with `"via": "follows"` instead of a radius, at the agents a named relation links this one to: `"sensors": [{ "type": "neighbors", "via": "follows" }]`. Relations are edge tables on the sim, reached as `ctx.relations`: `ctx.relations.get('follows').add(self.id, other.id)` (add a third argument for attributes, or `true` for a two-way link), `.remove(edge)`, `.has(a, b)`, `.targets(id)` and `.sources(id)`. Every agent has an `id` for this. A `via` sensor on another set (`"of"`) looks its targets up in that set. Relations are saved by snapshots and forks like any other state. Attributes (a weight, a start time) are declared with the relation: `ctx.relations.get('trust', { weight: 'f64' })`.
+
 ### Entity set: lattice of cells
 
 ```jsonc

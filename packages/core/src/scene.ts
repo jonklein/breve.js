@@ -14,9 +14,12 @@ export interface ParamDef {
 
 export interface SensorDef {
   type: 'neighbors'
-  radius: NumOrParam
+  /** How far to look. Needed unless the sensor has a `via`. */
+  radius?: NumOrParam
   /** Look at another set of agents instead of this one. Needs a `name`: the script finds them at `obs.<name>`. */
   of?: string
+  /** Use the agents linked by this relation (`ctx.relations.get(name)`) instead of the ones within `radius`. */
+  via?: string
   /** What the script calls this sensor. The set's own neighbors are `neighbors` when this is left out. */
   name?: string
 }
@@ -405,9 +408,9 @@ export const sceneSchema = {
             type: 'array',
             items: {
               type: 'object',
-              required: ['type', 'radius'],
+              required: ['type'],
               additionalProperties: false,
-              properties: { type: { const: 'neighbors' }, radius: numOrParam, of: { type: 'string' }, name: { type: 'string', pattern: '^[A-Za-z_][A-Za-z0-9_]*$' } },
+              properties: { type: { const: 'neighbors' }, radius: numOrParam, via: { type: 'string', minLength: 1 }, of: { type: 'string' }, name: { type: 'string', pattern: '^[A-Za-z_][A-Za-z0-9_]*$' } },
             },
           },
           motion: {
@@ -503,6 +506,7 @@ export function validateScene(data: unknown): SceneResult {
     } else if (e.oscillator) errors.push(`entities.${i}.oscillator: needs a "body" with joint drives`)
     e.sensors?.forEach((s, j) => {
       check(s.radius, `entities.${i}.sensors.${j}.radius`)
+      if (s.radius === undefined && !s.via) errors.push(`entities.${i}.sensors.${j}: give a "radius" (look at nearby agents) or a "via" (look at the agents a relation links to)`)
       const target = scene.entities.find((x) => x.name === s.of)
       if (s.of !== undefined && !target) errors.push(`entities.${i}.sensors.${j}.of: there is no set called "${s.of}" (the scene has: ${scene.entities.map((x) => x.name).join(', ')})`)
       else if (target && (target.lattice || target.body)) errors.push(`entities.${i}.sensors.${j}.of: "${s.of}" is not a set of free agents`)

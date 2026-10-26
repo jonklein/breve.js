@@ -311,11 +311,41 @@ async function main(): Promise<void> {
   $('step').addEventListener('click', () => send({ type: 'step' }))
   $('reset').addEventListener('click', () => { metrics.clear(); tiles.resetHistory(); send({ type: 'reset' }) })
 
+  // ---- thinking: lockstep or realtime, and saving or replaying the decision log ----
+  const thinkMode = $('think-mode') as HTMLSelectElement
+  thinkMode.addEventListener('change', () => send({ type: 'thinkMode', mode: thinkMode.value as 'realtime' | 'lockstep' }))
+  $('think-save').addEventListener('click', () => send({ type: 'saveLog' }))
+  const thinkFile = $('think-file') as HTMLInputElement
+  $('think-replay').addEventListener('click', () => thinkFile.click())
+  thinkFile.addEventListener('change', async () => {
+    const file = thinkFile.files?.[0]
+    thinkFile.value = ''
+    if (!file) return
+    try {
+      const log = JSON.parse(await file.text()) as unknown
+      if (!Array.isArray(log) || log.some((d) => typeof d?.tick !== 'number' || typeof d?.set !== 'number' || typeof d?.row !== 'number')) throw new Error('expected a list of { tick, set, row, decision }')
+      metrics.clear()
+      send({ type: 'replay', log })
+    } catch (e) {
+      $('stats').textContent = `could not read that decision log: ${e instanceof Error ? e.message : String(e)}`
+    }
+  })
+  const download = (name: string, text: string) => {
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type: 'application/json' })), download: name })
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   let lastTick = 0
   let lastTime = performance.now()
   worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     const m = ev.data
     if (m.type === 'frame') {
+      $('thinkbar').classList.toggle('hidden', !m.think.enabled || sweeping)
+      if (m.think.enabled) {
+        thinkMode.value = m.think.mode
+        $('think-count').textContent = `${m.think.decisions} decisions${m.think.replaying ? ' · replaying a log, the model is not asked' : ''}`
+      }
       viewport.update(m.frames.map((f) => ({ ...f, rate: m.rate })))
       if (inspecting) { if (m.inspected) inspector.update(m.inspected); else stopInspecting() }
       if (m.metrics) metrics.push(m.metrics)
@@ -335,6 +365,8 @@ async function main(): Promise<void> {
         lastTime = now
         $('stats').textContent = `tick ${m.tick} · ${m.tiles.length} runs · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick (all runs)`
       }
+    } else if (m.type === 'log') {
+      download(`${projectName().replace(/[^\w-]+/g, '-')}-decisions.json`, JSON.stringify(m.log, null, 1))
     } else if (m.type === 'controllers') {
       inspector.setControllers(m.names)
     } else if (m.type === 'focused') {

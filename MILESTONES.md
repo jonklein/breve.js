@@ -137,7 +137,7 @@ Pending:
 - [ ] ONNX or WebGPU inference, and batched inference for populations.
 - [ ] Loading models from the Hugging Face Hub into an asset store.
 - [ ] A camera sensor so a VLM can drive an agent.
-- [ ] Workbench controls for lockstep mode and for saving and replaying a decision log.
+- [x] Workbench controls for lockstep mode and for saving and replaying a decision log (a bar above the view when a set thinks; checked in a headless browser with a stubbed model).
 
 ## M8 — Site and editing polish — Planned
 

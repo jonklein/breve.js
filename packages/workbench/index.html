@@ -54,6 +54,17 @@
           <span class="muted">Watching the experiment's runs side by side. Click one to continue from it.</span>
           <button id="sweep-exit">Back to one run</button>
         </div>
+        <div id="thinkbar" class="hidden">
+          <span class="muted">Thinking</span>
+          <select id="think-mode" title="Realtime never makes the sim wait for a model; lockstep waits for every answer, so a run repeats exactly">
+            <option value="realtime">realtime</option>
+            <option value="lockstep">lockstep (repeatable)</option>
+          </select>
+          <span id="think-count" class="muted mono"></span>
+          <button id="think-save" title="Download every decision made so far">Save log</button>
+          <button id="think-replay" title="Pick a saved log: the run restarts and plays those decisions back without asking the model">Replay log…</button>
+          <input id="think-file" type="file" accept=".json,application/json" class="hidden" />
+        </div>
         <div id="viewport"></div>
         <div id="inspector" class="inspector hidden"></div>
         <div id="tiles" class="hidden"></div>

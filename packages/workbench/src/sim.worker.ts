@@ -21,6 +21,14 @@ export type ToWorker =
   | { type: 'single' }
   /** Continue from one sweep tile as the single sim. */
   | { type: 'focus'; name: string }
+  /** Realtime thoughts land whenever they arrive; lockstep waits for every answer before each tick, so the run repeats exactly. */
+  | { type: 'thinkMode'; mode: 'realtime' | 'lockstep' }
+  /** Ask for the decision log (answered with a `log` message). */
+  | { type: 'saveLog' }
+  /** Restart and rerun from a decision log without calling the model. */
+  | { type: 'replay'; log: DecisionLog }
+
+export type DecisionLog = { tick: number; set: number; row: number; decision: unknown }[]
 
 /** One frame of one world. */
 export interface WorldFrameMsg {
@@ -43,7 +51,8 @@ export type FromWorker =
   | { type: 'tiles'; tick: number; rate: number; stepMs: number; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
   | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
-  | { type: 'frame'; tick: number; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
+  | { type: 'log'; log: DecisionLog }
+  | { type: 'frame'; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean }; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -103,6 +112,8 @@ async function rebuild(): Promise<void> {
 }
 
 let lastPosted = -1
+let thinkMode: 'realtime' | 'lockstep' = 'realtime'
+let lockBusy = false // a lockstep tick is waiting for its answers
 let stepMs = 0 // smoothed time one tick takes, shown in the stats line
 
 function transfers(f: WorldFrameMsg): ArrayBuffer[] {
@@ -136,7 +147,7 @@ function post(): void {
     const frames = sim.frames()
     const m = sim.tick % 4 === 0 || sim.rate < 30 ? sim.metrics() : null
     const inspected = selection ? sim.inspect(selection.set, selection.row) : null
-    const msg: FromWorker = { type: 'frame', tick: sim.tick, inspected, metrics: m, stepMs, rate: sim.rate, frames }
+    const msg: FromWorker = { type: 'frame', tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying }, inspected, metrics: m, stepMs, rate: sim.rate, frames }
     postMessage(msg, frames.flatMap(transfers))
   }
   const runtime = sim.takeErrors()
@@ -158,7 +169,12 @@ setInterval(() => {
     while (budget >= 1) {
       const t0 = performance.now()
       if (group) group.step()
-      else { sim!.thinkInBackground(); sim!.step() } // slow thoughts (model calls) run beside the clock and land when they arrive
+      else if (thinkMode === 'lockstep' && sim!.thinks) {
+        if (lockBusy) break // the model has not answered yet: the clock waits
+        lockBusy = true
+        const s = sim!
+        void s.think().then(() => { s.step(); lastPosted = -1 }).finally(() => { lockBusy = false })
+      } else { sim!.thinkInBackground(); sim!.step() } // slow thoughts (model calls) run beside the clock and land when they arrive
       stepMs = stepMs * 0.8 + (performance.now() - t0) * 0.2
       budget--
       if (performance.now() - frameStart > FRAME_BUDGET_MS) { budget = Math.min(budget, 1); break }
@@ -212,7 +228,21 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'step':
       if (group) group.step()
+      else if (sim && thinkMode === 'lockstep') { await sim.think(); sim.step() }
       else sim?.step()
+      break
+    case 'thinkMode':
+      thinkMode = m.mode
+      lastPosted = -1
+      break
+    case 'saveLog':
+      postMessage({ type: 'log', log: sim?.decisionLog ?? [] } satisfies FromWorker)
+      break
+    case 'replay':
+      applyScene(sceneText)
+      await rebuild()
+      sim?.replay(m.log)
+      lastPosted = -1
       break
     case 'sweep':
       if (!scene) break

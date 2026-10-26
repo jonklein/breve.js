@@ -312,6 +312,12 @@ export class Sim {
     return jobs
   }
 
+  /** True while a decision log is being replayed: the model is not asked. */
+  get isReplaying(): boolean { return this.replaying !== null }
+
+  /** True when some set of this sim has a controller that thinks. */
+  get thinks(): boolean { return this.scene.entities.some((e) => e.think) }
+
   /** Run again from a decision log: the model is never asked, and each decision lands on the tick it did the first time. */
   replay(log: { tick: number; set: number; row: number; decision: unknown }[]): void {
     this.replaying = [...log].sort((a, b) => a.tick - b.tick)

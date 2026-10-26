@@ -231,7 +231,7 @@ export default {
 
 ### Slow thinking: asking a language model
 
-A controller may also have an async `think(obs, p, ctx)`, run for each entity every `think.every` ticks (set on the entity set: `"think": { "every": 120 }`). It looks around, may `await ctx.ask(prompt, { json: true })` (a language model, reached through the local server and `ANTHROPIC_API_KEY`), and returns a decision of any JSON shape. The fast `decide` reads it as `self.decision` (undefined until the first answer). In the workbench thinking runs beside the clock, so a slow model never stalls the sim; answers land when they arrive.
+A controller may also have an async `think(obs, p, ctx)`, run for each entity every `think.every` ticks (set on the entity set: `"think": { "every": 120 }`). It looks around, may `await ctx.ask(prompt, { json: true })` (a language model, reached through the local server and `ANTHROPIC_API_KEY`), and returns a decision of any JSON shape. The fast `decide` reads it as `self.decision` (undefined until the first answer). In the workbench thinking runs beside the clock, so a slow model never stalls the sim; answers land when they arrive. A bar above the view appears for scenes that think: switch to **lockstep** (the clock waits for every answer before each tick, so a run repeats exactly), **Save log** to download every decision, and **Replay log…** to restart and play a saved log back without calling the model.
 
 Every decision is logged with the tick it took effect (`sim.decisionLog`). `sim.replay(log)` reruns without the model: each decision lands on the same tick, so the run is identical. See `examples/llm-wanderers`.
 

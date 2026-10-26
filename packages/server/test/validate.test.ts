@@ -44,6 +44,8 @@ test('decide requests: a prompt, optional JSON, and at most a few small base64 P
     assert.ok('error' in parseDecide(bad), JSON.stringify(bad).slice(0, 60))
 })
 
-test('the vision example validates like the others', () => {
+test('the vision, model and mesh examples validate like the others', () => {
   assert.deepEqual(problemsWith({ scene: ex('vlm-scouts/scene.json'), script: ex('vlm-scouts/scouts.js') }), [])
+  assert.deepEqual(problemsWith({ scene: ex('onnx-policy/scene.json'), script: ex('onnx-policy/policy.js') }), [])
+  assert.deepEqual(problemsWith({ scene: ex('creature-gltf/scene.json'), script: ex('creature-gltf/creature.js') }), [])
 })

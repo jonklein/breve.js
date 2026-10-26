@@ -164,6 +164,7 @@ const runs = new WeakMap() // what each running parent knows (a parent is data i
 async function launch(host, run) {
   for (const name of [...host.group.sims.keys()]) host.remove(name)
   run.start = []
+  run.upright = run.genomes.map(() => ({ sum: 0, n: 0 }))
   run.tickInGen = 0
   for (let i = 0; i < run.genomes.length; i++) {
     const scene = structuredClone(host.scene)
@@ -173,30 +174,37 @@ async function launch(host, run) {
   }
 }
 
-/** How far each creature walked between landing and the end of the generation (straight-line, any direction). */
-function walked(host, run) {
+/**
+ * How well each creature did: the straight-line distance it covered between landing and the end of the generation (any direction),
+ * scaled by how upright it stayed when the "reward staying upright" slider is above 0. At 0, tumbling and rolling count as much as walking.
+ */
+function scoresOf(host, run) {
+  const w = host.params.upright
   return [...host.group.sims.values()].map((sim, i) => {
     const m = sim.metrics()
-    return Math.hypot(m.x - run.start[i].x, m.z - run.start[i].z)
+    const distance = Math.hypot(m.x - run.start[i].x, m.z - run.start[i].z)
+    const stood = run.upright[i].n ? Math.max(0, run.upright[i].sum / run.upright[i].n) : 0
+    return distance * (1 - w + w * stood)
   })
 }
 
 export const parent = {
   async init(host) {
     const n = host.params.population
-    runs.set(host, { gen: 1, genomes: Array.from({ length: n }, () => randomGenome(() => host.random(), () => host.normal())), tickInGen: 0, start: [], scores: [], best: 0, lastBest: 0, mean: 0 })
+    runs.set(host, { gen: 1, genomes: Array.from({ length: n }, () => randomGenome(() => host.random(), () => host.normal())), tickInGen: 0, start: [], upright: [], scores: [], best: 0, lastBest: 0, mean: 0 })
     await launch(host, runs.get(host))
   },
 
   async step(host) {
     const run = runs.get(host)
     run.tickInGen++
+    if (run.tickInGen > SETTLE && run.tickInGen % 10 === 0) [...host.group.sims.values()].forEach((s, i) => { run.upright[i].sum += s.metrics().upright; run.upright[i].n++ })
     if (run.tickInGen === SETTLE) run.start = [...host.group.sims.values()].map((s) => ({ x: s.metrics().x, z: s.metrics().z }))
     if (run.tickInGen < host.params.ticks) return
 
     // the generation is over: rank, keep the best, breed the rest
     const r = () => host.random(), normal = () => host.normal()
-    const scores = walked(host, run)
+    const scores = scoresOf(host, run)
     const order = scores.map((s, i) => i).sort((a, b) => scores[b] - scores[a])
     const keep = Math.min(host.params.keep, order.length)
     run.lastBest = scores[order[0]]

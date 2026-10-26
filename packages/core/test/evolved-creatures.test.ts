@@ -75,3 +75,15 @@ test('a scene hands its scripts structured data as ctx.data, and the schema acce
   assert.deepEqual(seen, { genome: { a: [1, 2, 3] } })
   assert.equal(parseScene(JSON.stringify({ seed: 1, params: {}, data: 5, entities: [], metrics: [] })).ok, false)
 })
+
+test('"reward staying upright" scales a score by how upright the creature stayed, and 0 leaves distance alone', async () => {
+  const { scene, script } = await load()
+  const last = async (upright: number) => {
+    const r = new ParentRun(parentOf(script)!, withParams(tiny(scene), { upright }), script)
+    await r.start()
+    for (let t = 0; t < 150; t++) await r.step()
+    return +r.status().match(/last best ([\d.]+)/)![1]
+  }
+  const free = await last(0), strict = await last(1)
+  assert.ok(strict <= free + 1e-9, `${strict} should not beat ${free}`)
+})

@@ -209,11 +209,39 @@ One state field of a whole lattice, as a single value: `alive.neighborSum()` is 
 neighbors of every cell at once. Fields are immutable; every operation makes a new one. This is the
 fast way to write a lattice rule: no loop over cells in the script, and no object per cell.
 
+Arithmetic (`add`, `eq`, `and`, `where`, `map`, `zip`, ...) is lazy: it records what to compute, and the values are worked out
+in one pass over small blocks the first time they are needed (by `data`, `sum`, a neighbor operation, or the engine storing
+the result). A chain like `crowd.eq(3).or(alive.and(crowd.eq(2)))` therefore reads and writes memory once, not once per step.
+
+### `Field._values`
+
+```ts
+_values: Data | null
+```
+
+@internal the computed values, once there are any
+
+### `Field._expr`
+
+```ts
+_expr: Node | null
+```
+
+@internal what to compute, until then
+
 ### `Field.length`
 
 ```ts
-get length(): number
+readonly length: number
 ```
+
+### `Field.data`
+
+```ts
+get data(): Data
+```
+
+The values, one per cell. The first call on a pending field computes them (all at once, in blocks).
 
 ### `Field.neighborSum`
 
@@ -239,31 +267,15 @@ neighborMax(): Field
 
 For each cell, the biggest value among its neighbors.
 
-### `Field.map`
-
-```ts
-map(fn: (v: number, i: number) => number): Field
-```
-
-A new field with `fn(value, index)` applied to every cell.
-
-### `Field.zip`
-
-```ts
-zip(other: Field, fn: (a: number, b: number, i: number) => number): Field
-```
-
-Combine two fields cell by cell: `alive.zip(crowd, (a, n) => ...)`.
-
 ### `Field.add`
 
 ```ts
 add(o: number | Field): Field
 ```
 
-Arithmetic on whole fields, with no function call per cell (much faster than `map` and `zip` on a big grid). Each takes a
-number or another field of the same size and makes a new field: `crowd.eq(3)`, `alive.mul(2).add(crowd)`.
-Comparisons give 1 where true and 0 where not, so they combine with `and`, `or`, `not` and `where`.
+Arithmetic on whole fields, with no function call per cell. Each takes a number or another field of the same size and
+makes a new field: `crowd.eq(3)`, `alive.mul(2).add(crowd)`. Comparisons give 1 where true and 0 where not, so they
+combine with `and`, `or`, `not` and `where`.
 
 ### `Field.sub`
 
@@ -373,13 +385,27 @@ clamp(lo: number, hi: number): Field
 
 Every value held between `lo` and `hi`.
 
+### `Field.map`
+
+```ts
+map(fn: (v: number, i: number) => number): Field
+```
+
+A new field with `fn(value, index)` applied to every cell.
+
+### `Field.zip`
+
+```ts
+zip(other: Field, fn: (a: number, b: number, i: number) => number): Field
+```
+
+Combine two fields cell by cell: `alive.zip(crowd, (a, n) => ...)`.
+
 ### `Field.sum`
 
 ```ts
 sum(): number
 ```
-
-The other operand as an array and an index mask: a number is a one-element array read at index 0 (mask 0), a field is read in step (mask -1).
 
 ### `Field.average`
 

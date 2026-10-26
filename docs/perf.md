@@ -22,10 +22,16 @@ The M1 placeholder target was a tick under 30 ms; it is not met yet. Measured on
    uses them instead of two `zip` closures (~77 → ~62 ms). A test checks that both ways of writing the rule give the same
    state, tick for tick.
 
-What is left, per tick: `neighborSum` ~22 ms, then about 5-10 ms for each of the six or so whole-field operations. Those are
-memory-bound: each one allocates and fills a fresh 4 MB array. Ways to close the rest of the gap, in order of effort: reuse
-buffers for temporaries, fuse common chains (for example `crowd.eq(3).or(alive.and(crowd.eq(2)))` as one pass), run the rule in
-WASM, or compute on the GPU. Per-cell `decide` rules cost about 3 µs/cell (3D Life, 8,000 cells, ~24 ms),
+What is left, per tick: `neighborSum` ~22 ms, the Life rule's chain of comparisons ~25 ms, the age update ~10 ms, and ~5 ms writing
+the results back. Field arithmetic is **lazy and fused**: `crowd.eq(3).or(alive.and(crowd.eq(2)))` records what to compute and
+works it out in one pass over 2,048-cell blocks of `Float32Array` (one array type per loop, no index masks), so a chain no longer
+allocates a 4 MB array per step (about 8 MB of outputs a tick instead of 24 MB at a million cells, which matters for browser
+garbage-collection pauses). It did **not** make the tick faster, and the profile says why: on the test box a simple scalar loop
+costs about 3 ns a cell (`neighborSum`'s 8 million reads take 22 ms), so a million-cell tick is CPU-bound, not memory-bound.
+The remaining ways down are doing less per cell or more per instruction: WebAssembly SIMD kernels for the elementwise passes
+(about 4 cells per instruction), a faster neighbor gather for regular lattices, or computing on the GPU. The 30 ms target is
+likely out of reach in plain JavaScript on this box; on the laptop the original numbers came from, the same code should be
+roughly 1.5 to 2 times faster. Per-cell `decide` rules cost about 3 µs/cell (3D Life, 8,000 cells, ~24 ms),
 so they suit grids up to roughly 50,000 cells.
 
 Per-cell handles are only built when a `decide` rule or a lattice metric asks for them; a metric such as

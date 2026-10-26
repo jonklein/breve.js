@@ -1,7 +1,7 @@
 import { initResult, stateDefOf } from './init-shape'
 import { handleFor, type Model, type ModelHandle } from './inference'
 import { Relations, type RelationsSnapshot } from './relations'
-import { Mlp } from '@breve/stdlib'
+import { Colors, Mlp } from '@breve/stdlib'
 import { Rng } from './rng'
 import { Vec3 } from '@breve/stdlib'
 import { AgentWorld } from './agent-world'
@@ -246,7 +246,7 @@ export class Sim {
   }
 
   ctx(): Ctx {
-    return { tick: this.tick, dt: DT, random: () => this.rng.next(), normal: () => normalDraw(() => this.rng.next()), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), relations: this.relations, inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
+    return { tick: this.tick, dt: DT, colors: Colors, random: () => this.rng.next(), normal: () => normalDraw(() => this.rng.next()), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), relations: this.relations, inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
   }
 
   /** What to draw for each entity set, in scene order. */

@@ -1,5 +1,6 @@
 import { Picture } from './image'
 import { Agent, type AgentCols } from './agents'
+import { looksOf } from './display'
 import { initResult } from './init-shape'
 import { actOf, type Controller } from './world'
 import { Agents } from '@breve/stdlib'
@@ -335,6 +336,9 @@ export class AgentWorld implements World {
   frame(): FrameData {
     const n = this.table.size
     const c = this.cols
+    // a script's `display` colors each agent; it runs once per drawn frame, not every tick
+    const display = this.host.controller()?.display
+    const colors = display ? looksOf(n, (i) => display({ self: this.handleAt(i) }, this.host.params, this.host.ctx()), (e) => this.host.fail('display', e)).rgb : null
     return {
       kind: 'agents',
       count: n,
@@ -343,6 +347,7 @@ export class AgentWorld implements World {
       pos: interleave(n, c.px, c.py, c.pz),
       vel: interleave(n, c.vx, c.vy, c.vz),
       attr: null,
+      ...(colors ? { colors } : {}),
     }
   }
 

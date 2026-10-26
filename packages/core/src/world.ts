@@ -1,7 +1,8 @@
 import type { Picture } from './image'
 import type { ModelHandle } from './inference'
 import type { Relations } from './relations'
-import type { Mlp } from '@breve/stdlib'
+import type { Colors, Mlp } from '@breve/stdlib'
+import type { Look } from './display'
 import type { Rng } from './rng'
 import type { EntityDef, Params, Scene } from './scene'
 import type { Table } from './store'
@@ -43,6 +44,8 @@ export interface Ctx {
    * from many agents at once, if that matters.
    */
   readonly relations: Relations
+  /** Colors for `display`: `ctx.colors.ramp(['#4f86f7', '#7be495'], age / 20)`, `ctx.colors.hsl(h, s, l)`, `ctx.colors.hex('#48f')`, and `ctx.colors.rampField(stops, field)` for `displayAll`. */
+  readonly colors: typeof Colors
   /** A small neural network of the given layer sizes: `const brain = ctx.mlp([6, 5, 3])`, then `brain.run(self.weights, inputs)`. */
   mlp(sizes: number[]): Mlp
   /** Make a vector: `vec(1, 0, 0)`. */
@@ -135,6 +138,20 @@ export interface Controller {
   act?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
   /** Old name for `act`; it still works. */
   decide?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
+  /**
+   * How one entity looks: `display({ self }, params, ctx)` returns `{ color, visible }`, for example
+   * `{ visible: self.alive, color: ctx.colors.ramp(['#4f86f7', '#7be495'], self.age / 20) }`. It only reads state, never changes
+   * anything, so it cannot affect the simulation, forks or replays; it runs when a frame is drawn, not every tick. Free agents and
+   * network nodes use `color` (a `visible` of false is only honored on lattice cells). Where it returns nothing, the scene's own
+   * look settings apply.
+   */
+  display?(obs: { self: any }, params: Params, ctx: Ctx): Look | void
+  /**
+   * The whole-set form of `display`, for big grids and networks: `displayAll(fields, params, ctx)` gets the state fields as `Field`s
+   * (like `actAll`) and returns `{ visible, color }` made of fields, for example
+   * `{ visible: alive, color: ctx.colors.rampField(['#4f86f7', '#7be495'], age.div(20)) }`.
+   */
+  displayAll?(fields: any, params: Params, ctx: Ctx): unknown
 }
 
 export interface MetricInput {
@@ -187,6 +204,8 @@ export interface Host {
 
 /** Everything a renderer needs for one frame, as transferable buffers. */
 export interface FrameData {
+  /** Red, green and blue (0 to 255) per agent or node, from the script's `display`. */
+  colors?: Uint8Array
   /** The entity set this frame draws, and its color override. */
   name?: string
   color?: string
@@ -209,7 +228,7 @@ export interface FrameData {
    */
   attr: Float32Array | null
   /** Lattices send every cell (1 = drawn), so the renderer can animate cells coming and going. */
-  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number }
+  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number; /** red, green, blue (0 to 255) per cell, from `display` */ rgb?: Uint8Array }
   /** Networks (`kind: 'graph'`): the links as pairs of node numbers (redrawn when `version` changes), and how to color and size nodes. `pos` holds the layout. */
   graph?: { edges: Uint32Array; version: number; palette?: string[]; nodeSize: number }
   /** Physics bodies (`kind: 'bodies'`): one pose per part, plus the terrain on the first frame. */

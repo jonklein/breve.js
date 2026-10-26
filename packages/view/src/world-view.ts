@@ -13,7 +13,9 @@ export interface WorldFrame {
   pos: Float32Array
   vel: Float32Array | null
   attr: Float32Array | null
-  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number }
+  /** Red, green and blue (0 to 255) per agent or node, from the script's `display`. */
+  colors?: Uint8Array
+  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number; rgb?: Uint8Array }
   graph?: { edges: Uint32Array; version: number; palette?: string[]; nodeSize: number }
   /** Per-set color for free agents. */
   color?: string

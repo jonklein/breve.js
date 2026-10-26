@@ -66,7 +66,7 @@ export interface LatticeDef {
   edges?: 'dead' | 'wrap'
   neighborhood?: 'moore' | 'von-neumann'
   /** State field whose non-zero cells are drawn. */
-  show: string
+  show?: string
   /** State field that tints drawn cells, scaled by `colorMax`. */
   color?: string
   colorMax?: number
@@ -379,7 +379,7 @@ export const sceneSchema = {
           },
           lattice: {
             type: 'object',
-            required: ['size', 'show'],
+            required: ['size'],
             additionalProperties: false,
             properties: {
               size: { type: 'array', items: { type: 'integer', minimum: 1, maximum: 2048 }, minItems: 3, maxItems: 3 },
@@ -499,7 +499,7 @@ export function validateScene(data: unknown): SceneResult {
       const fields = Object.keys(e.state ?? {})
       const declared = e.state !== undefined
       if (declared && !fields.length) errors.push(`entities.${i}.state: a lattice needs at least one state field`)
-      if (declared && !fields.includes(e.lattice.show)) errors.push(`entities.${i}.lattice.show: "${e.lattice.show}" is not a state field`)
+      if (declared && e.lattice.show !== undefined && !fields.includes(e.lattice.show)) errors.push(`entities.${i}.lattice.show: "${e.lattice.show}" is not a state field`)
       if (declared && e.lattice.color && !fields.includes(e.lattice.color)) errors.push(`entities.${i}.lattice.color: "${e.lattice.color}" is not a state field`)
       for (const [k, f] of fillList(e.fill).entries()) {
         if (declared && !fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)

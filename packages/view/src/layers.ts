@@ -63,6 +63,7 @@ export class AgentLayer {
       this.mesh.setMatrixAt(i, this.m)
       // heading as colour: boids flying the same way share a colour
       if (this.selected === i) this.c.set('#ffffff')
+      else if (f.colors) this.c.setRGB(f.colors[i * 3] / 255, f.colors[i * 3 + 1] / 255, f.colors[i * 3 + 2] / 255)
       else if (own) this.c.copy(own)
       else this.c.setRGB(0.35 + 0.65 * (this.d.x * 0.5 + 0.5), 0.35 + 0.65 * (this.d.y * 0.5 + 0.5), 0.35 + 0.65 * (this.d.z * 0.5 + 0.5))
       colors.setXYZ(i, this.c.r, this.c.g, this.c.b)
@@ -92,6 +93,8 @@ export class CellLayer {
     scale: Float32Array
     target: Uint8Array
     color: Float32Array
+    /** red, green, blue per cell (0 to 255) when the script's `display` gives colors */
+    rgb: Uint8Array | null
     palette: THREE.Color[] | null
     animating: boolean
   } | null = null
@@ -138,7 +141,7 @@ export class CellLayer {
     this.fixed = fixed
     let c = this.cells
     if (!c || c.scale.length !== n || c.dims.some((d, i) => d !== dims[i])) {
-      c = this.cells = { dims, spacing, unit: f.unit, thick: [1, 1, 1], tau: 0.1, scale: Float32Array.from(show), target: new Uint8Array(n), color: new Float32Array(n), palette: null, animating: true }
+      c = this.cells = { dims, spacing, unit: f.unit, thick: [1, 1, 1], tau: 0.1, scale: Float32Array.from(show), target: new Uint8Array(n), color: new Float32Array(n), rgb: null, palette: null, animating: true }
     }
     c.spacing = spacing
     c.unit = f.unit
@@ -146,6 +149,7 @@ export class CellLayer {
     const t = L.thickness ?? 1
     c.thick = [dims[0] === 1 ? t : 1, dims[1] === 1 ? t : 1, dims[2] === 1 ? t : 1]
     c.palette = L.palette ? L.palette.map(color) : null
+    c.rgb = L.rgb ?? null
     // `fade` is the fraction of a tick over which cells ease in and out; 0 snaps them instantly
     c.tau = fade > 0 ? fade / (3 * (f.rate ?? 8)) : 0
     c.target.set(show)
@@ -191,7 +195,8 @@ export class CellLayer {
       this.m.compose(this.p, this.q, this.d)
       cubes.setMatrixAt(w, this.m)
       this.rows[w] = i
-      if (this.fixed && !c.palette) this.c.copy(this.fixed)
+      if (c.rgb) this.c.setRGB(c.rgb[i * 3] / 255, c.rgb[i * 3 + 1] / 255, c.rgb[i * 3 + 2] / 255)
+      else if (this.fixed && !c.palette) this.c.copy(this.fixed)
       else this.tint(c.color[i], this.c)
       colors.setXYZ(w, this.c.r, this.c.g, this.c.b)
       w++
@@ -264,6 +269,7 @@ export class GraphLayer {
       this.m.compose(this.p, this.q, this.s)
       this.mesh.setMatrixAt(i, this.m)
       if (this.selected === i) this.c.set('#ffffff')
+      else if (f.colors) this.c.setRGB(f.colors[i * 3] / 255, f.colors[i * 3 + 1] / 255, f.colors[i * 3 + 2] / 255)
       else if (f.attr) {
         const x = Math.min(1, Math.max(0, f.attr[i])) * (pal.length - 1)
         const k = Math.min(pal.length - 2, Math.floor(x))

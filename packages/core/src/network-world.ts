@@ -1,3 +1,4 @@
+import { looksOfAll, looksOf } from './display'
 import { initResult } from './init-shape'
 import { Field, Nums, type NeighborTable } from '@breve/stdlib'
 import { adjacency, makeEdges, type Adjacency, type Edges } from './graph'
@@ -305,6 +306,25 @@ export class NetworkWorld implements World {
     return false
   }
 
+  /** Node colors from the script's `displayAll` (every node at once) or `display` (one at a time), or null. */
+  private look(): Uint8Array | null {
+    const ctrl = this.host.controller()
+    const fail = (e: unknown) => this.host.fail('display', e)
+    if (ctrl?.displayAll) {
+      try { return looksOfAll(this.n, ctrl.displayAll(this.fieldsOf(), this.host.params, this.host.ctx()), fail).rgb } catch (e) { fail(e); return null }
+    }
+    const display = ctrl?.display
+    return display ? looksOf(this.n, (i) => display({ self: this.handles[i] }, this.host.params, this.host.ctx()), fail).rgb : null
+  }
+
+  /** Every single-number state field as a `Field` that follows the links (what `actAll` and `displayAll` are given). */
+  private fieldsOf(): Record<string, Field> {
+    const table = this.table_()
+    const out: Record<string, Field> = {}
+    for (const f of this.fields) if (f.kind !== 'string' && f.length === 1) out[f.name] = new Field(this.table.cols[f.name], table)
+    return out
+  }
+
   frame(): FrameData {
     const net = this.host.def.network!
     const tint = net.color ? this.table.cols[net.color] : null
@@ -313,6 +333,7 @@ export class NetworkWorld implements World {
     if (attr && tint) for (let r = 0; r < this.n; r++) attr[r] = Math.min(1, Math.max(0, tint[r] / max))
     const edges = new Uint32Array(this.edges.length * 2)
     this.edges.forEach(([a, b], i) => { edges[i * 2] = a; edges[i * 2 + 1] = b })
+    const colors = this.look()
     return {
       kind: 'graph',
       count: this.n,
@@ -321,6 +342,7 @@ export class NetworkWorld implements World {
       pos: this.layout.slice(),
       vel: null,
       attr,
+      ...(colors ? { colors } : {}),
       graph: { edges, version: this.version, palette: net.palette, nodeSize: net.size ?? 1 },
     }
   }

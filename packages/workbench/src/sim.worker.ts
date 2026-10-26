@@ -46,7 +46,8 @@ export interface WorldFrameMsg {
   pos: Float32Array
   vel: Float32Array | null
   attr: Float32Array | null
-  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number }
+  colors?: Uint8Array
+  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number; rgb?: Uint8Array }
   rigid?: RigidFrame
   graph?: { edges: Uint32Array; version: number; palette?: string[]; nodeSize: number }
 }
@@ -183,7 +184,7 @@ const timeline = () => (history.length > 1 ? { first: history[0].tick, last: his
 let stepMs = 0 // smoothed time one tick takes, shown in the stats line
 
 function transfers(f: WorldFrameMsg): ArrayBuffer[] {
-  return [f.pos.buffer as ArrayBuffer, ...(f.vel ? [f.vel.buffer as ArrayBuffer] : []), ...(f.attr ? [f.attr.buffer as ArrayBuffer] : []), ...(f.lattice ? [f.lattice.show.buffer as ArrayBuffer] : []), ...(f.rigid ? [f.rigid.poses.buffer as ArrayBuffer] : []), ...(f.graph ? [f.graph.edges.buffer as ArrayBuffer] : [])]
+  return [f.pos.buffer as ArrayBuffer, ...(f.vel ? [f.vel.buffer as ArrayBuffer] : []), ...(f.attr ? [f.attr.buffer as ArrayBuffer] : []), ...(f.lattice ? [f.lattice.show.buffer as ArrayBuffer] : []), ...(f.lattice?.rgb ? [f.lattice.rgb.buffer as ArrayBuffer] : []), ...(f.colors ? [f.colors.buffer as ArrayBuffer] : []), ...(f.rigid ? [f.rigid.poses.buffer as ArrayBuffer] : []), ...(f.graph ? [f.graph.edges.buffer as ArrayBuffer] : [])]
 }
 
 let groupTick = -1

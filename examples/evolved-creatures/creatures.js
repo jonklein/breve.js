@@ -18,18 +18,18 @@
 // Try: raise "mutation strength" for wilder offspring, lower "survivors kept" for stronger selection, and
 // click a tile to watch one creature on its own.
 
-const BLOCKS = 7 // blocks after the trunk
+const BLOCKS = 6 // blocks after the trunk
 const SIDES = 2 // an instance of a block is on the genome's side (0) or its mirror image (1)
-const CHAIN = 2 // a block can continue as a second segment
+const CHAIN = 3 // a block can continue for up to this many segments (each a little smaller)
 const SLOTS = BLOCKS * SIDES * CHAIN // every joint a body could have
-const SIZES = [SLOTS + 5, 12, SLOTS] // brain: joint angles, which way is up, a clock -> joint targets
+const SIZES = [SLOTS + 5, 14, SLOTS] // brain: joint angles, which way is up, a clock -> joint targets
 const WEIGHTS = SIZES.slice(1).reduce((n, out, i) => n + (SIZES[i] + 1) * out, 0)
 const SWING = 1.2 // radians a joint can turn either way
 const DENSITY = 50 // kg per cubic metre of block
 const MIN_MASS = 0.25 // no block is lighter than this, so no tiny limb is pushed around by a heavy trunk
-const STRENGTH = 2500 // newton-metres of motor torque per square metre of a block's cross-section
-const LIFT = 3 // times the torque it takes to hold its load out sideways
-const MAX_JOINT_SPEED = 5 // radians per second a joint's target can move
+const STRENGTH = 6000 // newton-metres of motor torque per square metre of a block's cross-section
+const LIFT = 6 // times the torque it takes to hold its load out sideways
+const MAX_JOINT_SPEED = 8 // radians per second a joint's target can move
 const SETTLE = 90 // ticks a creature gets to land before its walk is measured
 const AXES = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 const FACES = [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]] // [axis, direction]: which side of the parent block
@@ -73,7 +73,7 @@ export function layout(g) {
         items.push(item)
         byKey.set(nameOf(i, side, seg), item)
         from = item
-        size = size.map((s) => Math.max(0.05, s * 0.8))
+        size = size.map((s) => Math.max(0.05, s * 0.85))
         offset.fill(0) // a second segment continues straight on
       }
     }
@@ -84,6 +84,26 @@ export function layout(g) {
     if (t.anchor) t.anchor[1] += 0.03 - floor
   }
   return items
+}
+
+/**
+ * How bunched up a body is: the share of its blocks' volume that sits inside other blocks (a block always touches the one it hangs
+ * from, which does not count). Bodies much above a tenth are lumps rather than limbs, so breeding and mutation turn them down.
+ */
+export function overlap(g) {
+  const items = layout(g)
+  let inside = 0, volume = 0
+  items.forEach((a, i) => {
+    volume += a.size[0] * a.size[1] * a.size[2]
+    for (let j = i + 1; j < items.length; j++) {
+      const b = items[j]
+      if (b.parent === a || a.parent === b) continue
+      let v = 1
+      for (let k = 0; k < 3 && v > 0; k++) v *= Math.max(0, Math.min(a.center[k] + a.size[k] / 2, b.center[k] + b.size[k] / 2) - Math.max(a.center[k] - a.size[k] / 2, b.center[k] - b.size[k] / 2))
+      inside += v
+    }
+  })
+  return inside / volume
 }
 
 /** The scene's body for a genome: a box for every block and a hinge motor between each block and the one it hangs from. */
@@ -163,7 +183,8 @@ export const metrics = {
 // ---------------------------------------------------------------------------------------------------------
 // The genome
 
-const ROOT = [0.3, 1.2], DIM = [0.08, 0.8], RHYTHM = [0.4, 3]
+const MAX_OVERLAP = 0.1 // see `overlap`
+const ROOT = [0.25, 0.8], DIM = [0.08, 0.6], RHYTHM = [0.4, 3]
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v))
 const between = (r, [lo, hi]) => lo + r() * (hi - lo)
 const pickInt = (r, n) => Math.floor(r() * n)
@@ -171,14 +192,22 @@ const pickInt = (r, n) => Math.floor(r() * n)
 /** A new block: often a long thin one (a limb, a tail), sometimes a lump, hanging from any earlier block. */
 function randomBlock(r, k, on) {
   const size = [0, 0, 0].map(() => between(r, [0.08, 0.2]))
-  if (r() < 0.7) size[pickInt(r, 3)] = between(r, [0.25, 0.7])
-  else for (let a = 0; a < 3; a++) size[a] = between(r, [0.1, 0.5])
+  if (r() < 0.85) size[pickInt(r, 3)] = between(r, [0.3, 0.8]) // a long thin block: a limb, a tail, a spine
+  else for (let a = 0; a < 3; a++) size[a] = between(r, [0.1, 0.4])
   return { on, parent: pickInt(r, k + 1), face: pickInt(r, 6), u: between(r, [-0.7, 0.7]), v: between(r, [-0.7, 0.7]), size, axis: pickInt(r, 3), axis2: pickInt(r, 3), mirror: r() < 0.6, chain: 1 + pickInt(r, CHAIN) }
 }
 
 export function randomGenome(r, normal) {
+  for (let tries = 0; tries < 60; tries++) {
+    const g = randomGenomeOnce(r, normal)
+    if (overlap(g) <= MAX_OVERLAP) return g
+  }
+  return randomGenomeOnce(r, normal)
+}
+
+function randomGenomeOnce(r, normal) {
   return {
-    root: [between(r, [0.4, 1.1]), between(r, [0.2, 0.5]), between(r, [0.3, 0.8])],
+    root: [between(r, [0.3, 0.7]), between(r, [0.15, 0.35]), between(r, [0.25, 0.55])], // a modest trunk, so the limbs are most of the creature
     blocks: Array.from({ length: BLOCKS }, (_, k) => randomBlock(r, k + 1 - 1, k < 2 || r() < 0.4)),
     rhythm: between(r, RHYTHM),
     weights: Array.from({ length: WEIGHTS }, () => 0.6 * normal()),
@@ -196,8 +225,22 @@ export function crossover(a, b, r) {
   })
 }
 
-/** A copy with some genes nudged, blocks added, dropped or moved. `strength` 0..1 scales how many change and by how much. */
+/**
+ * A copy with some genes nudged, blocks added, dropped or moved. `strength` 0..1 scales how many change and by how much.
+ * A change that would bunch the body up is tried again (a few times) rather than accepted.
+ */
 export function mutate(g, strength, r, normal) {
+  const limit = Math.max(MAX_OVERLAP, overlap(g))
+  for (let tries = 0; tries < 8; tries++) {
+    const c = mutateOnce(g, strength, r, normal)
+    if (overlap(c) <= limit) return c
+  }
+  const same = structuredClone(g) // no tidy change found: keep the body and only nudge the brain
+  for (let i = 0; i < same.weights.length; i++) if (r() < 0.12 * Math.max(strength, 0.05)) same.weights[i] += normal() * 0.5 * strength
+  return same
+}
+
+function mutateOnce(g, strength, r, normal) {
   const c = structuredClone(g)
   const chance = (p) => r() < p * strength
   const grow = (v, range) => clamp(v * Math.exp(normal() * 0.25 * strength), range) // sizes change by a factor
@@ -302,7 +345,8 @@ export const parent = {
     const next = order.slice(0, keep).map((i) => run.genomes[i])
     while (next.length < host.params.population) {
       const a = tournament()
-      const child = r() < 0.4 ? crossover(a, tournament(), r) : a
+      let child = r() < 0.4 ? crossover(a, tournament(), r) : a
+      if (overlap(child) > MAX_OVERLAP) child = a // a mix that is all lump is not used
       next.push(mutate(child, host.params.mutation, r, normal))
     }
     run.genomes = next

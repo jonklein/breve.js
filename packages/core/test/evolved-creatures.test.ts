@@ -31,7 +31,18 @@ test('every genome the example can make is a valid body, and mutation and crosso
     assert.ok(g.blocks[0].on, 'the first block is never switched off by mutation')
     const names = s.entities[0].body!.parts.map((p: { name: string }) => p.name)
     assert.equal(new Set(names).size, names.length, 'every block has its own name (and so its own brain slot)')
-    assert.ok(names.length <= 29)
+    assert.ok(names.length <= 37)
+  }
+})
+
+test('random and bred bodies are not lumps: little of their volume sits inside other blocks', async () => {
+  const { script } = await load()
+  const r = new Rng(9), normal = normalOf(r)
+  let g = script.randomGenome(() => r.next(), normal)
+  for (let i = 0; i < 80; i++) {
+    assert.ok(script.overlap(g) <= 0.1 + 1e-9 || i > 0, `random genome overlaps ${script.overlap(g).toFixed(2)}`)
+    g = script.mutate(g, 1, () => r.next(), normal)
+    assert.ok(script.overlap(g) <= 0.1 + 1e-9, `genome ${i} overlaps ${script.overlap(g).toFixed(2)}`)
   }
 })
 
@@ -91,12 +102,12 @@ test('"reward staying upright" scales a score by how upright the creature stayed
   assert.ok(strict <= free + 1e-9, `${strict} should not beat ${free}`)
 })
 
-test('a random creature the physics used to throw 40 m/s stays put once parts have a floor on how easily they spin', async () => {
+test('a random creature the physics used to throw 50 m/s stays put once parts have a floor on how easily they spin', async () => {
   const { Sim } = await import('../src/index')
   const { scene, script } = await load()
   const r = new Rng(77), normal = normalOf(r)
   let g: unknown
-  for (let i = 0; i <= 45; i++) g = script.randomGenome(() => r.next(), normal) // the 46th genome of this seed is one that blew up
+  for (let i = 0; i <= 70; i++) g = script.randomGenome(() => r.next(), normal) // the 71st genome of this seed is one that blew up
   const peak = async (minGyration: number) => {
     const s = structuredClone(scene)
     s.entities[0].body = script.bodyOf(g)

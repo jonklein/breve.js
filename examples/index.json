@@ -175,5 +175,17 @@
     ],
     "scene": "scene.json",
     "script": "policy.js"
+  },
+  {
+    "id": "creature-gltf",
+    "name": "Creatures with a modeled body",
+    "description": "The walking creature, but its torso is drawn from a glTF model (beetle.glb) instead of a box. Physics still uses the box; only the picture changes.",
+    "tags": [
+      "physics",
+      "bodies",
+      "models"
+    ],
+    "scene": "scene.json",
+    "script": "creature.js"
   }
 ]

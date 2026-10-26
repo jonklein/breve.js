@@ -164,6 +164,11 @@ export class WorldView {
     this.rigid.setShadows(on)
   }
 
+  /** Where relative model paths (a part's `visual.gltf`) start: a URL ending in `/`. */
+  setAssetBase(base: string): void {
+    this.rigid.assetBase = base
+  }
+
   /** Aim the sun so its shadow map covers the whole arena. */
   private fitShadow(half: number): void {
     if (half === this.shadowSize) return

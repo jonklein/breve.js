@@ -14,6 +14,8 @@ export interface EmbedOptions {
   zoom?: number
   /** Start paused (default false). */
   paused?: boolean
+  /** Where relative paths to models (a body part's `visual.gltf`) start: a URL ending in `/`. Default: the page's own address. */
+  assetBase?: string
 }
 
 export interface Running {
@@ -68,6 +70,7 @@ export async function run(target: string | HTMLElement, code: string, config: un
   controls.autoRotateSpeed = 0.6
   controls.addEventListener('start', () => { controls.autoRotate = false })
   const view = new WorldView(renderer, camera, controls)
+  if (options.assetBase) view.setAssetBase(options.assetBase)
   view.setWorld(scene.world as WorldLook | undefined)
 
   const resize = () => {

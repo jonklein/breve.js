@@ -399,7 +399,7 @@ export class RigidWorld implements World {
       this.modelPending = false
       const t = this.terrain
       rigid.model = {
-        parts: this.body.parts.map((p) => ({ shape: p.shape, size: p.size, rotation: p.rotation, color: p.color })),
+        parts: this.body.parts.map((p) => ({ shape: p.shape, size: p.size, rotation: p.rotation, visual: p.visual, color: p.color })),
         terrain: { size: t.size, n: t.n, heights: t.heights.slice(), color: t.color, texture: t.texture },
       }
     }

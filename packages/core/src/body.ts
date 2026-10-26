@@ -18,6 +18,12 @@ export interface PartDef {
   mass: number
   /** Where the part's center sits in the standing pose, relative to the creature's origin. x is forward, y is up. */
   position: Vec3Tuple
+  /**
+   * What to draw instead of the primitive shape: a glTF/GLB model (all of its meshes merged into one). Physics still uses `shape` and `size`;
+   * the picture is only the picture. `gltf` is a path next to the scene (or a full URL). The model's origin sits at the part's center;
+   * `scale` (a number, or three for each axis), `rotation` (radians about x, y, z) and `offset` adjust it.
+   */
+  visual?: { gltf: string; scale?: number | Vec3Tuple; rotation?: Vec3Tuple; offset?: Vec3Tuple }
   /** Turns the shape about its own center (radians about x, then y, then z). Joints and axes stay where they are; only the part's collider and drawing turn. */
   rotation?: Vec3Tuple
   color?: string
@@ -121,6 +127,15 @@ const partItem = {
     mass: expr,
     position: vec3,
     rotation: vec3,
+    visual: {
+      type: 'object', required: ['gltf'], additionalProperties: false,
+      properties: {
+        gltf: { type: 'string', minLength: 1 },
+        scale: { anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }] },
+        rotation: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 },
+        offset: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 },
+      },
+    },
     color: colorSchema,
     friction: { type: 'number', minimum: 0 },
   },

@@ -16,9 +16,9 @@ for (const e of examples) {
   if (only.length && !only.includes(e.id)) continue
   await page.goto(`${base}/sim/?embed#${e.id}`)
   // let it run long enough to look like itself; bodies need the physics engine to load first
-  await page.waitForTimeout(e.id === 'creature' || e.id === 'urdf-bot' || e.id === 'morphology' ? 7000 : 4500)
+  await page.waitForTimeout(['creature', 'creature-gltf', 'urdf-bot', 'morphology'].includes(e.id) ? 7000 : 4500)
   // creatures are small in a big arena: zoom in on the middle of the view
-  if (['creature', 'urdf-bot', 'morphology'].includes(e.id)) { await page.mouse.move(400, 250); await page.mouse.wheel(0, -900); await page.waitForTimeout(800) }
+  if (['creature', 'creature-gltf', 'urdf-bot', 'morphology'].includes(e.id)) { await page.mouse.move(400, 250); await page.mouse.wheel(0, -900); await page.waitForTimeout(800) }
   await page.screenshot({ path: new URL(`../examples/${e.id}/thumb.jpg`, import.meta.url).pathname, type: 'jpeg', quality: 78 })
   console.log('thumb', e.id)
 }

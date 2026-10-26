@@ -6,6 +6,8 @@ export interface PartShape {
   size: number[]
   /** Euler XYZ radians, turning the shape within its part. */
   rotation?: [number, number, number]
+  /** A model to draw instead of the primitive (see PartDef.visual). */
+  visual?: { gltf: string; scale?: number | [number, number, number]; rotation?: [number, number, number]; offset?: [number, number, number] }
   color?: string
 }
 

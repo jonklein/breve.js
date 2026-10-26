@@ -245,7 +245,9 @@ async function main(): Promise<void> {
     const home = isExample(id) ? id : userProjects().find((p) => p.id === id)?.from
     unapproved = !!userProjects().find((p) => p.id === id)?.untrusted
     $('held').classList.toggle('hidden', !unapproved)
-    send({ type: 'init', scene: doc.scene, script: live(doc.script), base: `${location.origin}/${home && isExample(home) ? home + '/' : ''}` })
+    const assets = `${location.origin}/${home && isExample(home) ? home + '/' : ''}`
+    viewport.view.setAssetBase(assets)
+    send({ type: 'init', scene: doc.scene, script: live(doc.script), base: assets })
   }
 
   picker.addEventListener('change', () => open(picker.value))

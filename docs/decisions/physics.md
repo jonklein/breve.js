@@ -42,10 +42,30 @@ So 20 creatures run about 3x faster than real time at the 60 Hz default. A tick 
 
 If creature motion quality turns out to be the bottleneck for evolution or learning (instability, energy-inefficient gaits, contact jitter), **MuJoCo WASM is the alternative to try**: same body JSON, a new adapter file, same tests. Do not build it until motion quality is shown to be the actual limit.
 
+## MuJoCo WASM spike (measured 2026-10-26)
+
+The comparison the first spike skipped. `scripts/mujoco-spike.mjs` (needs `npm install --no-save @mujoco/mujoco`, the official DeepMind build, v3.17; not a dependency of this repo) turns the same creature body into MJCF (y-up to z-up, position actuators with the body's own gains, the same oscillator law, no steering script) and runs both engines on a flat floor. Same Linux test box for both, 600 ticks of 4 physics steps, node 22.
+
+| | Rapier (product) | MuJoCo WASM (naive translation) |
+|---|---|---|
+| 1 creature, ms per tick | 0.5 to 0.9 | 0.08 to 0.14 |
+| 20 creatures, ms per tick | 6.3 to 7.3 | 1.3 to 1.5 |
+| Same state twice in one process | yes (hash equal) | yes (hash equal) |
+| Walks 10 s without falling | yes: 10.4 m, 20 of 20 upright | **no**: moves ~1.2 m/s for two or three seconds, then buckles and lies flat |
+| WebAssembly size | about 3.1 MB (4.4 MB base64 in the bundle, 1.7 MB gzip) | 10.9 MB (plus a 0.3 MB loader) |
+
+What this does and does not show:
+- **Speed:** MuJoCo steps this body about 5 times faster per tick. That is a real advantage if scenes ever need hundreds of creatures.
+- **Gait:** the claim that MuJoCo is better for locomotion is **not confirmed**. With a straightforward translation (implicit-fast integrator for the motors, joint damping standing in for Rapier's body damping) the creature does not hold its walk. The Rapier setup was tuned over the whole product's development (substeps, force-based motors, collision groups), and MuJoCo would need its own tuning (contact softness, actuator and armature settings) before a fair gait comparison is possible. The spike shows the cost of switching is tuning, not translation.
+- **Determinism:** both repeat in one process. MuJoCo makes no cross-machine promise that we know of; Rapier's deterministic build does. That, and the snapshot/restore/fork that now work for Rapier worlds, favor staying.
+- **Size:** MuJoCo's WebAssembly is about three and a half times larger, loaded only for scenes with bodies either way.
+
+**Decision stands: Rapier.** MuJoCo remains a possible second adapter (the importer, `npm run mjcf`, already reads MJCF, and this script is a body-to-MJCF exporter that could grow into an adapter) if scene sizes outgrow Rapier.
+
 ## Consequences
 
 - Physics state lives in wasm memory, not in columns. What is in columns (torso pose, velocity, distance travelled, oscillator phase, down counter) is derived or small. **Snapshot/fork of a physics sim is therefore not implemented**: Rapier supports `takeSnapshot()` / `restoreSnapshot()`, which should be wired into `Sim.snapshot` when M1/M2 land. Until then, `World.hash()` is the determinism check and `Sim.dispose()` frees the wasm world.
 - `Sim.create` is async and the worker's `rebuild()` awaits it. Editing the body, terrain, physics block or seed in the scene respawns the creatures; count, params and script apply live.
 - The terrain is an implementation of `HeightfieldDef` (size, n, heights) built from the scene seed with Perlin noise (`noise.ts`, `terrain.ts`). The render mesh uses the same samples, so the surface matches the collider except for the choice of triangle diagonals (at most a few centimetres).
 - Physics substeps (default 4) and gravity are scene data (`physics` block).
-- Not done yet from M6: URDF/MJCF importers, glTF visuals, annotated mutation utilities, joint types beyond hinge motors (ball and fixed joints exist but cannot be driven), and a proper snapshot.
+- Since this record was written: snapshot, restore and fork of physics worlds; URDF and MJCF importers; part rotation; glTF visuals; mutation utilities (see MILESTONES.md). Still open: driving joints other than hinges (ball and fixed joints exist but cannot be driven).

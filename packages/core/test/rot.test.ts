@@ -40,3 +40,19 @@ test('physics: a long box turned a quarter turn rests on its short side', async 
   assert.ok(Math.abs(py - 0.5) < 0.05, `standing on end: center at ${py.toFixed(3)}, not 0.1`)
   sim.dispose()
 })
+
+test('a part may name a glTF model to draw (the physics still uses its primitive shape), and the frame carries it to the view', async () => {
+  const { validateBody, Sim, parseScene } = await import('../src/index')
+  const part = { name: 'torso', shape: 'box', size: [1, 0.3, 0.6], mass: 4, position: [0, 1, 0] }
+  const ok = validateBody({ parts: [{ ...part, visual: { gltf: 'beetle.glb', scale: 1.2, rotation: [0, 1, 0], offset: [0, 0.05, 0] } }] })
+  assert.ok(ok.ok, ok.ok ? '' : ok.errors.join('\n'))
+  for (const bad of [{ gltf: '' }, { scale: 2 }, { gltf: 'a.glb', scale: [1, 2] }, { gltf: 'a.glb', extra: 1 }, { gltf: 'a.glb', scale: 0 }])
+    assert.ok(!validateBody({ parts: [{ ...part, visual: bad }] }).ok, JSON.stringify(bad))
+  const r = parseScene(JSON.stringify({ seed: 1, params: {}, bounds: { size: 20 }, terrain: { size: 20, amplitude: 0 }, entities: [{ name: 'c', count: 1, body: { parts: [{ ...part, visual: { gltf: 'beetle.glb' } }] } }], metrics: [] }))
+  assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
+  const sim = await Sim.create(r.scene, { default: { decide: () => ({}) } })
+  sim.step()
+  const rigid = sim.frames()[0].rigid
+  assert.deepEqual(rigid?.model?.parts[0].visual, { gltf: 'beetle.glb' })
+  sim.dispose()
+})

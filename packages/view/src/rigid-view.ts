@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { PartShape, RigidFrame, TerrainMesh } from '@breve/core'
 
 const MAX_CREATURES = 256
@@ -18,6 +20,9 @@ export class RigidView {
   private tmpC = new THREE.Color()
   private framed = 0
   private shadows = false
+  /** Where a part's relative `visual.gltf` path starts (a URL ending in `/`). */
+  assetBase = ''
+  private loaded = new Map<string, Promise<THREE.BufferGeometry>>()
 
   constructor(scene: THREE.Scene, private camera: THREE.PerspectiveCamera, private controls: { target: THREE.Vector3 }) {
     this.group.visible = false
@@ -65,6 +70,7 @@ export class RigidView {
   private build(model: Model, halfSize: number): void {
     for (const m of this.meshes) { this.group.remove(m); m.geometry.dispose(); (m.material as THREE.Material).dispose(); m.dispose() }
     this.meshes = model.parts.map((part, k) => this.partMesh(part, k))
+    model.parts.forEach((part, k) => { if (part.visual) void this.useVisual(part.visual, this.meshes[k]) })
     this.meshes.forEach((m) => this.group.add(m))
     this.buildTerrain(model.terrain)
     // frame the arena from a corner, a little above, but leave the camera alone when only a body was edited
@@ -72,6 +78,34 @@ export class RigidView {
       this.framed = halfSize
       this.controls.target.set(0, 0, 0)
       this.camera.position.set(0.9, 0.6, 0.9).multiplyScalar(halfSize * 0.5)
+    }
+  }
+
+  /** Swap a part's primitive for its glTF model once it has loaded; until then (or if it never loads) the primitive shows. */
+  private async useVisual(v: NonNullable<PartShape['visual']>, mesh: THREE.InstancedMesh): Promise<void> {
+    const url = new URL(v.gltf, this.assetBase || (typeof location !== 'undefined' ? location.href : undefined)).href
+    let promise = this.loaded.get(url)
+    if (!promise) {
+      promise = loadMergedGeometry(url)
+      this.loaded.set(url, promise)
+    }
+    try {
+      const base = await promise
+      if (!this.meshes.includes(mesh)) return // the body was rebuilt while this loaded
+      const g = base.clone()
+      const scale = typeof v.scale === 'number' ? [v.scale, v.scale, v.scale] : v.scale ?? [1, 1, 1]
+      const m = new THREE.Matrix4().compose(
+        new THREE.Vector3(...(v.offset ?? [0, 0, 0])),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...(v.rotation ?? [0, 0, 0]), 'XYZ')),
+        new THREE.Vector3(...scale),
+      )
+      g.applyMatrix4(m)
+      mesh.geometry.dispose()
+      mesh.geometry = g
+      mesh.boundingSphere = null
+    } catch (e) {
+      this.loaded.delete(url)
+      console.warn(`could not load the model ${url}:`, e instanceof Error ? e.message : e)
     }
   }
 
@@ -221,4 +255,24 @@ function groundTexture(kind: 'static' | 'grid' | 'none', size: number): { map: T
   map.colorSpace = THREE.SRGBColorSpace
   map.anisotropy = 4
   return { map, tile, offset }
+}
+
+/** Every mesh in a glTF file as one geometry (positions and normals only), in the file's own coordinates. */
+async function loadMergedGeometry(url: string): Promise<THREE.BufferGeometry> {
+  const gltf = await new GLTFLoader().loadAsync(url)
+  gltf.scene.updateMatrixWorld(true)
+  const parts: THREE.BufferGeometry[] = []
+  gltf.scene.traverse((o) => {
+    const mesh = o as THREE.Mesh
+    if (!mesh.isMesh) return
+    const g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone()
+    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name)
+    g.applyMatrix4(mesh.matrixWorld)
+    if (!g.attributes.normal) g.computeVertexNormals()
+    parts.push(g)
+  })
+  if (!parts.length) throw new Error('the file has no meshes')
+  const merged = mergeGeometries(parts, false)
+  if (!merged) throw new Error('the meshes could not be merged')
+  return merged
 }

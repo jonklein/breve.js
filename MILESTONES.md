@@ -16,7 +16,7 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 | M3 | Controllers and inspector | **Done** | `ants`, `herding` |
 | M4 | Experiment layer | **Done** | `boids`, `creature`, `ants`, `morphology` experiments |
 | M5 | Abstract worlds | **Done** | `epidemic`, `epidemic-grid`, `market` |
-| M6 | Bodies and physics | **Mostly done** (no MuJoCo, MJCF, glTF, mutation utilities) | `creature`, `urdf-bot`, `morphology` |
+| M6 | Bodies and physics | **Done** | `creature`, `urdf-bot`, `morphology` |
 | M7 | Learning and language models | **Done** (WebGPU untested) | `llm-wanderers`, `neural`, assistant |
 | M8 | Site and editing polish | **Done** | home page, site nav, gallery, share links, tree editor |
 | Later | Sandboxing, scrubber, GPU layers, remote training | Not started | |
@@ -109,7 +109,7 @@ Added to finish the milestone:
 - [x] `transform.meaning`: settled by the kind of set (networks are layout-only by construction); `SPEC.md` now says so.
 - [x] `update` (whole-network field rules) for networks, with neighbor operations that follow the links (CSR table, hubs of any degree).
 
-## M6 — Bodies and physics — Mostly done
+## M6 — Bodies and physics — Done
 
 - [x] Rapier (deterministic build) behind an adapter; the choice is in `docs/decisions/physics.md`
 - [x] JSON bodies with parts, joints, motors, an oscillator drive; templates and `attach`; geometry as arithmetic on params
@@ -119,9 +119,9 @@ Added to finish the milestone:
 
 Added to finish the milestone:
 
-- [ ] The MuJoCo WASM comparison from the original spike.
+- [x] The MuJoCo WASM comparison (`scripts/mujoco-spike.mjs`, results in `docs/decisions/physics.md`): about 5 times faster per tick, but a straightforward translation of the creature does not hold its walk, so the gait claim is unconfirmed and Rapier stays.
 - [x] MJCF importer (`importMjcf`, `npm run mjcf -- model.xml`): nested bodies, box/sphere/capsule/cylinder geoms (sized or `fromto`), hinge/ball/free joints with ranges, euler/quat/axisangle, mass or density. No slide joints, meshes or several joints on one body (reported).
-- [ ] glTF for visuals.
+- [x] glTF for visuals: a part's `visual` names a glTF/GLB model drawn instead of its primitive (all meshes merged; physics keeps the primitive). `examples/creature-gltf` swaps the torso box for a beetle model (made by `make_beetle.py`, no libraries). Textures and materials are not used (the part's color tints it), and URDF `<mesh>` is still not imported.
 - [x] Rotated links in URDF: parts take a `rotation`, and the importer composes `rpy` frames down the link tree (shapes, child positions and joint axes follow).
 - [x] Annotated mutation and crossover utilities (`mutate`, `crossover`, `randomGenome` in `@breve/experiment`): they read the min, max and step the scene gives each param, so they work on body geometry params as well as any other. They stay out of core.
 

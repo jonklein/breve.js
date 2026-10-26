@@ -1,38 +1,6 @@
+import { halfExtentY, kid, kids, nums, parseXml, type XmlNode } from './xml'
 import { IDENTITY, apply, fromRpy, mul, toEuler, transpose, type Mat3 } from './rot'
 import type { BodyInput, JointDef, PartDef, Vec3Tuple } from './body'
-
-interface XmlNode {
-  tag: string
-  attrs: Record<string, string>
-  children: XmlNode[]
-}
-
-/** A small XML reader, enough for URDF: elements, attributes, nesting. Comments, declarations and text are skipped. */
-function parseXml(text: string): XmlNode {
-  const root: XmlNode = { tag: '#root', attrs: {}, children: [] }
-  const stack = [root]
-  const re = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<(\/?)([A-Za-z_][\w.:-]*)((?:\s+[\w.:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text))) {
-    if (!m[2]) continue
-    if (m[1]) {
-      if (stack.length > 1 && stack[stack.length - 1].tag === m[2]) stack.pop()
-      else throw new Error(`mismatched </${m[2]}>`)
-      continue
-    }
-    const attrs: Record<string, string> = {}
-    for (const a of m[3].matchAll(/([\w.:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) attrs[a[1]] = a[2] ?? a[3]
-    const node: XmlNode = { tag: m[2], attrs, children: [] }
-    stack[stack.length - 1].children.push(node)
-    if (!m[4]) stack.push(node)
-  }
-  if (stack.length !== 1) throw new Error(`<${stack[stack.length - 1].tag}> is never closed`)
-  return root
-}
-
-const kids = (n: XmlNode, tag: string) => n.children.filter((c) => c.tag === tag)
-const kid = (n: XmlNode, tag: string) => kids(n, tag)[0]
-const nums = (s: string | undefined, fallback: number[]): number[] => (s ? s.trim().split(/\s+/).map(Number) : fallback)
 
 export interface UrdfResult {
   body: BodyInput
@@ -110,13 +78,13 @@ export function importUrdf(text: string, opts: { stiffness?: number; damping?: n
     let shape: PartDef['shape'], size: number[], halfY: number
     if (geo.tag === 'box') {
       const [sx, sy, sz] = nums(geo.attrs.size, [1, 1, 1])
-      shape = 'box'; size = [sx, sz, sy]; halfY = (Math.abs(rot[3]) * sx + Math.abs(rot[4]) * sz + Math.abs(rot[5]) * sy) / 2
+      shape = 'box'; size = [sx, sz, sy]; halfY = halfExtentY('box', size, rot)
     } else if (geo.tag === 'sphere') {
       const r = Number(geo.attrs.radius ?? 0.5)
-      shape = 'sphere'; size = [r]; halfY = r
+      shape = 'sphere'; size = [r]; halfY = halfExtentY('sphere', size, rot)
     } else if (geo.tag === 'cylinder') {
       const r = Number(geo.attrs.radius ?? 0.5), len = Number(geo.attrs.length ?? 1) // URDF cylinders stand along z, ours along y
-      shape = 'cylinder'; size = [len, r]; halfY = (Math.abs(rot[4]) * len) / 2 + r * Math.sqrt(Math.max(0, 1 - rot[4] * rot[4]))
+      shape = 'cylinder'; size = [len, r]; halfY = halfExtentY('cylinder', size, rot)
     } else {
       errors.push(`link ${name}: <${geo.tag}> shapes are not supported (use box, sphere or cylinder)`)
       continue

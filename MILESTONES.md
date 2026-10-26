@@ -120,7 +120,8 @@ Pending:
 Pending:
 
 - [ ] The MuJoCo WASM comparison from the original spike.
-- [ ] MJCF importer, and glTF for visuals.
+- [x] MJCF importer (`importMjcf`, `npm run mjcf -- model.xml`): nested bodies, box/sphere/capsule/cylinder geoms (sized or `fromto`), hinge/ball/free joints with ranges, euler/quat/axisangle, mass or density. No slide joints, meshes or several joints on one body (reported).
+- [ ] glTF for visuals.
 - [x] Rotated links in URDF: parts take a `rotation`, and the importer composes `rpy` frames down the link tree (shapes, child positions and joint axes follow).
 - [x] Annotated mutation and crossover utilities (`mutate`, `crossover`, `randomGenome` in `@breve/experiment`): they read the min, max and step the scene gives each param, so they work on body geometry params as well as any other. They stay out of core.
 

@@ -9,6 +9,7 @@
     "dev": "node scripts/dev.mjs",
     "run": "node --import tsx scripts/run.mjs",
     "urdf": "node --import tsx scripts/urdf.mjs",
+    "mjcf": "node --import tsx scripts/mjcf.mjs",
     "docs": "node scripts/gen-docs.mjs",
     "build": "npm run build -w @breve/workbench",
     "test": "npm test -w @breve/stdlib && npm test -w @breve/experiment && npm test -w @breve/core && npm test -w @breve/server",

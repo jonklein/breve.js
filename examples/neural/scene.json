@@ -15,11 +15,7 @@
       "count": "$count",
       "controller": "brain.js",
       "sensors": [{ "type": "neighbors", "radius": "$radius" }],
-      "motion": { "maxSpeed": "$maxSpeed", "minSpeed": 2, "maxAccel": 40 },
-      "state": {
-        "weights": { "length": 108, "init": { "normal": 0.7 } },
-        "memory": { "length": 5 }
-      }
+      "motion": { "maxSpeed": "$maxSpeed", "minSpeed": 2, "maxAccel": 40 }
     }
   ],
   "metrics": ["spread"]

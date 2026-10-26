@@ -15,6 +15,11 @@
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
 export default {
+  // everyone starts with some cash, two goods and an asking price
+  init() {
+    return { cash: 60, goods: 2, ask: 10, bought: 0, used: 0 }
+  },
+
   act({ self, neighbors }, p, ctx) {
     const producer = self.row % 3 === 0
     const makes = producer && ctx.tick % p.produceEvery === 0 ? 1 : 0

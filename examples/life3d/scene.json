@@ -15,8 +15,6 @@
     {
       "name": "cell",
       "lattice": { "size": [20, 20, 20], "spacing": 1.2, "edges": "wrap", "show": "alive", "color": "age", "colorMax": 20 },
-      "state": { "alive": 0, "age": 0 },
-      "fill": { "field": "alive", "density": "$density" },
       "controller": "life.js"
     }
   ],

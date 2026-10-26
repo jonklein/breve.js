@@ -15,8 +15,7 @@
       "name": "traders",
       "count": 80,
       "controller": "market.js",
-      "network": { "topology": "scalefree", "degree": 4, "layout": "force", "radius": 24, "color": "ask", "colorMax": 40, "palette": ["#4da3ff", "#ffd24d", "#ff5a4d"], "size": 1.2 },
-      "state": { "cash": 60, "goods": 2, "ask": 10, "bought": 0, "used": 0 }
+      "network": { "topology": "scalefree", "degree": 4, "layout": "force", "radius": 24, "color": "ask", "colorMax": 40, "palette": ["#4da3ff", "#ffd24d", "#ff5a4d"], "size": 1.2 }
     }
   ],
   "metrics": ["averagePrice", "priceSpread", "averageCash", "unmetNeed"],

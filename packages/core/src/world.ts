@@ -22,6 +22,8 @@ export interface Ctx {
   dt: number
   /** Seeded randomness. Scripts must use this, never Math.random. */
   random(): number
+  /** A seeded draw from a normal distribution (mean 0, spread 1): `0.7 * ctx.normal()` for a spread of 0.7. */
+  normal(): number
   /**
    * Merge what several behaviors returned into one result: steering adds up, `add` amounts add up, `state` and
    * `joints` are combined (later ones win on the same name). Write each behavior as a plain function, then
@@ -102,9 +104,9 @@ export interface Controller {
    * Called once for each new entity as it is created: `init({ index, count }, params, ctx)` returns what it starts as. The plain
    * keys are its state (`return { alive: 1, age: 0 }`), and a field that `init` returns exists, with its kind and length taken
    * from the value, so the scene needs no `state` block. Free agents may also return `position` and `velocity`. Lattice cells
-   * also get their grid position as `x`, `y`, `z`. The older `{ state: { ... } }` form still works.
+   * also get their grid position as `x`, `y`, `z` and their place in the world as `at` (a vector). The older `{ state: { ... } }` form still works.
    */
-  init?(obs: { index: number; count: number; x?: number; y?: number; z?: number }, params: Params, ctx: Ctx): unknown
+  init?(obs: { index: number; count: number; x?: number; y?: number; z?: number; at?: Vec3 }, params: Params, ctx: Ctx): unknown
   /**
    * The whole-set form of `init`, for big grids and networks: `initAll({ count }, params, ctx)` returns one array (or field)
    * per state field, `count` long, for every entity at once: `return { alive: Float32Array.from({ length: count }, () => ctx.random() < p.density ? 1 : 0) }`.

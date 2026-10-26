@@ -15,8 +15,7 @@ const load = async () => {
 test('a glider on a flat wrapped grid moves one cell diagonally every 4 ticks', async () => {
   const { scene, script } = await load()
   scene.entities[0].lattice!.size = [12, 12, 1]
-  delete scene.entities[0].fill
-  const sim = new Sim(scene, script)
+  const sim = new Sim(scene, { default: { ...script.default, initAll: ({ count }: { count: number }) => ({ alive: new Float32Array(count), age: new Float32Array(count) }) } })
   const alive = sim.table.cols.alive
   for (const [x, y] of [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]]) alive[x + 12 * y] = 1
   for (let i = 0; i < 4; i++) sim.step()
@@ -31,6 +30,7 @@ test('a whole-grid rule gives the same result as a per-cell rule', async () => {
   const perCell: ScriptModule = {
     default: { act: ({ self, neighbors }) => { const n = neighbors.alive.sum(); return { alive: (self.alive ? n === 2 || n === 3 : n === 3) ? 1 : 0, age: 0 } } },
   }
+  perCell.default!.initAll = script.default!.initAll // the same starting cells
   const a = new Sim(scene, script)
   const b = new Sim(scene, perCell)
   for (let i = 0; i < 30; i++) { a.step(); b.step() }

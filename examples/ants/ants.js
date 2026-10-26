@@ -9,6 +9,10 @@
 const NEST = [-12, 0, 0]
 
 export const Ant = {
+  init() {
+    return { carrying: false }
+  },
+
   act({ self }, p, ctx) {
     const wobble = ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(p.wander)
 

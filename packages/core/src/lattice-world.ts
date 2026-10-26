@@ -175,7 +175,8 @@ export class LatticeWorld implements World, PatchLayer {
     const ctrl = this.host.controller()
     if (!ctrl?.init && !ctrl?.initAll) return
     const ctx = this.host.ctx(), { params } = this.host
-    const [nx, ny] = this.dims
+    const [nx, ny, nz] = this.dims
+    const sp = this.host.def.lattice!.spacing ?? 1.2
     const cols = this.table.cols
     const unknown = new Set<string>()
     const field = (name: string): StateField | undefined => {
@@ -195,7 +196,9 @@ export class LatticeWorld implements World, PatchLayer {
         return
       }
       for (let r = 0; r < this.n; r++) {
-        const out = ctrl.init!({ index: r, count: this.n, x: r % nx, y: Math.floor(r / nx) % ny, z: Math.floor(r / (nx * ny)) }, params, ctx)
+        const x = r % nx, y = Math.floor(r / nx) % ny, z = Math.floor(r / (nx * ny))
+        const at = new Vec3((x - (nx - 1) / 2) * sp, (y - (ny - 1) / 2) * sp, (z - (nz - 1) / 2) * sp)
+        const out = ctrl.init!({ index: r, count: this.n, x, y, z, at }, params, ctx)
         for (const [name, v] of Object.entries(initResult(out))) {
           const f = field(name)
           if (f) cols[name][r] = coerce(f, v) as never

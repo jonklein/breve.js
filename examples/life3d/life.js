@@ -11,6 +11,11 @@ const BORN = [5]
 const SURVIVES = [4, 5]
 
 export default {
+  // how each cell starts: a share of them (the `density` slider) alive
+  init(self, p, ctx) {
+    return { alive: ctx.random() < p.density ? 1 : 0, age: 0 }
+  },
+
   act({ self, neighbors }) {
     const crowd = neighbors.alive.sum() // how many neighbors are alive
 

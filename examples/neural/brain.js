@@ -5,6 +5,11 @@
 // The weights are random, so this is a crowd of strange wanderers. They are state like any other,
 // so forking or snapshotting a run keeps every brain exactly as it was.
 export default {
+  // random weights, spread 0.7 around zero, and an empty memory
+  init(self, p, ctx) {
+    return { weights: Float32Array.from({ length: 108 }, () => 0.7 * ctx.normal()), memory: [0, 0, 0, 0, 0] }
+  },
+
   act({ self, neighbors }, p, ctx) {
     const brain = ctx.mlp([11, 5, 8])
 

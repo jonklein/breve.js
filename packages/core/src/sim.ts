@@ -143,7 +143,7 @@ export class Sim {
     const ctrl = new SetControllerLookup(this, set).get()
     if (!ctrl?.init && !ctrl?.initAll) return null
     const probe = new Rng(this.scene.seed ^ 0x9e3779b9)
-    const ctx = { ...this.ctx(), random: () => probe.next() }
+    const ctx = { ...this.ctx(), random: () => probe.next(), normal: () => normalDraw(() => probe.next()) }
     let values: Record<string, unknown>
     try {
       if (ctrl.initAll) {
@@ -246,7 +246,7 @@ export class Sim {
   }
 
   ctx(): Ctx {
-    return { tick: this.tick, dt: DT, random: () => this.rng.next(), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), relations: this.relations, inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
+    return { tick: this.tick, dt: DT, random: () => this.rng.next(), normal: () => normalDraw(() => this.rng.next()), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), relations: this.relations, inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
   }
 
   /** What to draw for each entity set, in scene order. */
@@ -510,6 +510,11 @@ export class Sim {
   hash(): string {
     return `${this.worlds.map((w) => w.hash?.() ?? w.table.hash()).join('+')}:${this.rng.getState().toString(16)}:${this.tick}${this.relations.names().length ? ':' + this.relations.hash() : ''}`
   }
+}
+
+/** A standard normal draw from a source of uniform ones (Box-Muller). */
+function normalDraw(next: () => number): number {
+  return Math.sqrt(-2 * Math.log(1 - next())) * Math.cos(2 * Math.PI * next())
 }
 
 /** Finds the controller object a set is bound to (the same rule `SetHost.controller` uses, without its error reporting). */

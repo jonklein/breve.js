@@ -8,6 +8,11 @@
 //   A dead cell with exactly 3 living neighbors comes alive.
 //   A living cell with 2 or 3 living neighbors stays alive.
 export default {
+  // every cell at once: a share of them (the `density` slider) alive
+  initAll({ count }, p, ctx) {
+    return { alive: Float32Array.from({ length: count }, () => (ctx.random() < p.density ? 1 : 0)), age: new Float32Array(count) }
+  },
+
   actAll({ alive, age }) {
     const crowd = alive.neighborSum()
     // born with exactly 3 neighbors, or alive with exactly 2 (comparisons give 1 or 0, so they combine like switches)

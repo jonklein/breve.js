@@ -20,6 +20,7 @@ test('life written with field operations matches life written with a closure per
   assert.ok(p.ok)
   p.scene.entities[0].lattice!.size = [64, 64, 1]
   const ops = (await import(pathToFileURL(new URL('../../../examples/life2d/life.js', import.meta.url).pathname).href)) as ScriptModule
+  withClosures.default!.initAll = ops.default!.initAll // the same starting cells
   const a = new Sim(structuredClone(p.scene), withClosures)
   const b = new Sim(structuredClone(p.scene), ops)
   for (let t = 0; t < 40; t++) {

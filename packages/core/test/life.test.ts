@@ -18,9 +18,12 @@ function small(scene: Scene, n = 5): Scene {
   const s = structuredClone(scene)
   s.entities[0].lattice!.size = [n, n, n]
   s.entities[0].lattice!.edges = 'dead'
-  s.entities[0].fill = undefined
+  s.entities[0].state = { alive: 0, age: 0 } // scripts in these tests may not have an init
   return s
 }
+
+/** The real script, but every cell starts dead, so a test can place cells by hand. */
+const quiet = (script: ScriptModule): ScriptModule => ({ default: { ...script.default, init: () => ({ alive: 0, age: 0 }) } })
 
 const at = (n: number, x: number, y: number, z: number) => x + n * (y + n * z)
 
@@ -50,7 +53,7 @@ test('life is deterministic', async () => {
 test('a dead cell is born with exactly 5 live neighbors, not 4 or 6', async () => {
   const { scene, script } = await load()
   for (const [count, expected] of [[4, 0], [5, 1], [6, 0]]) {
-    const s = new Sim(small(scene), script)
+    const s = new Sim(small(scene), quiet(script))
     surround(s, count)
     s.step()
     assert.equal(s.table.cols.alive[at(5, 2, 2, 2)], expected, `${count} neighbors`)
@@ -60,7 +63,7 @@ test('a dead cell is born with exactly 5 live neighbors, not 4 or 6', async () =
 test('a living cell survives with 4 or 5 neighbors, and dies with 3, 6 or 7', async () => {
   const { scene, script } = await load()
   for (const [count, expected] of [[3, 0], [4, 1], [5, 1], [6, 0], [7, 0]]) {
-    const s = new Sim(small(scene), script)
+    const s = new Sim(small(scene), quiet(script))
     s.table.cols.alive[at(5, 2, 2, 2)] = 1
     surround(s, count)
     s.step()
@@ -70,13 +73,13 @@ test('a living cell survives with 4 or 5 neighbors, and dies with 3, 6 or 7', as
 
 test('cells that keep surviving get older, and a newborn starts at age 0', async () => {
   const { scene, script } = await load()
-  const s = new Sim(small(scene), script)
+  const s = new Sim(small(scene), quiet(script))
   s.table.cols.alive[at(5, 2, 2, 2)] = 1
   surround(s, 4)
   // pin the neighbors in place by keeping them in a state that survives: just check the first tick
   s.step()
   assert.equal(s.table.cols.age[at(5, 2, 2, 2)], 1, 'survivor aged')
-  const fresh = new Sim(small(scene), script)
+  const fresh = new Sim(small(scene), quiet(script))
   surround(fresh, 5)
   fresh.step()
   assert.equal(fresh.table.cols.age[at(5, 2, 2, 2)], 0, 'newborn')
@@ -107,7 +110,15 @@ test('a lattice scene needs a valid show field', async () => {
   const { scene } = await load()
   const bad = structuredClone(scene)
   bad.entities[0].lattice!.show = 'missing'
+  bad.entities[0].state = { alive: 0, age: 0 } // declared in the scene, so the scene can check it
   const r = parseScene(JSON.stringify(bad))
   assert.equal(r.ok, false)
   assert.match(r.ok ? '' : r.errors.join('\n'), /"missing" is not a state field/)
+  // with no state block the fields come from init, so the check happens when the sim is built
+  const late = structuredClone(scene)
+  late.entities[0].lattice!.show = 'missing'
+  const s = new Sim(late, { default: { init: () => ({ alive: 0, age: 0 }), act: () => ({}) } })
+  assert.match(s.takeErrors().join('\n'), /lattice.show: "missing" is not a state field of "cell" \(it has: alive, age\)/)
+  const none = new Sim(scene, { default: { act: () => ({}) } })
+  assert.match(none.takeErrors().join('\n'), /"cell" has no state: a lattice needs "state" in the scene, or an init that returns fields/)
 })

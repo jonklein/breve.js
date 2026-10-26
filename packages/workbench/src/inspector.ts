@@ -66,9 +66,12 @@ export class InspectorPanel {
 
   private build(info: Inspected): void {
     this.picker.replaceChildren(...this.names.map((n) => Object.assign(document.createElement('option'), { value: n, textContent: n === 'default' ? 'default controller' : n })))
-    this.picker.value = info.controller
+    // a set with a string "controller" field lets each entity choose its own; otherwise the menu swaps the whole set
+    const perEntity = typeof info.fields.controller === 'string'
+    this.picker.title = perEntity ? 'Which controller from the script drives this entity (its "controller" field)' : 'Which controller from the script drives this set'
+    this.picker.value = perEntity && info.fields.controller ? (info.fields.controller as string) : info.controller
     this.picker.style.display = this.names.length > 1 ? '' : 'none'
-    this.picker.onchange = () => this.handlers.controller(info.set, this.picker.value)
+    this.picker.onchange = () => (perEntity ? this.handlers.poke('controller', this.picker.value) : this.handlers.controller(info.set, this.picker.value))
     this.table.replaceChildren()
     this.inputs.clear()
     for (const [name, v] of Object.entries(info.fields) as [string, Value][]) {

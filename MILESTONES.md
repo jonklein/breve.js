@@ -13,9 +13,9 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 | M0 | Playable slice | **Done** | `boids` |
 | M1 | Kernel hardening | **Done**, with two gaps (relation tables, 1M-cell tick time) | `life2d`, `life3d` |
 | M2 | Sim as a value | **Done**, no multi-worker pool | Sweep / Watch, `neural` |
-| M3 | Controllers and inspector | **Done**, two small gaps | `ants`, `herding` |
+| M3 | Controllers and inspector | **Done**, one small gap (non-determinism flag not shown in the UI) | `ants`, `herding` |
 | M4 | Experiment layer | **Done** | `boids`, `creature`, `ants`, `morphology` experiments |
-| M5 | Abstract worlds | **Done**, no `via` sensors | `epidemic`, `epidemic-grid`, `market` |
+| M5 | Abstract worlds | **Done**, minus `transform.meaning` | `epidemic`, `epidemic-grid`, `market` |
 | M6 | Bodies and physics | **Mostly done** (no MuJoCo, MJCF, glTF, mutation utilities) | `creature`, `urdf-bot`, `morphology` |
 | M7 | Learning and language models | **Partly done** (no ONNX, Hugging Face, VLM) | `llm-wanderers`, `neural`, assistant |
 | M8 | Site and editing polish | **Planned** | home page, site nav, JSON tree editor, gallery |
@@ -52,7 +52,7 @@ Also built, outside the original list:
 Pending:
 
 - [ ] A 1000×1000 Life tick is ~80 ms against the 30 ms target. Ways to close it are listed in `docs/perf.md` (fused field operations, WASM, GPU).
-- [x] General relation tables: named, directed, attributed edges with CSR neighbor lookup, owned by the `Sim` (`sim.relations`), included in snapshot, fork and hash. Scripts do not reach them yet (that comes with `via` sensors in M5).
+- [x] General relation tables: named, directed, attributed edges with CSR neighbor lookup, owned by the `Sim` (`sim.relations`), included in snapshot, fork and hash. Scripts reach them as `ctx.relations`; `via` sensors read them (M5).
 - [x] Object columns (`'obj'`) for arbitrary structured-cloneable values: deep-copied by snapshots, hashed as canonical JSON, flagged as the slow escape hatch.
 
 ## M2 — Sim as a value — Done, no worker pool
@@ -78,7 +78,7 @@ Pending:
 Pending:
 
 - [ ] Show the non-determinism flag in the workbench UI.
-- [ ] Choose the controller per entity rather than per set.
+- [x] Controller per entity: a text state field called `controller` names the script export an agent runs; the inspector menu sets it for the clicked entity.
 - [ ] Oscillator as a standalone controller for agents (the creature oscillator is built into joint drives).
 
 ## M4 — Experiment layer — Done
@@ -105,7 +105,8 @@ Pending:
 
 Pending:
 
-- [ ] `via` neighbor sensors over named relations and `transform.meaning = "layout"`.
+- [x] `via` neighbor sensors over named relations (agents; networks already read their links as neighbors).
+- [ ] `transform.meaning = "layout"`.
 - [ ] `update` (whole-network field rules) for networks; only per-node `decide` works there today.
 
 ## M6 — Bodies and physics — Mostly done

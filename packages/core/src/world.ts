@@ -128,6 +128,8 @@ export interface Host {
   index: number
   /** The controller this set is bound to (its `type`, or the script's default), or undefined if there is none. */
   controller(): Controller | undefined
+  /** A script export by name, for sets whose agents each pick their own (a string state field called `controller`). */
+  controllerNamed(name: string): Controller | undefined
   /** Every world in the sim, in scene order. */
   worlds(): readonly World[]
   fail(where: string, e: unknown): void

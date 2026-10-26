@@ -234,10 +234,13 @@ export class AgentWorld implements World {
 
     // decide: controllers read state and write only the action columns
     const ctx = this.host.ctx()
-    const ctrl = this.host.controller()
+    const setCtrl = this.host.controller()
+    // an agent with a non-empty `controller` field runs that export instead of the set's own
+    const pick = this.extra.some((f) => f.name === 'controller' && f.kind === 'string') ? (this.table.cols.controller as unknown as string[]) : null
     const writes: { row: number; state: Record<string, unknown>; add?: Record<string, unknown> }[] = []
     for (let i = 0; i < n; i++) {
       let ax = 0, ay = 0, az = 0
+      const ctrl = pick && pick[i] ? this.host.controllerNamed(pick[i]) : setCtrl
       if (ctrl) {
         try {
           const obs: Record<string, unknown> = { self: this.handles[i], neighbors: ownVia ? this.linkedTo(i, ownVia, this) : this.neighborsOf(i, radius) }
@@ -299,7 +302,7 @@ export class AgentWorld implements World {
       }
     }
     this.moved++
-    this.fence(ctrl)
+    this.fence(setCtrl)
   }
 
   /** Fire `onLeave` for agents that just crossed the fence, then carry out queued resets. */

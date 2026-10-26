@@ -45,9 +45,13 @@ class SetHost implements Host {
 
   /** The controller this set is bound to: the script's `export default`, or the named export given by the set's `type`. */
   controller(): Controller | undefined {
+    return this.controllerNamed(this.def.type ?? 'default')
+  }
+
+  /** The script export with this name, reported once if it is missing. Backs per-agent choice: a string state field called `controller`. */
+  controllerNamed(name: string): Controller | undefined {
     const script = this.sim.script as (ScriptModule & Record<string, unknown>) | null
     if (!script) return undefined
-    const name = this.def.type ?? 'default'
     const c = script[name] as Controller | undefined
     if (c && typeof c === 'object') return c
     const msg = name === 'default'

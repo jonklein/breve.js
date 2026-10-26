@@ -62,7 +62,7 @@ There is no "mode." Every entity may have a `transform`, and 3D continuous space
 Two flags make this uniform:
 
 1. **Neighbor source.** Neighbors are either **derived** (a spatial query: within radius `r`, or lattice adjacency) or **declared** (explicit edges). Neighbor sensors take a `via` parameter naming the source (`"space"`, `"lattice"`, or a relation name). A controller does not need to know which it has.
-2. **Transform meaning.** `transform.meaning` is `"physical"` (used by physics and spatial sensing) or `"layout"` (render-only, such as a force-directed graph layout). Same component, different semantics.
+2. **Transform meaning.** A transform is either `"physical"` (used by physics and spatial sensing) or `"layout"` (render-only, such as a force-directed graph layout). Same component, different semantics. In the implementation this is decided by the kind of set rather than by a flag: free agents and bodies are physical, and a network's positions are always layout (its links, not its distances, define neighbors). A flag would only matter for a set that could be either, and there is none yet.
 
 ### 3.2 Tick phases
 

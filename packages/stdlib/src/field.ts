@@ -1,9 +1,13 @@
 
-/** For each cell, the rows of its neighbors: `stride` slots per cell, `count[row]` of them real. */
+/**
+ * For each cell, the rows of its neighbors: `count[row]` of them, starting at `start[row]` in `nbr` (a network, where degrees
+ * differ), or at `row * stride` when there is no `start` (a lattice, where every cell has room for the same number).
+ */
 export interface NeighborTable {
   nbr: Int32Array
-  count: Uint8Array
+  count: Uint8Array | Uint16Array | Int32Array
   stride: number
+  start?: Int32Array
 }
 
 type Data = Float32Array | Float64Array | Int32Array | Uint32Array | Uint8Array
@@ -22,12 +26,12 @@ export class Field {
 
   /** For each cell, the total of this field over its neighbors. */
   neighborSum(): Field {
-    const { nbr, count, stride } = this.table
+    const { nbr, count, stride, start } = this.table
     const d = this.data
     const out = new Float32Array(d.length)
     for (let r = 0; r < out.length; r++) {
       let s = 0
-      const base = r * stride
+      const base = start ? start[r] : r * stride
       for (let q = 0, n = count[r]; q < n; q++) s += d[nbr[base + q]]
       out[r] = s
     }
@@ -44,12 +48,12 @@ export class Field {
 
   /** For each cell, the biggest value among its neighbors. */
   neighborMax(): Field {
-    const { nbr, count, stride } = this.table
+    const { nbr, count, stride, start } = this.table
     const d = this.data
     const out = new Float32Array(d.length)
     for (let r = 0; r < out.length; r++) {
       let m = -Infinity
-      const base = r * stride
+      const base = start ? start[r] : r * stride
       for (let q = 0, n = count[r]; q < n; q++) m = Math.max(m, d[nbr[base + q]])
       out[r] = n_or(m)
     }

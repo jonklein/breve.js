@@ -1,9 +1,9 @@
-import { Nums } from '@breve/stdlib'
+import { Field, Nums, type NeighborTable } from '@breve/stdlib'
 import { adjacency, makeEdges, type Adjacency, type Edges } from './graph'
 import { layoutNodes } from './layout'
-import { fillList, resolve, stateFields, type StateField } from './scene'
+import { fillList, resolve, stateFields, type Params, type StateField } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
-import type { FrameData, Host, MetricInput, World } from './world'
+import type { Ctx, FrameData, Host, MetricInput, World } from './world'
 
 const LAYOUT = { px: 'f32', py: 'f32', pz: 'f32' } as const
 const RESERVED = new Set(['exchange', 'px', 'py', 'pz'])
@@ -162,8 +162,54 @@ export class NetworkWorld implements World {
     /* the number of nodes and their links only change on reset; rule params are read live */
   }
 
+  /** Linked nodes in the fixed-width table `Field` works on, built when the links change. */
+  private neighborTable: NeighborTable | null = null
+  private neighborTableFor: Adjacency | null = null
+
+  private table_(): NeighborTable {
+    if (this.neighborTable && this.neighborTableFor === this.adj) return this.neighborTable
+    // the links are already stored back to back (CSR), which is exactly what a table with `start` offsets wants
+    const { offsets, targets } = this.adj
+    const count = new Int32Array(this.n)
+    for (let r = 0; r < this.n; r++) count[r] = offsets[r + 1] - offsets[r]
+    this.neighborTableFor = this.adj
+    return (this.neighborTable = { nbr: targets, count, stride: 0, start: offsets })
+  }
+
+  /**
+   * The whole-network rule, like a lattice's: `update(fields, params, ctx)` gets every single-number state field as a
+   * `Field` whose neighbor operations follow the links, and returns the new fields (any it leaves out stay as they are).
+   */
+  private stepFields(update: (f: Record<string, Field>, p: Params, ctx: Ctx) => unknown): void {
+    const table = this.table_()
+    const cols = this.table.cols
+    const numeric = this.fields.filter((f) => f.kind !== 'string' && f.length === 1)
+    const fields: Record<string, Field> = {}
+    for (const f of numeric) fields[f.name] = new Field(cols[f.name], table)
+    let out: Record<string, unknown> | null = null
+    try {
+      const r = update(fields, this.host.params, this.host.ctx())
+      out = r && typeof r === 'object' ? (r as Record<string, unknown>) : null
+    } catch (e) {
+      this.host.fail('update', e)
+    }
+    if (!out) return
+    for (const f of numeric) {
+      const v = out[f.name]
+      if (v === undefined) continue
+      const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
+      if (!data || data.length !== this.n) { this.host.fail('update', new Error(`"${f.name}" must be a field with ${this.n} nodes`)); continue }
+      const dst = cols[f.name]
+      for (let r = 0; r < this.n; r++) {
+        const x = data[r]
+        dst[r] = f.kind === 'boolean' ? (x ? 1 : 0) : f.type === 'i32' ? Math.round(x) : f.type === 'u8' ? Math.max(0, Math.min(255, Math.round(x))) : x
+      }
+    }
+  }
+
   step(): void {
     const ctrl = this.host.controller()
+    if (ctrl?.update) return this.stepFields(ctrl.update)
     if (!ctrl?.decide) return
     const ctx = this.host.ctx()
     const { params } = this.host

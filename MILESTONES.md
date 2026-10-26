@@ -15,7 +15,7 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 | M2 | Sim as a value | **Done**, no multi-worker pool | Sweep / Watch, `neural` |
 | M3 | Controllers and inspector | **Done** | `ants`, `herding` |
 | M4 | Experiment layer | **Done** | `boids`, `creature`, `ants`, `morphology` experiments |
-| M5 | Abstract worlds | **Done**, minus `transform.meaning` | `epidemic`, `epidemic-grid`, `market` |
+| M5 | Abstract worlds | **Done** | `epidemic`, `epidemic-grid`, `market` |
 | M6 | Bodies and physics | **Mostly done** (no MuJoCo, MJCF, glTF, mutation utilities) | `creature`, `urdf-bot`, `morphology` |
 | M7 | Learning and language models | **Partly done** (no ONNX, Hugging Face, VLM) | `llm-wanderers`, `neural`, assistant |
 | M8 | Site and editing polish | **Done** | home page, site nav, gallery, share links, tree editor |
@@ -94,7 +94,7 @@ Pending:
 - [ ] Run candidates in parallel across workers (needs the M2 pool).
 - [ ] Export results as JSON as well as CSV.
 
-## M5 — Abstract worlds — Done, no `via` sensors
+## M5 — Abstract worlds — Done
 
 - [x] Networks: small-world, random, scale-free, ring, complete, explicit; force layout through d3-force-3d behind a thin adapter; graph view
 - [x] Atomic `exchange` trades between linked nodes
@@ -106,8 +106,8 @@ Pending:
 Pending:
 
 - [x] `via` neighbor sensors over named relations (agents; networks already read their links as neighbors).
-- [ ] `transform.meaning = "layout"`.
-- [ ] `update` (whole-network field rules) for networks; only per-node `decide` works there today.
+- [x] `transform.meaning`: settled by the kind of set (networks are layout-only by construction); `SPEC.md` now says so.
+- [x] `update` (whole-network field rules) for networks, with neighbor operations that follow the links (CSR table, hubs of any degree).
 
 ## M6 — Bodies and physics — Mostly done
 

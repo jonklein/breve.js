@@ -176,7 +176,8 @@ isEmpty(): boolean
 
 ## NeighborTable
 
-For each cell, the rows of its neighbors: `stride` slots per cell, `count[row]` of them real.
+For each cell, the rows of its neighbors: `count[row]` of them, starting at `start[row]` in `nbr` (a network, where degrees
+differ), or at `row * stride` when there is no `start` (a lattice, where every cell has room for the same number).
 
 ### `NeighborTable.nbr`
 
@@ -187,13 +188,19 @@ nbr: Int32Array
 ### `NeighborTable.count`
 
 ```ts
-count: Uint8Array
+count: Uint8Array | Uint16Array | Int32Array
 ```
 
 ### `NeighborTable.stride`
 
 ```ts
 stride: number
+```
+
+### `NeighborTable.start`
+
+```ts
+start?: Int32Array
 ```
 
 ## Field

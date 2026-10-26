@@ -2,7 +2,7 @@
   "name": "evolved creatures",
   "seed": 5,
   "world": { "sky": { "top": "#16233f", "horizon": "#7fa6c9" } },
-  "terrain": { "size": 28, "resolution": 32, "amplitude": 0.15, "frequency": 0.08, "color": "#4f7a46" },
+  "terrain": { "size": 20, "resolution": 32, "amplitude": 0.15, "frequency": 0.08, "color": "#4f7a46" },
   "params": {
     "population": { "value": 12, "min": 4, "max": 24, "step": 1, "label": "creatures per generation" },
     "ticks": { "value": 480, "min": 120, "max": 1800, "step": 60, "label": "ticks per generation" },
@@ -23,5 +23,5 @@
       }
     }
   ],
-  "metrics": ["upright", "x", "z"]
+  "metrics": ["upright", "x", "z", "y", "speed"]
 }

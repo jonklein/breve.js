@@ -28,7 +28,10 @@ test('every genome the example can make is a valid body, and mutation and crosso
     s.data = { genome: g }
     const parsed = parseScene(JSON.stringify(s))
     assert.ok(parsed.ok, parsed.ok ? '' : `genome ${i}: ${parsed.errors.join('\n')}`)
-    assert.ok(g.pairs[0].on, 'the first pair of limbs is never switched off by mutation')
+    assert.ok(g.blocks[0].on, 'the first block is never switched off by mutation')
+    const names = s.entities[0].body.parts.map((p: { name: string }) => p.name)
+    assert.equal(new Set(names).size, names.length, 'every block has its own name (and so its own brain slot)')
+    assert.ok(names.length <= 29)
   }
 })
 

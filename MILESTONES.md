@@ -162,8 +162,8 @@ Karl Sims' creatures as a demo (`examples/evolved-creatures`, decisions in `docs
 
 - [x] **Parents**: a script exports `parent` and runs a group of sub-sims (`ParentRun`, `parentOf`, `ParentHost` in core). The workbench shows them as tiles with a progress line; headless code drives the same class.
 - [x] **Scene `data`** (`ctx.data`): structured, fixed input for a sub-sim, such as its genome. `self.up` for creatures.
-- [x] **The demo**: a genome of torso, up to three mirrored limb pairs of one to three segments, and a neural controller over joint slots; the parent ranks twelve sub-sims by distance walked and breeds the best (elitism, tournament, crossover, mutation). A test checks every genome makes a valid body, same seed gives the same evolution, and the best score never drops.
-- [ ] Not done: saving the best genome, parents in the embed, sub-sims on several workers, Sims' recursive body graph, fitness beyond distance.
+- [x] **The demo**: a genome of a trunk and up to seven blocks (each hangs from an earlier block on a chosen face, with its own size, hinge axis, optional mirror image and optional second segment) and a neural controller over joint slots; the parent ranks twelve sub-sims by distance walked and breeds the best (elitism, tournament, crossover, mutation). A test checks every genome makes a valid body, same seed gives the same evolution, and the best score never drops.
+- [ ] Not done: saving the best genome, parents in the embed, sub-sims on several workers, a node reused at several places and joint types beyond hinges (Sims' full recursion), fitness beyond distance.
 
 ## Later
 

@@ -22,6 +22,7 @@ The per-entity form is the readable one and suits up to tens of thousands of ent
 {
   "name": "boids",
   "seed": 7,                              // required. Same seed + same scene = same run.
+  "data": { "genome": { } },             // optional. Plain JSON for scripts, read as ctx.data: what is too structured for a slider (see Parents)
   "clock": { "rate": 60 },                // optional. Ticks per second (default 60, max 240).
   "bounds": { "size": 30, "mode": "soft" },   // free agents only. Half-width of the cube. mode: "soft" | "clamp"
   "world": {                              // optional, visual only
@@ -264,7 +265,7 @@ Every answer is logged with the tick it took effect (`sim.decisionLog`), whateve
 
 `act` receives `self` (the creature) and `neighbors` (always an empty group for now). Besides position and speed, `self.down` is true while the creature is flipped or lying flat and `self.downFor` is how many seconds that has lasted (`if (self.downFor > 3) self.reset()` stands it back up); `self.outside` and `self.reset()` work as for agents. By default it can return nothing and the oscillator drives the legs. It may return `{ joints: { 'FL.hip': 0.3, ... } }`: target angles in radians by joint name, which replace the oscillator for those joints only (targets are clamped to the joint's `limits`; an unknown name is an error).
 
-`self` has `x, y, z`, `vx, vy, vz`, `position`, `velocity` (vectors), `speed` (horizontal), `travelled` (horizontal distance walked), `forward` (vector the torso faces), `yaw` (heading in radians: 0 faces +x and it grows toward -z, a counter-clockwise turn seen from above), `row` (a stable index), `joints` and `touch` (if the body declares those sensors) and `gait`: what the oscillator wants every motorized joint to do right now, by name. Scale or mix `self.gait` to steer, e.g. longer strides on the right turn the creature left:
+`self` has `x, y, z`, `vx, vy, vz`, `position`, `velocity` (vectors), `speed` (horizontal), `travelled` (horizontal distance walked), `forward` (vector the torso faces), `up` (a vector: `up.y` is 1 standing, 0 on its side, -1 upside down), `yaw` (heading in radians: 0 faces +x and it grows toward -z, a counter-clockwise turn seen from above), `row` (a stable index), `joints` and `touch` (if the body declares those sensors) and `gait`: what the oscillator wants every motorized joint to do right now, by name. Scale or mix `self.gait` to steer, e.g. longer strides on the right turn the creature left:
 
 ```js
 const joints = {}
@@ -275,6 +276,20 @@ return { joints }
 ```
 
 A turn factor above about 0.5 makes the example creature fall over. Creature groups in metrics (`creatures`) answer `.position`, `.velocity` (vector lists), `.speed`, `.travelled` (number lists) and `.isEmpty()`.
+
+### Parents: a program that runs many sims
+
+A script may also export `parent`, a program that owns a *group of sub-sims* instead of one world: a population that evolves, an island model, a hand-written search. Evolution is not in the engine; it is written in the example (`examples/evolved-creatures`).
+
+```js
+export const parent = {
+  async init(host) { /* make the first sub-sims */ },
+  async step(host) { /* after every tick of all of them: score, breed, replace */ },
+  status(host) { return 'generation 3 · best 8.9' },   // shown above the tiles
+}
+```
+
+`host` has `scene` (the project's scene: copy it, change it, hand it to `add`), `params` (the sliders, live), `group` (every sub-sim; `host.group.sims` is a map by name), `tick`, `random()` and `normal()` (seeded from the scene's seed, so a search is repeatable), `add(name, scene)` (starts a sub-sim; it runs the project's script) and `remove(name)`. A sub-sim is an ordinary sim: read `sim.metrics()`, send it messages. Each sub-sim gets its own structured input through the scene's `data`: give a copy of the scene `scene.data = { genome }` and `scene.entities[0].body = bodyOf(genome)` and the controller reads `ctx.data.genome`. All the sub-sims tick together, and the workbench shows them as tiles; click one to watch it alone, Reset to start again. The same `ParentRun` class runs a parent headless (`new ParentRun(parentOf(script), scene, script)`, then `await run.start()` and `await run.step()` per tick).
 
 ## Groups: ask a whole group at once
 
@@ -298,7 +313,7 @@ Names listed in the scene's `"metrics"` must exist in the script's exported `met
 
 ## Examples
 
-Examples in `examples/` (`life2d` shows the whole-grid `actAll` rule, `neural` per-agent neural networks, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.
+Examples in `examples/` (`life2d` shows the whole-grid `actAll` rule, `neural` per-agent neural networks, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers) and `evolved-creatures` (bodies and neural brains evolve together, a population of sub-sims run by a `parent`). They are the best guide to the expected style: short, named steps, comments that explain the idea.
 
 ## experiment.json
 

@@ -1,6 +1,6 @@
 import { compile } from './script-load'
 import { loadSceneModels } from '@breve/inference'
-import { Sim, SimGroup, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
+import { ParentRun, parentOf, Sim, SimGroup, type Parent, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
 
 export type ToWorker =
   /** `base` is where a scene's relative model paths start (the example's folder). */
@@ -52,7 +52,8 @@ export interface WorldFrameMsg {
 }
 
 export type FromWorker =
-  | { type: 'tiles'; tick: number; rate: number; stepMs: number; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
+  | { type: 'population'; on: boolean }
+  | { type: 'tiles'; tick: number; rate: number; stepMs: number; /** a parent's progress line, when a parent runs the sims */ status?: string; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
   | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
   | { type: 'log'; log: DecisionLog }
@@ -73,6 +74,9 @@ let selection: { set: number; row: number } | null = null
 // sweep mode: many sims in one group, ticking together
 let group: SimGroup | null = null
 let sweepRuns = new Map<string, Record<string, number>>()
+// population mode: the script's `parent` makes and replaces the sims in `group` (an evolving population)
+let population: ParentRun | null = null
+let populationBusy = false // the parent is between generations, adding sims
 
 function applyScene(text: string): void {
   sceneText = text
@@ -81,7 +85,8 @@ function applyScene(text: string): void {
     scene = r.scene
     sceneErrors = []
     sim?.setScene(r.scene)
-    if (group) for (const [name, s] of group.sims) s.setScene(withParams(r.scene, sweepRuns.get(name) ?? {}))
+    if (population) population.setScene(r.scene) // its sub-sims keep the scenes the parent made for them
+    else if (group) for (const [name, s] of group.sims) s.setScene(withParams(r.scene, sweepRuns.get(name) ?? {}))
   } else {
     sceneErrors = r.errors
   }
@@ -107,9 +112,42 @@ async function askModel(prompt: string, options?: { json?: boolean; images?: str
   return body.text
 }
 
+function leavePopulation(): void {
+  population?.dispose()
+  population = null
+  group = null
+  postMessage({ type: 'population', on: false } satisfies FromWorker)
+}
+
+async function startPopulation(parent: Parent, mine: number): Promise<void> {
+  const run = new ParentRun(parent, scene!, script ?? undefined)
+  populationBusy = true
+  try {
+    await run.start()
+  } catch (e) {
+    run.dispose()
+    sceneErrors = [`parent: ${e instanceof Error ? e.message : String(e)}`]
+    populationBusy = false
+    return
+  }
+  populationBusy = false
+  if (mine !== builds) return run.dispose() // a newer rebuild started while this one loaded
+  sim?.dispose()
+  sim = null
+  population?.dispose()
+  population = run
+  group = run.group
+  groupTick = -1
+  lastSent = ''
+  postMessage({ type: 'population', on: true } satisfies FromWorker)
+}
+
 async function rebuild(): Promise<void> {
   if (!scene) return
   const mine = ++builds
+  const parent = parentOf(script)
+  if (parent) return startPopulation(parent, mine)
+  if (population) leavePopulation()
   const next = await Sim.create(scene, script ?? undefined)
   next.provider = askModel
   if (mine !== builds) return next.dispose() // a newer rebuild started while this one loaded
@@ -196,7 +234,7 @@ function postGroup(): void {
     groupTick = first.tick
     const all = first.tick % 4 === 0 || first.rate < 30
     const tiles = [...group.sims].map(([name, s]) => ({ name, params: sweepRuns.get(name) ?? {}, metrics: all ? s.metrics() : null, frames: s.frames() }))
-    postMessage({ type: 'tiles', tick: first.tick, rate: first.rate, stepMs, tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
+    postMessage({ type: 'tiles', tick: first.tick, rate: first.rate, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
   }
   const runtime = [...new Set([...group.sims.values()].flatMap((s) => s.takeErrors()))]
   const problems = JSON.stringify([sceneErrors, scriptErrors, runtime])
@@ -206,7 +244,15 @@ function postGroup(): void {
   }
 }
 
+function stepPopulation(): void {
+  const run = population
+  if (!run) return
+  populationBusy = true
+  run.step().catch((e) => { sceneErrors = [`parent: ${e instanceof Error ? e.message : String(e)}`]; running = false }).finally(() => { populationBusy = false })
+}
+
 function post(): void {
+  if (population?.mutating) return // a new generation is being made: wait until it is whole
   if (group) return postGroup()
   if (!sim) return
   if (sim.tick !== lastPosted) {
@@ -231,12 +277,18 @@ let budget = 0
 const FRAME_BUDGET_MS = 12 // never spend more than this per frame stepping, so the page stays responsive
 setInterval(() => {
   const driver = group ? group.sims.values().next().value as Sim | undefined : sim
-  if (running && driver) {
-    budget = Math.min(budget + driver.rate / 60, 8)
+  if (running && (driver || population)) {
+    budget = Math.min(budget + (driver?.rate ?? 60) / 60, 8)
     const frameStart = performance.now()
     while (budget >= 1) {
       const t0 = performance.now()
-      if (group) group.step()
+      if (population) {
+        // a parent's step may add sims (a new generation), which takes a moment: one tick at a time
+        if (populationBusy) break
+        stepPopulation()
+        budget = Math.min(budget - 1, 1)
+        break
+      } else if (group) group.step()
       else if (thinkMode === 'lockstep' && sim!.thinks) {
         if (lockBusy) break // the model has not answered yet: the clock waits
         lockBusy = true
@@ -276,6 +328,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       if (script) {
         const shape = sim?.stateShape()
         sim?.setScript(script)
+        if (population) { await rebuild(); break } // new parent code starts the whole population over
         if (group) for (const s of group.sims.values()) s.setScript(script)
         // a script whose init returns different fields needs different columns: start over rather than run against the old ones
         if (sim && !group && shape !== undefined && shape !== sim.stateShape()) await rebuild()
@@ -303,7 +356,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       running = m.running
       break
     case 'step':
-      if (group) group.step()
+      if (population) { if (!populationBusy) stepPopulation() }
+      else if (group) group.step()
       else if (sim && thinkMode === 'lockstep') { await sim.think(); sim.step(); recordMoment(sim) }
       else if (sim) { sim.step(); recordMoment(sim) }
       break
@@ -332,7 +386,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       lastPosted = -1
       break
     case 'sweep':
-      if (!scene) break
+      if (!scene || population) break
       try {
         group?.dispose()
         group = null
@@ -346,6 +400,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       break
     case 'single':
+      if (population) break
       group?.dispose()
       group = null
       lastPosted = -1
@@ -355,11 +410,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       const params = sweepRuns.get(m.name) ?? {}
       let copy: Sim
       try {
-        copy = group.get(m.name).fork()
+        copy = population ? await Sim.create(group.get(m.name).scene, script ?? undefined) : group.get(m.name).fork()
       } catch {
         // physics scenes cannot be forked yet: start a fresh run with that param value instead
         copy = await Sim.create(withParams(scene!, params), script ?? undefined)
       }
+      if (population) leavePopulation()
       group?.dispose()
       group = null
       sim?.dispose()
@@ -370,7 +426,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
     }
     case 'reset':
       applyScene(sceneText)
-      if (group && scene) {
+      if (population) await rebuild()
+      else if (group && scene) {
         const names = [...group.sims.keys()]
         group.dispose()
         group = await SimGroup.fromRuns(scene, script ?? undefined, names.map((n) => ({ name: n, params: sweepRuns.get(n) ?? {} })))

@@ -61,6 +61,11 @@ export class Creature {
     const { qx, qy, qz, qw } = this.quat()
     return new Vec3(1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy + qw * qz), 2 * (qx * qz - qw * qy))
   }
+  /** Which way is up for the torso (its local y axis): `up.y` is 1 standing, 0 on its side, -1 upside down. */
+  get up(): Vec3 {
+    const { qx, qy, qz, qw } = this.quat()
+    return new Vec3(2 * (qx * qy - qw * qz), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz + qw * qx))
+  }
   /** Compass heading in radians: 0 faces +x, and it grows toward -z (a turn counter-clockwise seen from above). */
   get yaw(): number {
     const f = this.forward

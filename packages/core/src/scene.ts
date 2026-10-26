@@ -165,6 +165,11 @@ export interface Scene {
    * (see `@breve/inference`); a controller's `think` or `thinkAll` runs one with `ctx.model('policy')`.
    */
   models?: Record<string, ModelDef>
+  /**
+   * Plain JSON the scene hands its scripts as `ctx.data`: what is too structured for a slider, such as the genome a parent gives a sub-sim
+   * (a body plan, a list of weights). Fixed for the run; sliders stay in `params`.
+   */
+  data?: Record<string, unknown>
   entities: EntityDef[]
   metrics?: string[]
   /** Draw several metrics on one chart: `[{ "title": "SIR", "metrics": ["susceptible", "infected"] }]`. Metrics not listed in any chart get their own. */
@@ -348,6 +353,7 @@ export const sceneSchema = {
         },
       },
     },
+    data: { type: 'object' },
     metrics: { type: 'array', items: { type: 'string' } },
     charts: { type: 'array', items: { type: 'object', required: ['metrics'], additionalProperties: false, properties: { title: { type: 'string' }, metrics: { type: 'array', items: { type: 'string' }, minItems: 1 } } } },
   },

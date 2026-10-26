@@ -46,6 +46,8 @@ export interface Ctx {
   readonly relations: Relations
   /** Colors for `display`: `ctx.colors.ramp(['#4f86f7', '#7be495'], age / 20)`, `ctx.colors.hsl(h, s, l)`, `ctx.colors.hex('#48f')`, and `ctx.colors.rampField(stops, field)` for `displayAll`. */
   readonly colors: typeof Colors
+  /** The scene's `data`: structured, fixed input that is not a slider (a genome, a list of weights). Read-only. */
+  readonly data: Readonly<Record<string, unknown>>
   /** A small neural network of the given layer sizes: `const brain = ctx.mlp([6, 5, 3])`, then `brain.run(self.weights, inputs)`. */
   mlp(sizes: number[]): Mlp
   /** Make a vector: `vec(1, 0, 0)`. */

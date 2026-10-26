@@ -187,5 +187,18 @@
     ],
     "scene": "scene.json",
     "script": "creature.js"
+  },
+  {
+    "id": "evolved-creatures",
+    "name": "Evolved creatures",
+    "description": "Bodies and neural brains evolve together, after Karl Sims: a population of walkers runs as side-by-side sub-simulations and a parent program breeds the best.",
+    "scene": "scene.json",
+    "script": "creatures.js",
+    "tags": [
+      "evolution",
+      "physics",
+      "neural",
+      "sub-simulations"
+    ]
   }
 ]

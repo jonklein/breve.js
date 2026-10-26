@@ -432,6 +432,10 @@ async function main(): Promise<void> {
         lastTime = now
         $('stats').textContent = `tick ${m.tick} · ${m.frames.map((f) => `${f.count} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
       }
+    } else if (m.type === 'population') {
+      // a script with a `parent` runs its own group of sims: show them as tiles, with no way back to a single view
+      showSweep(m.on)
+      $('sweepbar').classList.toggle('hidden', m.on)
     } else if (m.type === 'tiles') {
       if (sweeping) tiles.update(m.tiles, '')
       const now = performance.now()
@@ -439,7 +443,7 @@ async function main(): Promise<void> {
         const tps = Math.max(0, ((m.tick - lastTick) * 1000) / (now - lastTime))
         lastTick = m.tick
         lastTime = now
-        $('stats').textContent = `tick ${m.tick} · ${m.tiles.length} runs · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick (all runs)`
+        $('stats').textContent = `${m.status ? m.status + ' · ' : ''}tick ${m.tick} · ${m.tiles.length} runs · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick (all runs)`
       }
     } else if (m.type === 'metrics') {
       metrics.clear()

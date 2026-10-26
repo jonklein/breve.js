@@ -106,6 +106,12 @@ await page.click('#held-run')
 await page.waitForTimeout(2000)
 check('Run approves it, and it then runs', !(await page.isVisible('#held')) && chatCalls === 1)
 
+// a script with a `parent` runs a population of sub-simulations side by side, and the generations advance
+await sim('evolved-creatures')
+await page.waitForTimeout(3000)
+check('a population of sub-sims is shown as tiles', (await page.locator('#tiles .tile').count()) === 12, `${await page.locator('#tiles .tile').count()} tiles`)
+check('the progress line names the generation', /generation \d+/.test(await page.textContent('#stats')), await page.textContent('#stats'))
+
 check('no page errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '))
 await browser.close()
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed')

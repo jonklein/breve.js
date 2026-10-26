@@ -156,6 +156,15 @@ The workbench was the whole app; this milestone gives breve a front door and mak
 
 Acceptance (met): the home page shows three working demos; the gallery lists every example and opens any in one click; every config field in the examples can be edited from the tree editor without touching the text. Checked two ways: a core test sets, removes and re-adds every value of every example config and asserts the text stays valid JSON, and a headless-browser run confirmed the tree draws a control for every leaf of all 13 example scenes.
 
+## M9 — Evolved creatures — Done
+
+Karl Sims' creatures as a demo (`examples/evolved-creatures`, decisions in `docs/decisions/creatures.md`).
+
+- [x] **Parents**: a script exports `parent` and runs a group of sub-sims (`ParentRun`, `parentOf`, `ParentHost` in core). The workbench shows them as tiles with a progress line; headless code drives the same class.
+- [x] **Scene `data`** (`ctx.data`): structured, fixed input for a sub-sim, such as its genome. `self.up` for creatures.
+- [x] **The demo**: a genome of torso, up to three mirrored limb pairs of one to three segments, and a neural controller over joint slots; the parent ranks twelve sub-sims by distance walked and breeds the best (elitism, tournament, crossover, mutation). A test checks every genome makes a valid body, same seed gives the same evolution, and the best score never drops.
+- [ ] Not done: saving the best genome, parents in the embed, sub-sims on several workers, Sims' recursive body graph, fitness beyond distance.
+
 ## Later
 
 Not started:

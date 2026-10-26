@@ -91,7 +91,7 @@ export interface Controller {
    * Creatures (scenes with a `body`) get `{ self, neighbors }` and may return `{ joints: { 'FL.hip': 0.3 } }`: target angles by joint name.
    */
   /**
-   * Lattices only, instead of `decide`: get each state field as a whole (`{ alive }`) and return the new
+   * Lattices and networks, instead of `act`: get each state field as a whole (`{ alive }`) and return the new
    * fields, e.g. `{ alive: alive.zip(alive.neighborSum(), rule) }`. Runs once per tick, not once per cell,
    * so it handles a million cells.
    */
@@ -115,8 +115,9 @@ export interface Controller {
   initAll?(obs: { count: number; probe?: boolean }, params: Params, ctx: Ctx): unknown
   /**
    * A slow, asynchronous step for each entity, every `think.every` ticks: look around, maybe ask a language model
-   * (`await ctx.ask('...')`), and return a decision. The decision is stored and the fast `decide` reads it as
-   * `self.decision`. Every decision is logged with the tick it took effect, so a run can be replayed without asking again.
+   * (`await ctx.ask('...')`), and return what it decided as state: `return { goal: 'go east' }` writes the field `goal` (one that
+   * `init` returns), and the fast `act` reads it as `self.goal`. A result that is not state is kept as `self.decision`, the older way.
+   * Every answer is logged with the tick it took effect, so a run can be replayed without asking again.
    */
   think?(obs: { self: any; neighbors: any }, params: Params, ctx: ThinkCtx): Promise<unknown>
   /**

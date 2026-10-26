@@ -104,3 +104,30 @@ test('the llm-wanderers example runs with a stand-in model and closes in on the 
   assert.equal(s.takeErrors().length, 0, s.takeErrors().join('\n'))
   assert.ok(s.metrics().distanceToFood < start - 8, `${start} -> ${s.metrics().distanceToFood}`)
 })
+
+test('a think that returns state writes those fields, and act reads them as self.name', async () => {
+  const s = new Sim(scene(), {
+    default: {
+      init: () => ({ dx: 0, dz: 0 }),
+      think: async () => ({ dx: 1, dz: -1 }),
+      act: ({ self }: { self: { dx: number; dz: number } }) => ({ steer: [self.dx * 10, 0, self.dz * 10] }),
+    },
+  })
+  s.provider = model
+  await s.think()
+  const c = s.worlds[0].table.cols as unknown as Record<string, Float64Array>
+  assert.deepEqual([c.dx[0], c.dz[0]], [1, -1])
+  assert.equal(s.decisionLog.length, 5, 'still logged, with the same shape as before')
+  s.step()
+  assert.ok(c.vx[0] !== 0, 'act used it')
+  assert.equal(s.takeErrors().length, 0, s.takeErrors().join('\n'))
+  // replay: the log alone reproduces the state
+  const again = new Sim(scene(), { default: { init: () => ({ dx: 0, dz: 0 }), act: ({ self }: { self: { dx: number; dz: number } }) => ({ steer: [self.dx * 10, 0, self.dz * 10] }) } })
+  again.replay(s.decisionLog)
+  await again.think(); again.step()
+  assert.equal(again.hash(), s.hash())
+  // an answer that is not state is kept as self.decision, as before
+  const legacy = new Sim(scene(), { default: { think: async () => ({ other: 1 }), act: ({ self }: { self: { decision: unknown } }) => (self.decision ? {} : {}) } })
+  await legacy.think()
+  assert.equal(legacy.takeErrors().length, 0)
+})

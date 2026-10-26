@@ -8,6 +8,11 @@
 // The model is reached through the local server (ANTHROPIC_API_KEY in .env). Without one the scouts just drift.
 // Every answer is logged, so a run can be replayed without calling the model again.
 export const Scout = {
+  // what the model last said: how hard to turn (-1 left to 1 right) and how fast to go (0 to 1); zero until its first answer
+  init() {
+    return { turn: 0, go: 0 }
+  },
+
   async think({ self, view }, p, ctx) {
     const reply = await ctx.ask(
       'You are a scout, the white dot in the middle of this top-down picture; the tick above it shows the way you face, and up is forward. ' +
@@ -22,12 +27,11 @@ export const Scout = {
   },
 
   act({ self }, p, ctx) {
-    const advice = self.decision // what the model last said, or undefined before the first answer
-    if (!advice) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10) }
+    if (!self.turn && !self.go) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10) } // no answer yet: drift
     // forward is where the scout is heading; right is a quarter turn clockwise seen from above
     const heading = self.velocity.length() > 0.1 ? self.velocity.normalized() : ctx.vec(1, 0, 0)
     const right = ctx.vec(-heading.z, 0, heading.x)
-    return { steer: heading.times(advice.go * p.push).plus(right.times(advice.turn * p.push)) }
+    return { steer: heading.times(self.go * p.push).plus(right.times(self.turn * p.push)) }
   },
 }
 

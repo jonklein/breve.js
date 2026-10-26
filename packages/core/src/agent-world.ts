@@ -365,8 +365,16 @@ export class AgentWorld implements World {
     })
   }
 
+  /**
+   * What a `think` answered. An object whose keys are all state fields is state: it is written to those fields, and `act`
+   * reads it as `self.dx`. Anything else is kept as `self.decision` (the older way, which still works).
+   */
   setDecision(row: number, decision: unknown): void {
-    if (row < this.table.size) this.decisions.set(this.table.idAt(row), decision)
+    if (row >= this.table.size) return
+    const isState = decision && typeof decision === 'object' && !Array.isArray(decision) && Object.keys(decision).length > 0
+      && Object.keys(decision).every((k) => this.extra.some((f) => f.name === k))
+    if (isState) this.writeState(row, decision as Record<string, unknown>, 'think')
+    else this.decisions.set(this.table.idAt(row), decision)
   }
 
   snapshot(): unknown {

@@ -3,11 +3,16 @@
 // Same script as examples/onnx-policy, but the "model" is a Python process: scene.json says
 // `"models": { "policy": { "url": "ws://localhost:8765" } }`. Start `python3 serve.py` first. `thinkAll` runs once a tick for every walker:
 // one call to ctx.model('policy').runBatch for all of them, not one call each. The answers are logged like any
-// other decision, so a run can be saved and replayed with no model and no ONNX runtime at all.
+// other answer, so a run can be saved and replayed with no model and no ONNX runtime at all.
 //
 // serve.py receives the whole crowd's [x/20, z/20, vx/6, vz/6] rows and answers [dx, dz] for each. That is where a trainer
 // would sit: it sees every observation, can keep whatever state it likes, and the sim never needs to know.
 export default {
+  // the server's last answer: a steering direction (zero until the first one)
+  init() {
+    return { dx: 0, dz: 0 }
+  },
+
   async thinkAll(agents, p, ctx) {
     const seen = agents.map(({ self }) => [self.x / 20, self.z / 20, self.vx / 6, self.vz / 6])
     const out = await ctx.model('policy').runBatch(seen)
@@ -15,8 +20,7 @@ export default {
   },
 
   act({ self }, p) {
-    const d = self.decision // the network's last answer, or undefined before the first
-    return d ? { steer: [d.dx * p.push, 0, d.dz * p.push] } : {}
+    return { steer: [self.dx * p.push, 0, self.dz * p.push] }
   },
 }
 

@@ -30,7 +30,7 @@
       <button id="held-delete">Delete this project</button>
     </div>
     <main>
-      <button id="drawer-handle" class="drawer-handle" aria-label="Open the editor" title="Open the editor (E)">Editor</button>
+      <button id="drawer-handle" class="drawer-handle" aria-label="Show or hide the editor" title="Show or hide the editor (E)">Editor</button>
       <section id="editors" aria-label="Editor">
         <nav>
           <button class="tab active" data-tab="scene">scene.json</button>
@@ -42,6 +42,7 @@
           <span id="status" class="status ok">ok</span>
           <button id="drawer-close" class="drawer-close" aria-label="Hide the editor" title="Hide the editor (Esc)">✕</button>
         </nav>
+        <div id="drawer-grip" class="drawer-grip" role="separator" aria-orientation="vertical" aria-label="Drag to resize the editor" title="Drag to resize"></div>
         <div id="editor-scene" class="editor"></div>
         <div id="tree-scene" class="editor hidden"></div>
         <div id="editor-script" class="editor hidden"></div>

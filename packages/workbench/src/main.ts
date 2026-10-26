@@ -355,6 +355,27 @@ async function main(): Promise<void> {
     $('drawer-toggle').setAttribute('aria-expanded', String(open))
     remember('breve.drawer', open ? 'open' : 'closed')
   }
+  // drag the edge to resize; the width is remembered
+  const grip = $('drawer-grip')
+  const widthPref = Number(pref('breve.drawerW', ''))
+  if (widthPref >= 320) mainEl.style.setProperty('--drawer-w', `${Math.min(widthPref, window.innerWidth * 0.94)}px`)
+  grip.addEventListener('pointerdown', (e) => {
+    grip.setPointerCapture(e.pointerId)
+    mainEl.classList.add('drawer-resizing')
+    const left = mainEl.getBoundingClientRect().left
+    const move = (ev: PointerEvent) => mainEl.style.setProperty('--drawer-w', `${Math.max(320, Math.min(ev.clientX - left, window.innerWidth * 0.94))}px`)
+    const up = () => {
+      grip.removeEventListener('pointermove', move)
+      grip.removeEventListener('pointerup', up)
+      grip.removeEventListener('pointercancel', up)
+      mainEl.classList.remove('drawer-resizing')
+      remember('breve.drawerW', String(Math.round($('editors').getBoundingClientRect().width)))
+    }
+    grip.addEventListener('pointermove', move)
+    grip.addEventListener('pointerup', up)
+    grip.addEventListener('pointercancel', up)
+    e.preventDefault()
+  })
   const toggleDrawer = () => setDrawer(!mainEl.classList.contains('drawer-open'))
   setDrawer(pref('breve.drawer', 'closed') === 'open' || new URLSearchParams(location.search).get('tab') === 'docs')
   for (const id of ['drawer-toggle', 'drawer-handle']) $(id).addEventListener('click', toggleDrawer)

@@ -57,6 +57,18 @@ check('JSON opens as a tree by default', (await page.isVisible('#tree-scene')) &
 await page.keyboard.press('Escape'); await page.waitForTimeout(350)
 check('Escape closes the drawer', !(await page.isVisible('#editors')))
 await openDrawer()
+// the tab rides the drawer's edge, and dragging the edge resizes it (and is remembered)
+const w0 = (await page.locator('#editors').boundingBox()).width
+const tab = await page.locator('#drawer-handle').boundingBox()
+check('the tab sticks to the open drawer\'s edge', Math.abs(tab.x - w0) < 4, `tab ${tab.x}, drawer ${w0}`)
+const gb = await page.locator('#drawer-grip').boundingBox()
+await page.mouse.move(gb.x + 4, 300); await page.mouse.down(); await page.mouse.move(gb.x - 200, 300, { steps: 5 }); await page.mouse.up()
+const w1 = (await page.locator('#editors').boundingBox()).width
+check('dragging the edge resizes the drawer', w1 < w0 - 150, `${w0} -> ${w1}`)
+check('the width is remembered', (await page.evaluate(() => localStorage.getItem('breve.drawerW'))) === String(Math.round(w1)))
+await page.click('#drawer-handle'); await page.waitForTimeout(400)
+check('the tab slides the drawer back in', !(await page.isVisible('#editors')))
+await openDrawer()
 await page.waitForSelector('#tree-scene .tree-row')
 const count = page.locator('#tree-scene .tree-node', { has: page.locator('> .tree-row > .tree-key', { hasText: /^count$/ }) }).first().locator('input[type=number]').first()
 await count.fill('120'); await count.dispatchEvent('change')

@@ -5,7 +5,7 @@ export interface AgentCols {
   vx: Float32Array; vy: Float32Array; vz: Float32Array
 }
 
-/** Readable view of one row. Only valid for the duration of a decide() call. */
+/** Readable view of one row. Only valid for the duration of an act() call. */
 export class Agent {
   constructor(private cols: AgentCols, readonly row: number) {}
   get x() { return this.cols.px[this.row] }

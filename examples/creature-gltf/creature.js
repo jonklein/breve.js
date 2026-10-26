@@ -21,7 +21,7 @@ export default {
     self.reset()
   },
 
-  decide({ self }, p, ctx) {
+  act({ self }, p, ctx) {
     if (self.downFor > 3) self.reset()
 
     // where do I want to go? an angle, 0 = +x, growing toward -z (the same as self.yaw)

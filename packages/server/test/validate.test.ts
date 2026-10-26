@@ -15,14 +15,14 @@ test('the shipped examples pass the same validation the assistant output goes th
 test('bad scenes and scripts are reported in words the model can act on', () => {
   const scene = JSON.parse(ex('boids/scene.json'))
   scene.entities[0].count = '$nope'
-  const p = problemsWith({ scene: JSON.stringify(scene), script: 'export default { decide( { }' })
+  const p = problemsWith({ scene: JSON.stringify(scene), script: 'export default { act( { }' })
   assert.ok(p.some((m) => /unknown param "\$nope"/.test(m)), p.join('\n'))
   assert.ok(p.some((m) => /syntax error/.test(m)), p.join('\n'))
 })
 
 test('a script without a default export is caught', () => {
   assert.match(problemsWith({ script: 'export const x = 1' }).join(), /export default/)
-  assert.equal(checkScript('export default { decide() {} }'), null)
+  assert.equal(checkScript('export default { act() {} }'), null)
 })
 
 test('the system prompt carries the reference and both examples', () => {

@@ -7,7 +7,7 @@
 //   A susceptible one catches it from each infected neighbor with chance `infectiousness`.
 //   An infected one recovers after `recoveryTime` ticks and cannot catch it again.
 export default {
-  decide({ self, neighbors }, p, ctx) {
+  act({ self, neighbors }, p, ctx) {
     if (self.status === 0) {
       const sickNeighbors = neighbors.status.filter((s) => s === 1).length
       const chanceOfCatching = 1 - Math.pow(1 - p.infectiousness, sickNeighbors)

@@ -2,7 +2,7 @@ import { StrColumn, Table, type Column, type ColumnType, type TableSnapshot } fr
 import { fillList, resolve, stateFields, type Params, type StateField, type StateType } from './scene'
 import { Field, type NeighborTable } from '@breve/stdlib'
 import { Nums, Vec3, Vecs } from '@breve/stdlib'
-import type { Ctx, FrameData, Host, MetricInput, PatchLayer, World } from './world'
+import { actAllOf, actOf, type Ctx, type FrameData, type Host, type MetricInput, type PatchLayer, type World } from './world'
 
 const CTORS = { u8: Uint8Array, i32: Int32Array, f32: Float32Array, f64: Float64Array, str: StrColumn } as const
 
@@ -141,7 +141,7 @@ export class LatticeWorld implements World, PatchLayer {
     const [nx, ny] = this.dims
     const sp = this.host.def.lattice!.spacing ?? 1.2
     const centre = this.dims.map((d) => (d - 1) / 2)
-    const readOnly = () => { throw new Error('cells are read-only inside decide(): return the new state instead, like `return { alive: 1 }`') }
+    const readOnly = () => { throw new Error('cells are read-only inside act(): return the new state instead, like `return { alive: 1 }`') }
 
     class Cell {
       constructor(readonly row: number) {}
@@ -232,7 +232,7 @@ export class LatticeWorld implements World, PatchLayer {
   }
 
   /**
-   * The whole-lattice rule: `decideAll(fields, params, ctx)` gets every state field as a `Field` and returns the
+   * The whole-lattice rule: `actAll(fields, params, ctx)` gets every state field as a `Field` and returns the
    * new fields (any it leaves out stay as they are). It is the fast path for big grids.
    */
   private stepFields(rule: (f: Record<string, Field>, p: Params, ctx: Ctx) => unknown): void {
@@ -245,14 +245,14 @@ export class LatticeWorld implements World, PatchLayer {
       const r = rule(fields, this.host.params, this.host.ctx())
       out = r && typeof r === 'object' ? (r as Record<string, unknown>) : null
     } catch (e) {
-      this.host.fail('decideAll', e)
+      this.host.fail('actAll', e)
     }
     if (!out) return
     for (const f of this.fields) {
       const v = out[f]
       if (v === undefined) continue
       const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
-      if (!data || data.length !== this.n) { this.host.fail('decideAll', new Error(`"${f}" must be a field with ${this.n} cells`)); continue }
+      if (!data || data.length !== this.n) { this.host.fail('actAll', new Error(`"${f}" must be a field with ${this.n} cells`)); continue }
       store(cols[f], this.fieldOf[f], data, this.n)
     }
   }
@@ -260,18 +260,19 @@ export class LatticeWorld implements World, PatchLayer {
   step(): void {
     this.applyPending()
     const ctrl = this.host.controller()
-    const all = ctrl?.decideAll ?? ctrl?.update
+    const all = actAllOf(ctrl)
     if (all) return this.stepFields(all)
+    const act = actOf(ctrl)
     const ctx = this.host.ctx()
     const { params } = this.host
     const cols = this.table.cols
     for (let row = 0; row < this.n; row++) {
       let out: unknown
-      if (ctrl?.decide) {
+      if (act) {
         try {
-          out = ctrl.decide!({ self: this.handles[row], neighbors: this.neighborsOf(row) }, params, ctx)
+          out = act({ self: this.handles[row], neighbors: this.neighborsOf(row) }, params, ctx)
         } catch (e) {
-          this.host.fail('decide', e)
+          this.host.fail('act', e)
         }
       }
       const o = out && typeof out === 'object' ? (out as Record<string, unknown>) : null

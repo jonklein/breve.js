@@ -3,7 +3,7 @@ import { adjacency, makeEdges, type Adjacency, type Edges } from './graph'
 import { layoutNodes } from './layout'
 import { fillList, resolve, stateFields, type Params, type StateField } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
-import type { Ctx, FrameData, Host, MetricInput, World } from './world'
+import { actAllOf, actOf, type Ctx, type FrameData, type Host, type MetricInput, type World } from './world'
 
 const LAYOUT = { px: 'f32', py: 'f32', pz: 'f32' } as const
 const RESERVED = new Set(['exchange', 'px', 'py', 'pz'])
@@ -113,7 +113,7 @@ export class NetworkWorld implements World {
     const table = this.table
     const world = this
     const boolean = Object.fromEntries(this.fields.map((f) => [f.name, f.kind === 'boolean']))
-    const readOnly = () => { throw new Error('nodes are read-only inside decide(): return the new state instead, like `return { status: 1 }`') }
+    const readOnly = () => { throw new Error('nodes are read-only inside act(): return the new state instead, like `return { status: 1 }`') }
     class Node {
       constructor(readonly row: number) {}
       /** How many links this node has. */
@@ -177,7 +177,7 @@ export class NetworkWorld implements World {
   }
 
   /**
-   * The whole-network rule, like a lattice's: `decideAll(fields, params, ctx)` gets every single-number state field as a
+   * The whole-network rule, like a lattice's: `actAll(fields, params, ctx)` gets every single-number state field as a
    * `Field` whose neighbor operations follow the links, and returns the new fields (any it leaves out stay as they are).
    */
   private stepFields(rule: (f: Record<string, Field>, p: Params, ctx: Ctx) => unknown): void {
@@ -191,14 +191,14 @@ export class NetworkWorld implements World {
       const r = rule(fields, this.host.params, this.host.ctx())
       out = r && typeof r === 'object' ? (r as Record<string, unknown>) : null
     } catch (e) {
-      this.host.fail('decideAll', e)
+      this.host.fail('actAll', e)
     }
     if (!out) return
     for (const f of numeric) {
       const v = out[f.name]
       if (v === undefined) continue
       const data = v instanceof Field ? v.data : (v as ArrayLike<number>)
-      if (!data || data.length !== this.n) { this.host.fail('decideAll', new Error(`"${f.name}" must be a field with ${this.n} nodes`)); continue }
+      if (!data || data.length !== this.n) { this.host.fail('actAll', new Error(`"${f.name}" must be a field with ${this.n} nodes`)); continue }
       const dst = cols[f.name]
       for (let r = 0; r < this.n; r++) {
         const x = data[r]
@@ -209,18 +209,19 @@ export class NetworkWorld implements World {
 
   step(): void {
     const ctrl = this.host.controller()
-    const all = ctrl?.decideAll ?? ctrl?.update
+    const all = actAllOf(ctrl)
     if (all) return this.stepFields(all)
-    if (!ctrl?.decide) return
+    const act = actOf(ctrl)
+    if (!act) return
     const ctx = this.host.ctx()
     const { params } = this.host
     const updates: { row: number; out: Record<string, unknown> }[] = []
     for (let row = 0; row < this.n; row++) {
       try {
-        const out = ctrl.decide({ self: this.handles[row], neighbors: this.neighborsOf(row) }, params, ctx)
+        const out = act({ self: this.handles[row], neighbors: this.neighborsOf(row) }, params, ctx)
         if (out && typeof out === 'object') updates.push({ row, out: out as Record<string, unknown> })
       } catch (e) {
-        this.host.fail('decide', e)
+        this.host.fail('act', e)
       }
     }
     // every node decided from the old state; now the new state lands
@@ -237,7 +238,7 @@ export class NetworkWorld implements World {
     if (f.kind === 'string') { (col as unknown as string[])[row] = String(v); return }
     if (f.kind === 'boolean') { col[row] = v ? 1 : 0; return }
     const vals = typeof v === 'number' ? [v] : Array.isArray(v) || ArrayBuffer.isView(v) ? Array.from(v as ArrayLike<number>) : null
-    if (!vals || vals.length !== f.length || vals.some((x) => !Number.isFinite(x))) { this.host.fail('decide', new Error(`state "${f.name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`)); return }
+    if (!vals || vals.length !== f.length || vals.some((x) => !Number.isFinite(x))) { this.host.fail('act', new Error(`state "${f.name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`)); return }
     for (let k = 0; k < f.length; k++) col[row * f.length + k] = f.type === 'i32' ? Math.round(vals[k]) : f.type === 'u8' ? Math.max(0, Math.min(255, Math.round(vals[k]))) : vals[k]
   }
 

@@ -1,6 +1,6 @@
 import { Picture } from './image'
 import { Agent, type AgentCols } from './agents'
-import type { Controller } from './world'
+import { actOf, type Controller } from './world'
 import { Agents } from '@breve/stdlib'
 import { resolve, stateFields } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
@@ -144,13 +144,13 @@ export class AgentWorld implements World {
     for (const [k, v] of Object.entries(add)) {
       if (v && typeof v === 'object') {
         const layer = named.find((l) => l.name === k)
-        if (!layer) this.host.fail('decide', new Error(`add: there is no layer called "${k}" (layers: ${named.map((l) => l.name).join(', ') || 'none'})`))
+        if (!layer) this.host.fail('act', new Error(`add: there is no layer called "${k}" (layers: ${named.map((l) => l.name).join(', ') || 'none'})`))
         else layer.addAt(c.px[row], c.py[row], c.pz[row], v as Record<string, number>)
       } else plain[k] = Number(v)
     }
     if (Object.keys(plain).length) {
       const layer = named[0]
-      if (!layer) this.host.fail('decide', new Error('add: the scene has no lattice for agents to add to'))
+      if (!layer) this.host.fail('act', new Error('add: the scene has no lattice for agents to add to'))
       else layer.addAt(c.px[row], c.py[row], c.pz[row], plain)
     }
   }
@@ -158,13 +158,13 @@ export class AgentWorld implements World {
   private writeState(row: number, state: Record<string, unknown>): void {
     for (const [name, v] of Object.entries(state)) {
       const f = this.extra.find((x) => x.name === name)
-      if (!f) { this.host.fail('decide', new Error(`state "${name}" is not declared in the scene's "state"`)); continue }
+      if (!f) { this.host.fail('act', new Error(`state "${name}" is not declared in the scene's "state"`)); continue }
       const col = this.table.cols[name]
       if (f.kind === 'string') { (col as unknown as string[])[row] = String(v); continue }
       if (f.kind === 'boolean') { col[row] = v ? 1 : 0; continue }
       const vals = typeof v === 'number' ? [v] : Array.isArray(v) || ArrayBuffer.isView(v) ? Array.from(v as ArrayLike<number>) : null
       if (!vals || vals.length !== f.length || vals.some((x) => !Number.isFinite(x))) {
-        this.host.fail('decide', new Error(`state "${name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`))
+        this.host.fail('act', new Error(`state "${name}" needs ${f.length} finite number${f.length === 1 ? '' : 's'}`))
         continue
       }
       for (let k = 0; k < f.length; k++) col[row * f.length + k] = f.type === 'i32' ? Math.round(vals[k]) : vals[k]
@@ -234,7 +234,7 @@ export class AgentWorld implements World {
     // sense: build the neighbor index from current positions
     this.ensureGrid(radius)
 
-    // decide: controllers read state and write only the action columns
+    // act: controllers read state and write only the action columns
     const ctx = this.host.ctx()
     const setCtrl = this.host.controller()
     // an agent with a non-empty `controller` field runs that export instead of the set's own
@@ -243,25 +243,26 @@ export class AgentWorld implements World {
     for (let i = 0; i < n; i++) {
       let ax = 0, ay = 0, az = 0
       const ctrl = pick && pick[i] ? this.host.controllerNamed(pick[i]) : setCtrl
-      if (ctrl) {
+      const act = actOf(ctrl)
+      if (act) {
         try {
           const obs: Record<string, unknown> = { self: this.handles[i], neighbors: ownVia ? this.linkedTo(i, ownVia, this) : this.neighborsOf(i, radius) }
           for (const o of others) obs[o.name] = o.via ? this.linkedTo(i, o.via, o.world) : o.world?.around(this.handles[i], o.radius) ?? new this.GroupClass(this.handles[i])
           this.attachCameras(obs, i, cameras)
-          const out = ctrl.decide!(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
+          const out = act(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
           if (out && ((out.state && typeof out.state === 'object') || (out.add && typeof out.add === 'object'))) writes.push({ row: i, state: out.state ?? {}, add: out.add })
           if (out && out.steer) {
             const s = toVec(out.steer)
             if (Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.z)) { ax = s.x; ay = s.y; az = s.z }
           }
         } catch (e) {
-          this.host.fail('decide', e)
+          this.host.fail('act', e)
         }
       }
       c.ax[i] = ax; c.ay[i] = ay; c.az[i] = az
     }
 
-    // state returned by decide lands now, after every agent has read the old values
+    // state returned by act lands now, after every agent has read the old values
     for (const w of writes) { this.writeState(w.row, w.state); if (w.add) this.applyAdd(w.row, w.add) }
 
     // act: integrate steering into velocity, with entity-level limits

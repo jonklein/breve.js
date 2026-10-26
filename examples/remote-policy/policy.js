@@ -14,7 +14,7 @@ export default {
     return out.map(([dx, dz]) => ({ dx, dz }))
   },
 
-  decide({ self }, p) {
+  act({ self }, p) {
     const d = self.decision // the network's last answer, or undefined before the first
     return d ? { steer: [d.dx * p.push, 0, d.dz * p.push] } : {}
   },

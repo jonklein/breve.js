@@ -91,7 +91,7 @@ async function applyScript(code: string): Promise<void> {
   try {
     script = await compile(code)
     scriptErrors = []
-    postMessage({ type: 'controllers', names: Object.entries(script).filter(([k, v]) => k !== 'metrics' && !!v && typeof v === 'object' && ['decide', 'decideAll', 'update', 'init'].some((f) => typeof (v as Record<string, unknown>)[f] === 'function')).map(([k]) => k) } satisfies FromWorker)
+    postMessage({ type: 'controllers', names: Object.entries(script).filter(([k, v]) => k !== 'metrics' && !!v && typeof v === 'object' && ['act', 'actAll', 'decide', 'decideAll', 'update', 'init'].some((f) => typeof (v as Record<string, unknown>)[f] === 'function')).map(([k]) => k) } satisfies FromWorker)
   } catch (e) {
     scriptErrors = [e instanceof Error ? e.message : String(e)]
   }

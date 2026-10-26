@@ -22,7 +22,7 @@ function runFromDog({ dogs }, p) {
 }
 
 export const Sheep = {
-  decide(obs, p, ctx) {
+  act(obs, p, ctx) {
     return ctx.blend(graze(obs, p, ctx), stickTogether(obs, p), runFromDog(obs, p))
   },
 }
@@ -31,7 +31,7 @@ export const Dog = {
   // a person is driving, so a replay will not reproduce this run unless the key presses are replayed too
   spec: { nondeterministic: true },
 
-  decide({ self }, p, ctx) {
+  act({ self }, p, ctx) {
     const key = (name) => (ctx.input.pressed(name) ? 1 : 0)
     const push = ctx.vec(
       key('d') + key('arrowright') - key('a') - key('arrowleft'),

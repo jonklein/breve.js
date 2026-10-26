@@ -1,6 +1,8 @@
 # One naming rule: `x` per entity, `xAll` for the whole set
 
-**Context.** A controller has several hooks, and two of them already come in two forms that were named differently: `decide` (per entity) and `update` (a whole lattice or network at once), and `think` (per entity) and `thinkAll` (a whole set at once, for batched model calls). Two more hooks were planned, `init` and `display`, and would have needed the same split. Free agents had no whole-set form at all.
+The hooks are `init`, `act`, `think` and `display`. `act` was `decide`; the old name still works. It was renamed because "decide" sounds like the deliberate step while it is the every-tick reflex, and `think` is the slow one. `act` returns steering and state changes; `think` is the slow, asynchronous rule whose results feed `act` (the plan is for `think` to return state updates, like `act`, instead of a hidden `self.decision`). Labels for how slow answers land: `async` (the sim keeps running) and `wait` (each tick waits), instead of "realtime" and "lockstep".
+
+**Context.** A controller has several hooks, and two of them already come in two forms that were named differently: `act` (per entity) and `update` (a whole lattice or network at once), and `think` (per entity) and `thinkAll` (a whole set at once, for batched model calls). Two more hooks were planned, `init` and `display`, and would have needed the same split. Free agents had no whole-set form at all.
 
 **Decision.** Every hook has a per-entity form `x(...)` and may have a whole-set form `xAll(...)`.
 - `x` is the readable form: it gets one entity (`self`, `neighbors`) and returns that entity's result. It costs about 3 microseconds an entity, so it suits up to tens of thousands of entities.
@@ -10,7 +12,7 @@
 
 | per entity | whole set | status |
 |---|---|---|
-| `decide` | `decideAll` | `decideAll` for lattices and networks (was `update`; `update` stays as an alias). Free agents: not yet |
+| `act` (was `decide`) | `actAll` (was `decideAll`, before that `update`) | `actAll` for lattices and networks; the old names stay as aliases. Free agents: not yet |
 | `think` | `thinkAll` | done (batched model calls) |
 | `init` | `initAll` | `init` for free agents; lattices and networks next; `initAll` after |
 | `display` | `displayAll` | planned (SPEC.md section on display) |

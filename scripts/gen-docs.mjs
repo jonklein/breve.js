@@ -10,7 +10,7 @@ const INTRO = `# Standard library
 Everything here is available to scripts without importing anything. It lives in its own package
 (\`packages/stdlib\`), apart from the simulation engine, and this page is generated from its source comments.
 
-Scripts reach it through the values they are given: \`self\` and \`neighbors\` in \`decide\`, \`ctx\` for helpers
+Scripts reach it through the values they are given: \`self\` and \`neighbors\` in \`act\`, \`ctx\` for helpers
 (\`ctx.vec(x, y, z)\`, \`ctx.mlp([...])\`), and the field arguments of a lattice \`update\`.
 For the scene format and the script contract, see the Scene and script reference.
 `

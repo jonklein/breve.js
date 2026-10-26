@@ -33,7 +33,7 @@ const place = (sim: Sim, set: number, x: number, z: number, vx = 0, vz = 0) => {
 
 test('a camera picture is egocentric: up is the way the agent heads, and others appear where they are', () => {
   let view: Picture | undefined
-  const sim = new Sim(small(), { default: { decide: (obs: object) => { const v = (obs as { view?: Picture }).view; if (v) view = v; return {} } } })
+  const sim = new Sim(small(), { default: { act: (obs: object) => { const v = (obs as { view?: Picture }).view; if (v) view = v; return {} } } })
   const mid = (p: Picture) => p.get(10, 10)
   const colorAt = (p: Picture, x: number, y: number) => p.get(x, y).join()
 
@@ -65,7 +65,7 @@ test('a camera picture is egocentric: up is the way the agent heads, and others 
 
 test('the picture is drawn only when a script reads it', () => {
   let reads = 0
-  const sim = new Sim(small(), { default: { decide: (obs: object) => { void obs; reads++; return {} } } })
+  const sim = new Sim(small(), { default: { act: (obs: object) => { void obs; reads++; return {} } } })
   sim.step()
   assert.equal(reads, 2) // both sets ran; neither touched `view`, and nothing failed
   assert.equal(sim.takeErrors().length, 0)

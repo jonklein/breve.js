@@ -3,7 +3,7 @@
 // Each scout has a camera: a small top-down picture of its surroundings, turned so that "up" is the way it is
 // heading (scene.json: `"sensors": [{ "type": "camera", "name": "view", ... }]`). Every 90 ticks its `think`
 // shows that picture to a vision model with ctx.ask and asks where to go. It is never told where the food is:
-// it has to see the green dot. The fast `decide` then steers by the answer until the next one arrives.
+// it has to see the green dot. The fast `act` then steers by the answer until the next one arrives.
 //
 // The model is reached through the local server (ANTHROPIC_API_KEY in .env). Without one the scouts just drift.
 // Every answer is logged, so a run can be replayed without calling the model again.
@@ -21,7 +21,7 @@ export const Scout = {
     return { turn: clamp(answer.turn, -1, 1), go: clamp(answer.go, 0, 1) }
   },
 
-  decide({ self }, p, ctx) {
+  act({ self }, p, ctx) {
     const advice = self.decision // what the model last said, or undefined before the first answer
     if (!advice) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10) }
     // forward is where the scout is heading; right is a quarter turn clockwise seen from above
@@ -31,7 +31,7 @@ export const Scout = {
   },
 }
 
-export const Food = { decide: () => ({}) }
+export const Food = { act: () => ({}) }
 
 export const metrics = {
   // how far the scouts are from the food, on average

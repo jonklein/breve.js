@@ -76,7 +76,7 @@ test('exchange moves things between linked nodes whole or not at all, and never 
   const sim = new Sim(r.ok ? r.scene : (null as never), {
     default: {
       // node 0 buys goods from node 1 at 4 cash each, but node 1 has none; then node 1 buys from 0 (also none)
-      decide: ({ self, neighbors }) => (self.row === 0 ? { exchange: [{ with: neighbors[0], give: { cash: 4 }, get: { goods: 1 } }] } : {}),
+      act: ({ self, neighbors }) => (self.row === 0 ? { exchange: [{ with: neighbors[0], give: { cash: 4 }, get: { goods: 1 } }] } : {}),
     },
   })
   sim.step()

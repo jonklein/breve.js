@@ -13,10 +13,10 @@ const flock = (await import(pathToFileURL(new URL('flock.js', dir).pathname).hre
 // boids that report in on tick 5 and, when they hear "calm", stop steering
 const chatty: ScriptModule = {
   default: {
-    decide({ self, neighbors }, p, ctx) {
+    act({ self, neighbors }, p, ctx) {
       if (self.row === 0 && ctx.tick === 5) ctx.send('hello', { tick: ctx.tick })
       const calm = ctx.inbox.some((m: Message) => m.topic === 'calm')
-      return calm ? { steer: [0, 0, 0] } : flock.default!.decide!({ self, neighbors }, p, ctx)
+      return calm ? { steer: [0, 0, 0] } : flock.default!.act!({ self, neighbors }, p, ctx)
     },
   },
 }
@@ -82,7 +82,7 @@ test('messages are copied, so a sim cannot reach into the parent by reference', 
   s.deliver('x', data)
   data.n = 2
   let got: unknown
-  s.setScript({ default: { decide: (_o, _p, ctx) => { got = ctx.inbox[0]?.data } } })
+  s.setScript({ default: { act: (_o, _p, ctx) => { got = ctx.inbox[0]?.data } } })
   s.step()
   assert.deepEqual(got, { n: 1 })
 })

@@ -82,12 +82,12 @@ test('cells that keep surviving get older, and a newborn starts at age 0', async
   assert.equal(fresh.table.cols.age[at(5, 2, 2, 2)], 0, 'newborn')
 })
 
-test('writing to a cell inside decide() explains what to do instead', async () => {
+test('writing to a cell inside act() explains what to do instead', async () => {
   const { scene } = await load()
-  const bad: ScriptModule = { default: { decide({ self }: { self: { alive: number } }) { self.alive = 1 } } }
+  const bad: ScriptModule = { default: { act({ self }: { self: { alive: number } }) { self.alive = 1 } } }
   const s = new Sim(small(scene), bad)
   s.step()
-  assert.match(s.takeErrors()[0], /read-only inside decide\(\)/)
+  assert.match(s.takeErrors()[0], /read-only inside act\(\)/)
 })
 
 test('wrap makes edge cells neighbors of the opposite edge', async () => {
@@ -95,7 +95,7 @@ test('wrap makes edge cells neighbors of the opposite edge', async () => {
   const sc = small(scene, 3)
   sc.entities[0].lattice!.edges = 'wrap'
   let seen = -1
-  const spy: ScriptModule = { default: { decide({ self, neighbors }: { self: { x: number; y: number; z: number }; neighbors: { length: number } }) { if (self.x === 0 && self.y === 0 && self.z === 0) seen = neighbors.length } } }
+  const spy: ScriptModule = { default: { act({ self, neighbors }: { self: { x: number; y: number; z: number }; neighbors: { length: number } }) { if (self.x === 0 && self.y === 0 && self.z === 0) seen = neighbors.length } } }
   new Sim(sc, spy).step()
   assert.equal(seen, 26)
   sc.entities[0].lattice!.edges = 'dead'

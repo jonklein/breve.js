@@ -10,7 +10,7 @@ import { NetworkWorld } from './network-world'
 import type { PhysicsEngine } from './physics/types'
 import { paramValues, stateFields, type EntityDef, type Params, type Scene } from './scene'
 import { blend } from './blend'
-import type { AskOptions, ModelRequest, ThinkCtx, Controller, Ctx, FrameData, Host, MetricInput, Message, ScriptModule, World } from './world'
+import { HOOKS, type AskOptions, type ModelRequest, type ThinkCtx, type Controller, type Ctx, type FrameData, type Host, type MetricInput, type Message, type ScriptModule, type World } from './world'
 
 /** One entity as an inspector shows it. */
 export interface Inspected {
@@ -257,7 +257,7 @@ export class Sim {
 
   /** The names a set's `type` can take: every export of the script that is a controller. */
   controllerNames(): string[] {
-    const isController = (v: unknown) => !!v && typeof v === 'object' && ['decide', 'decideAll', 'update', 'init'].some((k) => typeof (v as Record<string, unknown>)[k] === 'function')
+    const isController = (v: unknown) => !!v && typeof v === 'object' && HOOKS.some((k) => typeof (v as Record<string, unknown>)[k] === 'function')
     return Object.entries(this.script ?? {}).filter(([k, v]) => k !== 'metrics' && isController(v)).map(([k]) => k)
   }
 

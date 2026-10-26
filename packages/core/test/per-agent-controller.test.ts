@@ -8,7 +8,7 @@ test('a string state field called "controller" picks each agent\'s behavior', ()
     entities: [{ name: 'a', count: 4, state: { controller: '', ran: '' } }], metrics: [],
   }))
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
-  const mark = (name: string) => ({ decide: () => ({ state: { ran: name } }) })
+  const mark = (name: string) => ({ act: () => ({ state: { ran: name } }) })
   const sim = new Sim(r.scene, { default: mark('default'), flee: mark('flee'), chase: mark('chase') })
   const cols = sim.worlds[0].table.cols as unknown as Record<string, string[]>
   cols.controller[1] = 'flee'
@@ -18,7 +18,7 @@ test('a string state field called "controller" picks each agent\'s behavior', ()
   assert.deepEqual(cols.ran.slice(0, 4), ['default', 'flee', 'chase', 'default'])
 
   // an agent can switch itself by returning the field, and a fork keeps the choice
-  const sim2 = new Sim(r.scene, { default: { decide: ({ self }) => ((self as unknown as { ran: string }).ran === '' ? { state: { ran: 'x', controller: 'flee' } } : { state: { ran: 'y' } }) }, flee: mark('flee') })
+  const sim2 = new Sim(r.scene, { default: { act: ({ self }) => ((self as unknown as { ran: string }).ran === '' ? { state: { ran: 'x', controller: 'flee' } } : { state: { ran: 'y' } }) }, flee: mark('flee') })
   sim2.step(); sim2.step()
   const cols2 = sim2.worlds[0].table.cols as unknown as Record<string, string[]>
   assert.deepEqual(cols2.ran.slice(0, 4), ['flee', 'flee', 'flee', 'flee'])

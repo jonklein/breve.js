@@ -52,7 +52,7 @@ test('live edits: count changes spawn and despawn without a reset', async () => 
 
 test('a throwing script is reported and the sim keeps running', async () => {
   const { scene } = await load()
-  const bad: ScriptModule = { default: { decide() { throw new Error('boom') } } }
+  const bad: ScriptModule = { default: { act() { throw new Error('boom') } } }
   const s = new Sim(scene, bad)
   s.step(); s.step()
   assert.equal(s.tick, 2)

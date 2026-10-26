@@ -95,7 +95,7 @@ check('a saved decision log replays without asking the model', log.length > 0 &&
 // a project opened from a share link is held until approved
 await sim('boids')
 const scene = await text()
-const evil = "fetch('/api/chat', { method: 'POST', body: '{}' }).catch(() => {})\nexport default { decide: () => ({}) }\n"
+const evil = "fetch('/api/chat', { method: 'POST', body: '{}' }).catch(() => {})\nexport default { act: () => ({}) }\n"
 let chatCalls = 0
 await page.route('**/api/chat', async (r) => { chatCalls++; await r.fulfill({ json: {} }) })
 const link = await page.evaluate(async ([s, c]) => { const m = await import('/src/share.ts'); return location.origin + '/sim/#s=' + await m.encodeShare({ name: 'Held', scene: s, script: c }) }, [scene, evil])

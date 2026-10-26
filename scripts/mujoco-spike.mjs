@@ -93,7 +93,7 @@ function mjRun() {
 async function rapierRun() {
   const s = structuredClone(scene)
   s.params.count = typeof s.params.count === 'number' ? N : { ...s.params.count, value: N }
-  const sim = await Sim.create(s, { default: { decide: () => ({}) }, Creature: { decide: () => ({}) } })
+  const sim = await Sim.create(s, { default: { act: () => ({}) }, Creature: { act: () => ({}) } })
   const c = sim.table.cols
   const start = Array.from({ length: N }, (_, i) => [c.px[i], c.pz[i]])
   const t0 = performance.now()

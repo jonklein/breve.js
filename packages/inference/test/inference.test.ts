@@ -56,7 +56,7 @@ test('a simulation steered by an ONNX policy: one batched call a tick, and the r
   const script: ScriptModule = {
     default: {
       thinkAll: async (obs, _p, ctx) => (await ctx.model('policy').runBatch(obs.map(({ self }) => [self.x / 20, self.z / 20, self.vx / 6, self.vz / 6]))).map(([dx, dz]) => ({ dx, dz })),
-      decide: ({ self }) => { const d = self.decision as { dx: number; dz: number } | undefined; return d ? { steer: [d.dx * 12, 0, d.dz * 12] } : {} },
+      act: ({ self }) => { const d = self.decision as { dx: number; dz: number } | undefined; return d ? { steer: [d.dx * 12, 0, d.dz * 12] } : {} },
     },
   }
   const sim = new Sim(scene.ok ? scene.scene : (null as never), script)

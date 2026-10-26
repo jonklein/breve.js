@@ -31,8 +31,8 @@ costs about 3 ns a cell (`neighborSum`'s 8 million reads take 22 ms), so a milli
 The remaining ways down are doing less per cell or more per instruction: WebAssembly SIMD kernels for the elementwise passes
 (about 4 cells per instruction), a faster neighbor gather for regular lattices, or computing on the GPU. The 30 ms target is
 likely out of reach in plain JavaScript on this box; on the laptop the original numbers came from, the same code should be
-roughly 1.5 to 2 times faster. Per-cell `decide` rules cost about 3 µs/cell (3D Life, 8,000 cells, ~24 ms),
+roughly 1.5 to 2 times faster. Per-cell `act` rules cost about 3 µs/cell (3D Life, 8,000 cells, ~24 ms),
 so they suit grids up to roughly 50,000 cells.
 
-Per-cell handles are only built when a `decide` rule or a lattice metric asks for them; a metric such as
-`cells.alive.sum()` on a million cells therefore builds a million handle objects once and is slow. Prefer `decideAll`.
+Per-cell handles are only built when a `act` rule or a lattice metric asks for them; a metric such as
+`cells.alive.sum()` on a million cells therefore builds a million handle objects once and is slow. Prefer `actAll`.

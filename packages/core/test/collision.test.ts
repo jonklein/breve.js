@@ -71,7 +71,7 @@ test('nothing resets a creature on its own; a fence plus onLeave and self.reset(
     sim.dispose()
     return n
   }
-  assert.equal(await jumps({ default: { decide: () => ({}) } }), 0, 'a collapsed creature is left alone')
-  assert.ok((await jumps({ default: { decide: ({ self }: { self: { downFor: number; reset(): void } }) => { if (self.downFor > 0.3) self.reset() } } })) >= 2, 'a script can stand it up again and again')
-  assert.ok((await jumps({ default: { onLeave: ({ self }: { self: { reset(): void } }) => self.reset(), decide: () => ({}) } }, { size: 1 })) >= 1, 'crossing the fence calls onLeave')
+  assert.equal(await jumps({ default: { act: () => ({}) } }), 0, 'a collapsed creature is left alone')
+  assert.ok((await jumps({ default: { act: ({ self }: { self: { downFor: number; reset(): void } }) => { if (self.downFor > 0.3) self.reset() } } })) >= 2, 'a script can stand it up again and again')
+  assert.ok((await jumps({ default: { onLeave: ({ self }: { self: { reset(): void } }) => self.reset(), act: () => ({}) } }, { size: 1 })) >= 1, 'crossing the fence calls onLeave')
 })

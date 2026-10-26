@@ -28,7 +28,7 @@ test('a controller init callback places each new entity and sets its state', () 
   const script: ScriptModule = {
     default: {
       init: ({ index, count }, _p, ctx) => ({ position: ctx.vec(index - count / 2, 0, 0), state: { tag: `#${index}` } }),
-      decide: () => ({}),
+      act: () => ({}),
     },
   }
   const s = new Sim(sc, script)
@@ -49,7 +49,7 @@ test('a fence fires onLeave once per crossing, and self.reset() sends the agent 
   const s = new Sim(sc, {
     default: {
       onLeave: ({ self }) => { left.push(s.tick); self.reset() },
-      decide: () => ({}),
+      act: () => ({}),
     },
   })
   for (let i = 0; i < 30; i++) s.step()
@@ -62,7 +62,7 @@ test('a fence fires onLeave once per crossing, and self.reset() sends the agent 
 test('ctx.blend adds steering and amounts, and merges state', () => {
   const sc = scene(undefined, { state: { a: 0, b: 0 } })
   let got: unknown
-  const s = new Sim(sc, { default: { decide: ({ self }, _p, ctx) => {
+  const s = new Sim(sc, { default: { act: ({ self }, _p, ctx) => {
     if (self.row === 0) got = ctx.blend({ steer: [1, 0, 0], add: { x: 1, deep: { y: 2 } }, state: { a: 1 } }, null, { steer: [0, 2, 0], add: { x: 2, deep: { y: 3 } }, state: { b: 5 } })
     return {}
   } } })
@@ -76,7 +76,7 @@ test('ctx.blend adds steering and amounts, and merges state', () => {
 test('keys held by a person reach ctx.input, are logged, and a controller can say it is not deterministic', () => {
   const sc = scene(undefined, {})
   const seen: boolean[] = []
-  const s = new Sim(sc, { default: { spec: { nondeterministic: true }, decide: ({ self }, _p, ctx) => { if (self.row === 0) seen.push(ctx.input.pressed('W')) } } })
+  const s = new Sim(sc, { default: { spec: { nondeterministic: true }, act: ({ self }, _p, ctx) => { if (self.row === 0) seen.push(ctx.input.pressed('W')) } } })
   s.step()
   s.setInput(['w'])
   s.step(); s.step()
@@ -89,7 +89,7 @@ test('keys held by a person reach ctx.input, are logged, and a controller can sa
 
 test('inspect shows one entity with typed fields; poke edits it; controllerNames lists the script exports', () => {
   const sc = scene({ at: [1, 2, 3] }, { state: { energy: 5, awake: true, name: 'x', w: { length: 3, init: 0.5 } } })
-  const s = new Sim(sc, { default: { decide: () => ({}) }, Other: { decide: () => ({}) }, metrics: {} })
+  const s = new Sim(sc, { default: { act: () => ({}) }, Other: { act: () => ({}) }, metrics: {} })
   const i = s.inspect(0, 2)!
   assert.equal(i.set, 'a')
   assert.equal(i.kind, 'agent')
@@ -106,8 +106,8 @@ test('inspect shows one entity with typed fields; poke edits it; controllerNames
 test('changing a set\'s type swaps its controller on a running sim, with no other scene edit', () => {
   const sc = scene({ at: [0, 0, 0] }, { type: 'Left', motion: { maxSpeed: 50, plane: 'xz' } })
   const script: ScriptModule = {
-    Left: { decide: () => ({ steer: [-10, 0, 0] }) },
-    Right: { decide: () => ({ steer: [10, 0, 0] }) },
+    Left: { act: () => ({ steer: [-10, 0, 0] }) },
+    Right: { act: () => ({ steer: [10, 0, 0] }) },
   }
   const s = new Sim(sc, script)
   for (let i = 0; i < 30; i++) s.step()

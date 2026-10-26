@@ -33,7 +33,7 @@ test('physics: a long box turned a quarter turn rests on its short side', async 
     entities: [{ name: 'c', count: 1, body: { parts: [{ name: 'log', shape: 'box', size: [1, 0.2, 0.2], mass: 1, position: [0, 0.6, 0], rotation: [0, 0, Math.PI / 2] }] } }], metrics: [],
   }))
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
-  const sim = await Sim.create(r.scene, { default: { decide: () => ({}) } })
+  const sim = await Sim.create(r.scene, { default: { act: () => ({}) } })
   for (let i = 0; i < 120; i++) sim.step()
   assert.equal(sim.takeErrors().length, 0)
   const py = (sim.table.cols as unknown as Record<string, Float64Array>).py[0]
@@ -50,7 +50,7 @@ test('a part may name a glTF model to draw (the physics still uses its primitive
     assert.ok(!validateBody({ parts: [{ ...part, visual: bad }] }).ok, JSON.stringify(bad))
   const r = parseScene(JSON.stringify({ seed: 1, params: {}, bounds: { size: 20 }, terrain: { size: 20, amplitude: 0 }, entities: [{ name: 'c', count: 1, body: { parts: [{ ...part, visual: { gltf: 'beetle.glb' } }] } }], metrics: [] }))
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
-  const sim = await Sim.create(r.scene, { default: { decide: () => ({}) } })
+  const sim = await Sim.create(r.scene, { default: { act: () => ({}) } })
   sim.step()
   const rigid = sim.frames()[0].rigid
   assert.deepEqual(rigid?.model?.parts[0].visual, { gltf: 'beetle.glb' })

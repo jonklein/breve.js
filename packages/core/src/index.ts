@@ -26,6 +26,7 @@ export { validateBody, expandBody, bodySchema, type BodyInput, type TemplateDef,
 export { Creature, Creatures } from './rigid-world'
 export type { RigidFrame, PartShape, TerrainMesh } from './rigid-frame'
 export type { PhysicsEngine, PhysicsWorld, Articulation, HeightfieldDef } from './physics/types'
+export { actOf, actAllOf, HOOKS } from './world'
 export { Sim, type Inspected, type SimSnapshot, type Controller, type ScriptModule, type Ctx, type MetricInput, type FrameData } from './sim'
 export { NetworkWorld, type Exchange } from './network-world'
 export { SimGroup, type LoggedMessage, type ParentHandler } from './group'

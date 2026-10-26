@@ -15,7 +15,7 @@ const scene = () => {
 const script: ScriptModule = {
   default: {
     think: async ({ self }, _p, ctx) => JSON.parse(await ctx.ask(`you are agent ${self.row} at ${self.x.toFixed(1)}, ${self.z.toFixed(1)}: where to?`, { json: true })),
-    decide: ({ self }) => {
+    act: ({ self }) => {
       const d = self.decision as { dx: number; dz: number } | undefined
       return d ? { steer: [d.dx * 10, 0, d.dz * 10] } : {}
     },

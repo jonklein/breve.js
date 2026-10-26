@@ -31,7 +31,7 @@ const script: ScriptModule = {
       const out = await ctx.model('policy').runBatch(obs.map(({ self }) => [self.x / 20, self.z / 20]))
       return out.map(([dx, dz]) => ({ dx, dz }))
     },
-    decide: ({ self }) => { const d = self.decision as { dx: number; dz: number } | undefined; return d ? { steer: [d.dx * 10, 0, d.dz * 10] } : {} },
+    act: ({ self }) => { const d = self.decision as { dx: number; dz: number } | undefined; return d ? { steer: [d.dx * 10, 0, d.dz * 10] } : {} },
   },
 }
 

@@ -11,7 +11,7 @@ const BORN = [5]
 const SURVIVES = [4, 5]
 
 export default {
-  decide({ self, neighbors }) {
+  act({ self, neighbors }) {
     const crowd = neighbors.alive.sum() // how many neighbors are alive
 
     const survives = self.alive && SURVIVES.includes(crowd)

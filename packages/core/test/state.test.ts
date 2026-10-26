@@ -39,7 +39,7 @@ test('state types are inferred from what a field starts as', async () => {
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
   const seen: unknown[] = []
   const sim = new Sim(r.ok ? r.scene : (null as never), {
-    default: { decide: ({ self }) => { seen.push([self.energy, self.hungry, self.mood]); return { state: { energy: self.energy - 1, hungry: true, mood: 'tense' } } } },
+    default: { act: ({ self }) => { seen.push([self.energy, self.hungry, self.mood]); return { state: { energy: self.energy - 1, hungry: true, mood: 'tense' } } } },
   })
   sim.step(); sim.step()
   assert.deepEqual(seen[0], [10, false, 'calm'])

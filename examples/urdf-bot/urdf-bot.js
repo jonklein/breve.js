@@ -8,7 +8,7 @@ const PHASE = { FL: 0, HR: 0, FR: 0.5, HL: 0.5 }
 export default {
   onLeave({ self }) { self.reset() },
 
-  decide({ self }, p, ctx) {
+  act({ self }, p, ctx) {
     if (self.downFor > 3) self.reset()
     const joints = {}
     for (const leg of Object.keys(PHASE)) {

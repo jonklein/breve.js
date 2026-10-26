@@ -6,7 +6,7 @@ import { Terrain } from './terrain'
 import { Nums, Vec3, Vecs } from '@breve/stdlib'
 import type { Articulation, PhysicsEngine, PhysicsWorld } from './physics/types'
 import type { RigidFrame } from './rigid-frame'
-import type { FrameData, Host, MetricInput, World } from './world'
+import { actOf, type FrameData, type Host, type MetricInput, type World } from './world'
 
 const SCHEMA = {
   px: 'f32', py: 'f32', pz: 'f32',
@@ -32,7 +32,7 @@ const TICKS_PER_SECOND = 60
 /** Torso height above the ground that counts as collapsed (standing is about 0.6). */
 const DOWN_HEIGHT = 0.22
 
-/** Readable view of one creature. Only valid for the duration of a decide() call. */
+/** Readable view of one creature. Only valid for the duration of an act() call. */
 export class Creature {
   constructor(private world: RigidWorld, readonly row: number) {}
   private get c() { return this.world.cols }
@@ -243,24 +243,25 @@ export class RigidWorld implements World {
         this.gait[i * J + j] = this.clampToLimits(j, t)
       }
 
-    // decide: a script may set any motor target by joint name; the rest follow the oscillator
+    // act: a script may set any motor target by joint name; the rest follow the oscillator
     this.targets.set(this.gait)
     const ctrl = this.host.controller()
-    if (ctrl) {
+    const act = actOf(ctrl)
+    if (act) {
       const ctx = this.host.ctx()
       const none = new Creatures()
       for (let i = 0; i < n; i++) {
         try {
-          const out = ctrl.decide!({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number> } | void
+          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number> } | void
           if (out && out.joints) {
             for (const [name, v] of Object.entries(out.joints)) {
               const j = this.jointIndex.get(name)
-              if (j === undefined) throw new Error(`decide returned a target for "${name}", but the body has no joint with that name`)
+              if (j === undefined) throw new Error(`act returned a target for "${name}", but the body has no joint with that name`)
               if (Number.isFinite(v)) this.targets[i * J + j] = this.clampToLimits(j, v)
             }
           }
         } catch (e) {
-          this.host.fail('decide', e)
+          this.host.fail('act', e)
         }
       }
     }

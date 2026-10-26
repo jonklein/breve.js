@@ -13,8 +13,8 @@ const scene = (topology: string, n: number) => {
 }
 
 // one rule, written two ways: each node moves a quarter of the way toward its neighbors' average
-const perNode: ScriptModule = { default: { decide: ({ self, neighbors }) => ({ heat: self.heat + 0.25 * (neighbors.heat.average() - self.heat) }) } }
-const wholeNetwork: ScriptModule = { default: { decideAll: ({ heat }) => ({ heat: heat.zip(heat.neighborAverage(), (h: number, avg: number) => h + 0.25 * (avg - h)) }) } }
+const perNode: ScriptModule = { default: { act: ({ self, neighbors }) => ({ heat: self.heat + 0.25 * (neighbors.heat.average() - self.heat) }) } }
+const wholeNetwork: ScriptModule = { default: { actAll: ({ heat }) => ({ heat: heat.zip(heat.neighborAverage(), (h: number, avg: number) => h + 0.25 * (avg - h)) }) } }
 
 test('a whole-network update gives the same result as the same rule written per node', () => {
   const heat = (s: Sim) => Array.from(s.worlds[0].table.cols.heat as Float64Array).slice(0, 12)
@@ -27,7 +27,7 @@ test('a whole-network update gives the same result as the same rule written per 
 })
 
 test('whole-network fields cope with hubs: a complete graph of 300 nodes has 299 neighbors each', () => {
-  const sim = new Sim(scene('complete', 300), { default: { decideAll: ({ heat }) => ({ heat: heat.neighborSum() }) } })
+  const sim = new Sim(scene('complete', 300), { default: { actAll: ({ heat }) => ({ heat: heat.neighborSum() }) } })
   sim.step()
   assert.equal(sim.takeErrors().length, 0)
   const h = sim.worlds[0].table.cols.heat as Float64Array
@@ -37,13 +37,23 @@ test('whole-network fields cope with hubs: a complete graph of 300 nodes has 299
   assert.equal(values.filter((v) => v === 100).length, 299)
 })
 
-test('"update" is still accepted as the old name of "decideAll", and decideAll wins when both are given', () => {
+test('the old names still work: update and decideAll for actAll, decide for act; the new name wins when both are given', () => {
   const rule = (name: string) => ({ [name]: ({ heat }: Record<string, any>) => ({ heat: heat.add(1) }) })
-  const old = new Sim(scene('ring', 8), { default: rule('update') })
-  const now = new Sim(scene('ring', 8), { default: rule('decideAll') })
-  old.step(); now.step()
-  assert.equal(old.hash(), now.hash())
-  const both = new Sim(scene('ring', 8), { default: { update: ({ heat }: Record<string, any>) => ({ heat: heat.add(100) }), decideAll: ({ heat }: Record<string, any>) => ({ heat: heat.add(1) }) } })
+  const reference = new Sim(scene('ring', 8), { default: rule('actAll') })
+  reference.step()
+  for (const old of ['update', 'decideAll']) {
+    const s = new Sim(scene('ring', 8), { default: rule(old) })
+    s.step()
+    assert.equal(s.hash(), reference.hash(), old)
+  }
+  const both = new Sim(scene('ring', 8), { default: { update: ({ heat }: Record<string, any>) => ({ heat: heat.add(100) }), actAll: ({ heat }: Record<string, any>) => ({ heat: heat.add(1) }) } })
   both.step()
-  assert.equal(both.hash(), now.hash())
+  assert.equal(both.hash(), reference.hash())
+
+  // per-entity: decide is the old name of act
+  const per = (name: string) => ({ [name]: ({ self, neighbors }: Record<string, any>) => ({ heat: self.heat + 1 + neighbors.heat.sum() * 0 }) })
+  const a = new Sim(scene('ring', 8), { default: per('act') }), b = new Sim(scene('ring', 8), { default: per('decide') })
+  a.step(); b.step()
+  assert.equal(a.hash(), b.hash())
+  assert.equal(a.takeErrors().length + b.takeErrors().length, 0)
 })

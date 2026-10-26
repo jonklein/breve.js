@@ -88,7 +88,7 @@ test('a "via" sensor hands the controller the agents a relation links to, not th
   const seen: Record<number, number[]> = {}
   const sim = new Sim(r.scene, {
     default: {
-      decide: ({ self, neighbors }, _p, ctx) => {
+      act: ({ self, neighbors }, _p, ctx) => {
         const s = self as unknown as { row: number; id: number }
         seen[s.row] = Array.from(neighbors as unknown as { row: number }[], (n) => n.row)
         if (ctx.tick === 0 && s.row === 0) ctx.relations.get('follows').add(s.id, (neighbors as never as { id: number }[])[0]?.id ?? s.id)

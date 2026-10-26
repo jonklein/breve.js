@@ -15,7 +15,7 @@
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
 export default {
-  decide({ self, neighbors }, p, ctx) {
+  act({ self, neighbors }, p, ctx) {
     const producer = self.row % 3 === 0
     const makes = producer && ctx.tick % p.produceEvery === 0 ? 1 : 0
     const uses = ctx.tick % p.consumeEvery === 0 && self.goods > 0 ? 1 : 0

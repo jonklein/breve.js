@@ -9,7 +9,7 @@
 // like neighbors.velocity.average() with no loops.
 
 export default {
-  decide({ self, neighbors }, p, ctx) {
+  act({ self, neighbors }, p, ctx) {
     const crowd = neighbors.within(p.separationRadius) // the birds that are too close
 
     const cohesion = neighbors.offset.average() // toward the middle of the group

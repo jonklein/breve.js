@@ -48,7 +48,7 @@ test('MJCF: a lowest point rests just above the ground, and the model holds toge
   const r = importMjcf(MODEL)
   const parsed = parseScene(JSON.stringify({ seed: 1, params: {}, bounds: { size: 20 }, terrain: { size: 20, amplitude: 0 }, entities: [{ name: 'hopper', count: 1, body: r.body }], metrics: [] }))
   assert.ok(parsed.ok)
-  const sim = await Sim.create(parsed.scene, { default: { decide: () => ({}) } })
+  const sim = await Sim.create(parsed.scene, { default: { act: () => ({}) } })
   for (let i = 0; i < 180; i++) sim.step()
   assert.equal(sim.takeErrors().length, 0)
   const py = (sim.table.cols as unknown as Record<string, Float64Array>).py[0]

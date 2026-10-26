@@ -1,7 +1,7 @@
 // Five characters that let a language model decide where to go.
 //
 // Every 120 ticks each wanderer's `think` runs. It describes what the character can see in plain words,
-// asks the model with ctx.ask, and returns the model's answer. The fast `decide` then steers by that answer
+// asks the model with ctx.ask, and returns the model's answer. The fast `act` then steers by that answer
 // until the next one arrives. Thinking runs beside the simulation, so a slow model never freezes it.
 //
 // The model is reached through the local server (it needs ANTHROPIC_API_KEY in .env). Without one, the
@@ -22,14 +22,14 @@ export const Wanderer = {
     return { dx: Number(answer.dx) || 0, dz: Number(answer.dz) || 0 }
   },
 
-  decide({ self }, p, ctx) {
+  act({ self }, p, ctx) {
     const advice = self.decision // what the model last said, or undefined before the first answer
     if (!advice) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10) }
     return { steer: ctx.vec(advice.dx, 0, advice.dz).times(p.push) }
   },
 }
 
-export const Food = { decide: () => ({}) }
+export const Food = { act: () => ({}) }
 
 export const metrics = {
   // how far the wanderers are from the food, on average (the food stands still at x = 14)

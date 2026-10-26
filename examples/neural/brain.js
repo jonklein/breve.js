@@ -5,7 +5,7 @@
 // The weights are random, so this is a crowd of strange wanderers. They are state like any other,
 // so forking or snapshotting a run keeps every brain exactly as it was.
 export default {
-  decide({ self, neighbors }, p, ctx) {
+  act({ self, neighbors }, p, ctx) {
     const brain = ctx.mlp([11, 5, 8])
 
     const near = neighbors.nearest()

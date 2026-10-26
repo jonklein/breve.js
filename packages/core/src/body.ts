@@ -56,11 +56,11 @@ export interface JointDef {
   limits?: [number, number]
   /** A motor makes the joint chase a target angle like a spring with damping (torque per radian, torque per radian per second). */
   motor?: { stiffness?: NumOrParam; damping?: NumOrParam }
-  /** Oscillator settings for this joint's motor. Without it the target stays at the joint's rest angle (0) unless `decide` sets it. */
+  /** Oscillator settings for this joint's motor. Without it the target stays at the joint's rest angle (0) unless `act` sets it. */
   drive?: DriveDef
 }
 
-/** What a creature can sense; `decide` only sees what is declared. */
+/** What a creature can sense; `act` only sees what is declared. */
 export type SensorDef =
   | { type: 'joints' }
   | { type: 'pose' }
@@ -70,7 +70,7 @@ export interface BodyDef {
   /** The first part is the root (the torso). Every other part hangs off it through exactly one joint. */
   parts: PartDef[]
   joints?: JointDef[]
-  /** Each joint with a motor is an actuator; `decide` can return targets for them by name. */
+  /** Each joint with a motor is an actuator; `act` can return targets for them by name. */
   sensors?: SensorDef[]
 }
 

@@ -42,7 +42,7 @@ test('same scene and seed give the same physics state hash after N ticks (and a 
 test('the hash is sensitive to the creatures and to a script changing a joint', async () => {
   const { scene, script } = await load({ count: 2 })
   const a = await Sim.create(scene, script)
-  const b = await Sim.create(scene, { default: { decide: () => ({ joints: { 'FL.hip': 0.5 } }) } })
+  const b = await Sim.create(scene, { default: { act: () => ({ joints: { 'FL.hip': 0.5 } }) } })
   run(a, 60)
   run(b, 60)
   assert.notEqual(a.hash(), b.hash())
@@ -83,16 +83,16 @@ test('without the oscillator drive a creature just stands', async () => {
   sim.dispose()
 })
 
-test('decide() can return joint targets; unknown joint names are reported', async () => {
+test('act() can return joint targets; unknown joint names are reported', async () => {
   const { scene } = await load({ count: 1 })
-  const bad = await Sim.create(scene, { default: { decide: () => ({ joints: { wing: 1 } }) } })
+  const bad = await Sim.create(scene, { default: { act: () => ({ joints: { wing: 1 } }) } })
   run(bad, 2)
   assert.match(bad.takeErrors().join(), /no joint with that name/)
   bad.dispose()
 
   // pin one hip far away from its rhythm and it must show in the joint sensor
   let seen = 0
-  const pin = await Sim.create(scene, { default: { decide: ({ self }) => { seen = self.joints['FR.hip']; return { joints: { 'FR.hip': 0.6 } } } } })
+  const pin = await Sim.create(scene, { default: { act: ({ self }) => { seen = self.joints['FR.hip']; return { joints: { 'FR.hip': 0.6 } } } } })
   run(pin, 120)
   assert.ok(Math.abs(seen - 0.6) < 0.25, `FR.hip reads ${seen}`)
   pin.dispose()
@@ -102,7 +102,7 @@ test('the script sees the oscillator output and the declared sensors', async () 
   const { scene } = await load({ count: 1 })
   let gait: Record<string, number> = {}
   let touch: Record<string, boolean> = {}
-  const sim = await Sim.create(scene, { default: { decide: ({ self }) => { gait = self.gait; touch = self.touch } } })
+  const sim = await Sim.create(scene, { default: { act: ({ self }) => { gait = self.gait; touch = self.touch } } })
   run(sim, 90)
   assert.deepEqual(Object.keys(gait).sort(), ['FL.hip', 'FR.hip', 'HL.hip', 'HR.hip', 'FL.knee', 'FR.knee', 'HL.knee', 'HR.knee'].sort())
   assert.ok(Math.abs(gait['FL.hip']) <= 0.7 + 1e-9)
@@ -115,7 +115,7 @@ test('steering by stride works: more stride on one side turns the creature that 
   const { scene } = await load({ count: 8 })
   const meanTurn = async (sign: number) => {
     const sim = await Sim.create(structuredClone(scene), {
-      default: { decide: ({ self }) => ({ joints: Object.fromEntries(Object.entries(self.gait as Record<string, number>).filter(([n]) => n.endsWith('.hip')).map(([n, a]) => [n, a * (1 + 0.5 * sign * (n.split('.')[0].endsWith('R') ? 1 : -1))])) }) },
+      default: { act: ({ self }) => ({ joints: Object.fromEntries(Object.entries(self.gait as Record<string, number>).filter(([n]) => n.endsWith('.hip')).map(([n, a]) => [n, a * (1 + 0.5 * sign * (n.split('.')[0].endsWith('R') ? 1 : -1))])) }) },
     })
     const c = cols(sim)
     const yaw = (i: number) => Math.atan2(-2 * (c.qx[i] * c.qz[i] - c.qw[i] * c.qy[i]), 1 - 2 * (c.qy[i] ** 2 + c.qz[i] ** 2))

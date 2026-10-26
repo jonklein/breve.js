@@ -44,7 +44,7 @@ Colors are hex only: `#rgb` or `#rrggbb`. Anywhere a number is expected in an en
 }
 ```
 
-Agents live in continuous 3D space. Each tick every agent's `decide` is called and returns a steering acceleration; the engine integrates it, enforces the speed limits, and applies the bounds.
+Agents live in continuous 3D space. Each tick every agent's `act` is called and returns a steering acceleration; the engine integrates it, enforces the speed limits, and applies the bounds.
 
 **Where they start: `spawn`.** By default agents (and creatures) start scattered at random. Say where instead, on the set:
 
@@ -55,22 +55,22 @@ Agents live in continuous 3D space. Each tick every agent's `decide` is called a
 
 For full control, the script may export an `init` function that runs for each new entity: `init({ index, count }, p, ctx)` returns `{ position, velocity, state }`, for example `{ position: ctx.vec(index * 2, 0, 0) }` to line them up. `init` wins over `spawn`.
 
-**Fences and reset.** A set may have a `fence`: `"fence": { "size": 30, "floor": -20 }` (`size` is the half-width of a box around the origin, `floor` the lowest height allowed). A fence changes nothing by itself. When an entity crosses it, the script's `onLeave({ self }, p, ctx)` runs once, and the usual thing to do there is `self.reset()`, which puts that entity back at its start (same rules as a new one) at the end of the tick. `self.outside` tells you whether it is beyond the fence right now. `self.reset()` also works anywhere else: in `decide`, say, when an ant runs out of energy.
+**Fences and reset.** A set may have a `fence`: `"fence": { "size": 30, "floor": -20 }` (`size` is the half-width of a box around the origin, `floor` the lowest height allowed). A fence changes nothing by itself. When an entity crosses it, the script's `onLeave({ self }, p, ctx)` runs once, and the usual thing to do there is `self.reset()`, which puts that entity back at its start (same rules as a new one) at the end of the tick. `self.outside` tells you whether it is beyond the fence right now. `self.reset()` also works anywhere else: in `act`, say, when an ant runs out of energy.
 
 ```js
 export default {
   onLeave({ self }) { self.reset() },
-  decide({ self }) { if (self.energy <= 0) self.reset() },
+  act({ self }) { if (self.energy <= 0) self.reset() },
 }
 ```
 
-**Per-agent state (memory, brains).** Free agents may declare `state`: extra numbers each agent carries. Say what a field starts as and its type follows: `"energy": 10` is a number, `"hungry": false` a boolean, `"mood": "calm"` text. An object makes an array of numbers and says how it starts: `"weights": { "length": 108, "init": { "normal": 0.7 } }`. To spell a type out, use `"int"`, `"float"`, `"boolean"` or `"string"` (`{ "type": "int", "init": 3 }`) (`init` can be a number, `{ "normal": spread }` or `{ "uniform": [low, high] }`, drawn from the seeded generator). In `decide`, `self.energy` is a number (or boolean, or text, as declared) and `self.weights` is a read-only array. To change state, return it: `{ steer, state: { energy: self.energy - 1, memory: [..5 numbers..] } }`. Like everything else, new state is applied after all agents have decided. State is saved by snapshots and copied by forks.
+**Per-agent state (memory, brains).** Free agents may declare `state`: extra numbers each agent carries. Say what a field starts as and its type follows: `"energy": 10` is a number, `"hungry": false` a boolean, `"mood": "calm"` text. An object makes an array of numbers and says how it starts: `"weights": { "length": 108, "init": { "normal": 0.7 } }`. To spell a type out, use `"int"`, `"float"`, `"boolean"` or `"string"` (`{ "type": "int", "init": 3 }`) (`init` can be a number, `{ "normal": spread }` or `{ "uniform": [low, high] }`, drawn from the seeded generator). In `act`, `self.energy` is a number (or boolean, or text, as declared) and `self.weights` is a read-only array. To change state, return it: `{ steer, state: { energy: self.energy - 1, memory: [..5 numbers..] } }`. Like everything else, new state is applied after all agents have decided. State is saved by snapshots and copied by forks.
 
 `ctx.mlp([11, 5, 8])` makes a small neural network (tanh layers) whose `run(weights, inputs)` returns the outputs; the weights for that shape are 11×5+5 + 5×8+8 = 108 numbers. See `examples/neural`.
 
 **Choosing a behavior per agent.** A set runs one controller (its `type`, or `export default`). To let each agent pick, declare a text state field called `controller` (`"state": { "controller": "" }`): an agent whose field names a script export (`export const flee = {...}`) runs that one, and an empty field uses the set's own. A controller can switch itself by returning `state: { controller: 'flee' }`, and in the inspector the controller menu then sets the field for the one entity you clicked instead of the whole set. Naming an export that does not exist is reported once.
 
-**Trained models (ONNX).** A scene can name models: `"models": { "policy": { "url": "policy.onnx" } }` (`url` is a path next to the scene, a full URL, or a Hugging Face file, `hf:owner/repo/path/model.onnx`, with `@revision` after the repo name to pin one; `"device": "webgpu"` tries the GPU first). A controller runs one from `think`, or from `thinkAll(agents, p, ctx)`, which is called once for all the entities of its set that are due, so a whole crowd is one call: `const out = await ctx.model('policy').runBatch(agents.map(({ self }) => [self.x, self.z]))` gives one row of outputs per agent; return one decision per agent from `thinkAll` and read it as `self.decision` in `decide`. Set `"think": { "every": 1 }` to run it every tick; the workbench's lockstep mode waits for it. A model takes one input of shape `[batch, width]`. A `url` of the form `ws://localhost:8765` is not a file but a process on a WebSocket (a Python policy server or trainer, `examples/remote-policy`): it gets the same batches and answers the same way, and the sets using it are marked not repeatable. Decisions are logged, so a run can be replayed without the model. See `examples/onnx-policy` and `docs/decisions/inference.md`.
+**Trained models (ONNX).** A scene can name models: `"models": { "policy": { "url": "policy.onnx" } }` (`url` is a path next to the scene, a full URL, or a Hugging Face file, `hf:owner/repo/path/model.onnx`, with `@revision` after the repo name to pin one; `"device": "webgpu"` tries the GPU first). A controller runs one from `think`, or from `thinkAll(agents, p, ctx)`, which is called once for all the entities of its set that are due, so a whole crowd is one call: `const out = await ctx.model('policy').runBatch(agents.map(({ self }) => [self.x, self.z]))` gives one row of outputs per agent; return one decision per agent from `thinkAll` and read it as `self.decision` in `act`. Set `"think": { "every": 1 }` to run it every tick; the workbench's lockstep mode waits for it. A model takes one input of shape `[batch, width]`. A `url` of the form `ws://localhost:8765` is not a file but a process on a WebSocket (a Python policy server or trainer, `examples/remote-policy`): it gets the same batches and answers the same way, and the sets using it are marked not repeatable. Decisions are logged, so a run can be replayed without the model. See `examples/onnx-policy` and `docs/decisions/inference.md`.
 
 **Cameras (for vision models).** A sensor of type `camera` gives a controller a small picture of what is around it, as `obs.<name>`: `"sensors": [{ "type": "camera", "name": "view", "size": 24, "radius": 18 }]` (`size` is pixels per side, default 32; `radius` is how far it sees, from the center to the edge). The picture is top-down and turned so that up is the way the agent is heading (north when it is still): every agent in range is a dot in its set's color, the agent itself is white with a tick showing forward, and ground outside the world's bounds is dark. It is drawn from the simulation's state when a script reads it, so it costs nothing when unused and is the same in every run. A picture has `width`, `height`, `get(x, y)` and `toPng()`. Show it to a model from `think`: `await ctx.ask('where is the food?', { json: true, images: [obs.view] })`. See `examples/vlm-scouts`.
 
@@ -118,7 +118,7 @@ Grid shape, fill, and seed only take effect when the simulation is reset. Params
 }
 ```
 
-A node's `neighbors` are the nodes it is linked to. `decide` works exactly as it does for lattice cells: it reads `self` and `neighbors` (`neighbors.status` is a list of numbers) and returns the node's **new state**, applied for everyone at once. That is why one script can run on a grid and on a graph (see `examples/epidemic` and `examples/epidemic-grid`). `self.degree` is the number of links. Positions come from the layout and are only for drawing.
+A node's `neighbors` are the nodes it is linked to. `act` works exactly as it does for lattice cells: it reads `self` and `neighbors` (`neighbors.status` is a list of numbers) and returns the node's **new state**, applied for everyone at once. That is why one script can run on a grid and on a graph (see `examples/epidemic` and `examples/epidemic-grid`). `self.degree` is the number of links. Positions come from the layout and are only for drawing.
 
 **Trading.** A node may also return `exchange: [{ with: neighbor, give: { goods: 1 }, get: { cash: 3 } }]`: give some of its own number fields to a linked node and take some of that node's. A trade is made whole or not at all: if either side could not pay (a field would drop below zero), nothing moves. Trades are made in an order shuffled from the seed, so nobody gets an edge from their position. See `examples/market`.
 
@@ -186,17 +186,17 @@ Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy t
 - **Joints:** `parent` and `child` name parts. Parts must form a tree under the first part (every other part is the `child` of exactly one joint). `type` is `hinge` (default; turns around `axis`, default `[0, 0, 1]`), `ball` (turns freely) or `fixed`. Only hinges have `limits` (radians, `[min, max]`), `motor` and `drive`. Angle 0 is the standing pose; a positive hinge angle turns the child around the axis by the right-hand rule (about `[0, 0, 1]`, a positive angle swings a hanging leg forward).
 - **Motor:** makes the hinge chase a target angle like a spring with damping: `stiffness` is torque per radian, `damping` torque per radian per second (defaults 100 and 8). Both may be `"$param"`. Too weak and the creature collapses; too strong and it gets jittery.
 - **Oscillator drive:** a joint with a `drive` follows `offset + amplitude * sin(2 pi * (t * frequency + phase - lag))`. `amplitude` and `offset` are radians (offset default 0); `phase` and `lag` are fractions of a cycle (0.5 = half a cycle). Each may be a number or a `"$param"`, so every phase gets a slider. `frequency` comes from the entity's `oscillator`. Without a `drive` the motor holds angle 0, unless the script sets it. A trot is: diagonal legs in phase (front-left with hind-right) and the other diagonal half a cycle later, with each knee trailing its hip by a fraction of a cycle (`lag`, about 0.4 in the example; the gait is sensitive to it).
-- **Sensors:** declare what `decide` can read. `pose` (always available), `joints` (`self.joints`: hinge angles by joint name), `touch` (`self.touch`: which parts touch the ground by name; default the parts nothing hangs off, or give `"parts": ["FL.lower"]`). Each joint with a `motor` is an actuator.
-- Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains, drives and the script apply live. Nothing resets a creature on its own: add a `fence` and an `onLeave` handler, or check `self.downFor` in `decide` (see below).
+- **Sensors:** declare what `act` can read. `pose` (always available), `joints` (`self.joints`: hinge angles by joint name), `touch` (`self.touch`: which parts touch the ground by name; default the parts nothing hangs off, or give `"parts": ["FL.lower"]`). Each joint with a `motor` is an actuator.
+- Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains, drives and the script apply live. Nothing resets a creature on its own: add a `fence` and an `onLeave` handler, or check `self.downFor` in `act` (see below).
 - Validation rejects unknown joint or part names, parts not connected to the root, duplicate names, sizes that do not fit the shape, a template or placeholder that does not exist, and unknown `"$param"` names.
 
 ## Scripts
 
-A script is an ES module with **no imports**. It must `export default` an object with a `decide` function, and may `export const metrics`.
+A script is an ES module with **no imports**. It must `export default` an object with a `act` function, and may `export const metrics`.
 
 ```js
 export default {
-  decide({ self, neighbors }, p, ctx) { /* ... */ },
+  act({ self, neighbors }, p, ctx) { /* ... */ },
 }
 
 export const metrics = {
@@ -207,26 +207,26 @@ export const metrics = {
 - `p` holds the current param values: `p.cohesion`.
 - `ctx.random()` is a seeded random number in [0, 1). **Never use `Math.random()` or `Date.now()`**: runs must be repeatable.
 - `ctx.tick` is the tick number, `ctx.dt` the time step (1/60), `ctx.vec(x, y, z)` makes a vector.
-- `decide` must not change anything. It reads the world and returns what it wants.
-- If `decide` throws, the error is shown and the sim keeps running with the last good behavior for that tick.
+- `act` must not change anything. It reads the world and returns what it wants.
+- If `act` throws, the error is shown and the sim keeps running with the last good behavior for that tick.
 
 ### Free agents
 
-`decide` receives `self` (the agent) and `neighbors` (a group of nearby agents). It returns `{ steer: vector }`, where the vector is a `Vec3` or `[x, y, z]`.
+`act` receives `self` (the agent) and `neighbors` (a group of nearby agents). It returns `{ steer: vector }`, where the vector is a `Vec3` or `[x, y, z]`.
 
 `self` has `x, y, z`, `vx, vy, vz`, and `position`, `velocity` as vectors.
 
 ### Cells
 
-`decide` receives `self` (the cell) and `neighbors` (a group of its neighbor cells). It returns the cell's **new state** as an object with some or all of the state fields, for example `{ alive: 1, age: self.age + 1 }`. Fields you leave out keep their value. Every cell reads the old state and all new states are applied together at the end of the tick. Assigning to `self.alive` inside `decide` throws.
+`act` receives `self` (the cell) and `neighbors` (a group of its neighbor cells). It returns the cell's **new state** as an object with some or all of the state fields, for example `{ alive: 1, age: self.age + 1 }`. Fields you leave out keep their value. Every cell reads the old state and all new states are applied together at the end of the tick. Assigning to `self.alive` inside `act` throws.
 
 `self` has `x, y, z` (grid coordinates), `position` (a vector), and every state field as a number: `self.alive`.
 
-**Big grids: `decideAll` instead of `decide`.** Every hook has a per-entity form and may have a whole-set form named with `All` (`decide`/`decideAll`, `think`/`thinkAll`; `init` and `display` will follow, see `docs/decisions/x-and-xall.md`). The `All` form is faster but limited: whole fields in and out, `Field` arithmetic only, single-number state, no per-entity effects. A script may export `decideAll(fields, params)` instead of `decide` (the old name `update` still works). It runs once per tick, gets every state field as a whole (`{ alive, age }`) and returns the new fields. Fields have `neighborSum()`, `neighborAverage()`, `neighborMax()`, arithmetic and comparisons that take a number or another field (`add`, `sub`, `mul`, `div`, `min`, `max`, `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `and`, `or`, `not`, `clamp`, and `where(a, b)` to pick between two values), `map(fn)`, `zip(other, fn)`, `sum()` and `average()`; each makes a new field and none changes the original. Prefer the arithmetic over `map`/`zip` on big grids: it runs without a function call per cell, and a chain of it is worked out in one pass. Use it for grids above about 50,000 cells (a 1000×1000 flat grid works). A lattice with a dimension of 1, like `[200, 200, 1]`, is flat and its cells have no neighbors along that axis. Networks take `decideAll` too: a field's `neighborSum()`, `neighborAverage()` and `neighborMax()` follow the links, however many each node has (a hub with hundreds of links is fine), and only single-number state fields are passed in.
+**Big grids: `actAll` instead of `act`.** Every hook has a per-entity form and may have a whole-set form named with `All` (`init`/`initAll`, `act`/`actAll`, `think`/`thinkAll`, `display`/`displayAll`; see `docs/decisions/x-and-xall.md`). `decide` is the old name of `act` and still works. The `All` form is faster but limited: whole fields in and out, `Field` arithmetic only, single-number state, no per-entity effects. A script may export `actAll(fields, params)` instead of `act` (the old names `decideAll` and `update` still work). It runs once per tick, gets every state field as a whole (`{ alive, age }`) and returns the new fields. Fields have `neighborSum()`, `neighborAverage()`, `neighborMax()`, arithmetic and comparisons that take a number or another field (`add`, `sub`, `mul`, `div`, `min`, `max`, `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `and`, `or`, `not`, `clamp`, and `where(a, b)` to pick between two values), `map(fn)`, `zip(other, fn)`, `sum()` and `average()`; each makes a new field and none changes the original. Prefer the arithmetic over `map`/`zip` on big grids: it runs without a function call per cell, and a chain of it is worked out in one pass. Use it for grids above about 50,000 cells (a 1000×1000 flat grid works). A lattice with a dimension of 1, like `[200, 200, 1]`, is flat and its cells have no neighbors along that axis. Networks take `actAll` too: a field's `neighborSum()`, `neighborAverage()` and `neighborMax()` follow the links, however many each node has (a hub with hundreds of links is fine), and only single-number state fields are passed in.
 
 ```js
 export default {
-  decideAll({ alive }) {
+  actAll({ alive }) {
     const crowd = alive.neighborSum()           // live neighbors of every cell
     return { alive: crowd.eq(3).or(alive.and(crowd.eq(2))) } // born on 3, or alive and on 2
   },
@@ -235,13 +235,13 @@ export default {
 
 ### Slow thinking: asking a language model
 
-A controller may also have an async `think(obs, p, ctx)`, run for each entity every `think.every` ticks (set on the entity set: `"think": { "every": 120 }`). It looks around, may `await ctx.ask(prompt, { json: true })` (a language model, reached through the local server and `ANTHROPIC_API_KEY`; `{ images: [obs.view] }` shows it a camera picture), and returns a decision of any JSON shape. The fast `decide` reads it as `self.decision` (undefined until the first answer). In the workbench thinking runs beside the clock, so a slow model never stalls the sim; answers land when they arrive. A bar above the view appears for scenes that think: switch to **lockstep** (the clock waits for every answer before each tick, so answers land on the same ticks every run), **Save log** to download every decision, and **Replay log…** to restart and play a saved log back without calling the model.
+A controller may also have an async `think(obs, p, ctx)`, run for each entity every `think.every` ticks (set on the entity set: `"think": { "every": 120 }`). It looks around, may `await ctx.ask(prompt, { json: true })` (a language model, reached through the local server and `ANTHROPIC_API_KEY`; `{ images: [obs.view] }` shows it a camera picture), and returns a decision of any JSON shape. The fast `act` reads it as `self.decision` (undefined until the first answer). In the workbench thinking runs beside the clock, so a slow model never stalls the sim; answers land when they arrive. A bar above the view appears for scenes that think: switch to **lockstep** (the clock waits for every answer before each tick, so answers land on the same ticks every run), **Save log** to download every decision, and **Replay log…** to restart and play a saved log back without calling the model.
 
 Every decision is logged with the tick it took effect (`sim.decisionLog`). `sim.replay(log)` reruns without the model: each decision lands on the same tick, so the run is identical. See `examples/llm-wanderers`.
 
 ### Creatures
 
-`decide` receives `self` (the creature) and `neighbors` (always an empty group for now). Besides position and speed, `self.down` is true while the creature is flipped or lying flat and `self.downFor` is how many seconds that has lasted (`if (self.downFor > 3) self.reset()` stands it back up); `self.outside` and `self.reset()` work as for agents. By default it can return nothing and the oscillator drives the legs. It may return `{ joints: { 'FL.hip': 0.3, ... } }`: target angles in radians by joint name, which replace the oscillator for those joints only (targets are clamped to the joint's `limits`; an unknown name is an error).
+`act` receives `self` (the creature) and `neighbors` (always an empty group for now). Besides position and speed, `self.down` is true while the creature is flipped or lying flat and `self.downFor` is how many seconds that has lasted (`if (self.downFor > 3) self.reset()` stands it back up); `self.outside` and `self.reset()` work as for agents. By default it can return nothing and the oscillator drives the legs. It may return `{ joints: { 'FL.hip': 0.3, ... } }`: target angles in radians by joint name, which replace the oscillator for those joints only (targets are clamped to the joint's `limits`; an unknown name is an error).
 
 `self` has `x, y, z`, `vx, vy, vz`, `position`, `velocity` (vectors), `speed` (horizontal), `travelled` (horizontal distance walked), `forward` (vector the torso faces), `yaw` (heading in radians: 0 faces +x and it grows toward -z, a counter-clockwise turn seen from above), `row` (a stable index), `joints` and `touch` (if the body declares those sensors) and `gait`: what the oscillator wants every motorized joint to do right now, by name. Scale or mix `self.gait` to steer, e.g. longer strides on the right turn the creature left:
 
@@ -277,7 +277,7 @@ Names listed in the scene's `"metrics"` must exist in the script's exported `met
 
 ## Examples
 
-Examples in `examples/` (`life2d` shows the whole-grid `decideAll` rule, `neural` per-agent neural networks, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.
+Examples in `examples/` (`life2d` shows the whole-grid `actAll` rule, `neural` per-agent neural networks, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the legs are driven by the oscillator, and the script only steers). They are the best guide to the expected style: short, named steps, comments that explain the idea.
 
 ## experiment.json
 

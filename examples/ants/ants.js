@@ -9,7 +9,7 @@
 const NEST = [-12, 0, 0]
 
 export const Ant = {
-  decide({ self }, p, ctx) {
+  act({ self }, p, ctx) {
     const wobble = ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(p.wander)
 
     // heading home with food
@@ -38,7 +38,7 @@ export const Ant = {
 }
 
 export const Ground = {
-  decideAll({ scent, food, nest }, p) {
+  actAll({ scent, food, nest }, p) {
     // scent spreads into neighbors, then evaporates a little
     const mixed = scent.zip(scent.neighborAverage(), (s, around) => (s + (around - s) * p.spread) * p.evaporation)
     const left = food.map((f) => Math.max(0, f))

@@ -69,6 +69,13 @@ export interface ThinkCtx extends Ctx {
   ask(prompt: string, options?: AskOptions): Promise<string>
 }
 
+/** The every-tick rule of a controller, under its current name or either old one. */
+export const actOf = (c: Controller | undefined): Controller['act'] => c?.act ?? c?.decide
+/** The whole-set form of the every-tick rule, under its current name or either old one. */
+export const actAllOf = (c: Controller | undefined): Controller['actAll'] => c?.actAll ?? c?.decideAll ?? c?.update
+/** Names that make an exported object a controller. */
+export const HOOKS = ['act', 'actAll', 'decide', 'decideAll', 'update', 'init'] as const
+
 export interface Controller {
   spec?: {
     observe?: string[]
@@ -87,8 +94,9 @@ export interface Controller {
    * so it handles a million cells.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actAll?(fields: any, params: Params, ctx: Ctx): unknown
+  /** Old names for `actAll`; they still work. */
   decideAll?(fields: any, params: Params, ctx: Ctx): unknown
-  /** Old name for `decideAll`; still works. */
   update?(fields: any, params: Params, ctx: Ctx): unknown
   /**
    * Called once for each new entity as it is created: `init({ index, count }, params, ctx)` may return
@@ -113,6 +121,8 @@ export interface Controller {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onLeave?(obs: { self: any }, params: Params, ctx: Ctx): void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  act?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
+  /** Old name for `act`; it still works. */
   decide?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
 }
 

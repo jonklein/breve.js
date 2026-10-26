@@ -29,7 +29,7 @@ test('a whole-grid rule gives the same result as a per-cell rule', async () => {
   const { scene, script } = await load()
   scene.entities[0].lattice!.size = [20, 20, 1]
   const perCell: ScriptModule = {
-    default: { decide: ({ self, neighbors }) => { const n = neighbors.alive.sum(); return { alive: (self.alive ? n === 2 || n === 3 : n === 3) ? 1 : 0, age: 0 } } },
+    default: { act: ({ self, neighbors }) => { const n = neighbors.alive.sum(); return { alive: (self.alive ? n === 2 || n === 3 : n === 3) ? 1 : 0, age: 0 } } },
   }
   const a = new Sim(scene, script)
   const b = new Sim(scene, perCell)

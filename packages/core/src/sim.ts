@@ -1,3 +1,4 @@
+import { Relations, type RelationsSnapshot } from './relations'
 import { Mlp } from '@breve/stdlib'
 import { Rng } from './rng'
 import { Vec3 } from '@breve/stdlib'
@@ -21,7 +22,7 @@ export interface Inspected {
   fields: Record<string, number | boolean | string | number[]>
 }
 
-export interface SimSnapshot { tick: number; rng: number; worlds: unknown[]; waiting: Message[]; outbox: Message[]; keys: string[] }
+export interface SimSnapshot { tick: number; rng: number; worlds: unknown[]; waiting: Message[]; outbox: Message[]; keys: string[]; relations: RelationsSnapshot }
 
 export type { Ctx, Controller, FrameData, Message, MetricInput, ScriptModule } from './world'
 
@@ -62,6 +63,8 @@ class SetHost implements Host {
  */
 export class Sim {
   readonly rng: Rng
+  /** Named edge tables between entities (`sim.relations.get('trades_with').add(a, b)`). Part of snapshot, fork and hash. */
+  readonly relations = new Relations()
   scene: Scene
   params: Params
   tick = 0
@@ -366,7 +369,7 @@ export class Sim {
    */
   snapshot(): SimSnapshot {
     if (this.worlds.some((w) => !w.snapshot)) throw new Error('this kind of world cannot be snapshotted yet ')
-    return { tick: this.tick, rng: this.rng.getState(), worlds: this.worlds.map((w) => w.snapshot!()), waiting: structuredClone(this.waiting), outbox: structuredClone(this.outbox), keys: [...this.keys] }
+    return { tick: this.tick, rng: this.rng.getState(), worlds: this.worlds.map((w) => w.snapshot!()), waiting: structuredClone(this.waiting), outbox: structuredClone(this.outbox), keys: [...this.keys], relations: this.relations.snapshot() }
   }
 
   /** Go back to a snapshot taken from this sim, or from any sim built from the same scene. */
@@ -376,6 +379,7 @@ export class Sim {
     this.rng.setState(s.rng)
     this.worlds.forEach((w, i) => w.restore!(s.worlds[i]))
     this.keys = [...s.keys]
+    this.relations.restore(s.relations ?? {})
     this.waiting = structuredClone(s.waiting)
     this.outbox = structuredClone(s.outbox)
     this.inbox = []
@@ -393,7 +397,7 @@ export class Sim {
 
   /** Fingerprint of all state that affects the future: columns plus RNG. */
   hash(): string {
-    return `${this.worlds.map((w) => w.hash?.() ?? w.table.hash()).join('+')}:${this.rng.getState().toString(16)}:${this.tick}`
+    return `${this.worlds.map((w) => w.hash?.() ?? w.table.hash()).join('+')}:${this.rng.getState().toString(16)}:${this.tick}${this.relations.names().length ? ':' + this.relations.hash() : ''}`
   }
 }
 

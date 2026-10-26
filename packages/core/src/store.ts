@@ -1,4 +1,4 @@
-export type ColumnType = 'f32' | 'f64' | 'i32' | 'u32' | 'u8' | 'str'
+export type ColumnType = 'f32' | 'f64' | 'i32' | 'u32' | 'u8' | 'str' | 'obj'
 
 /** A column of strings. Not a typed array, so it is slower to copy and hash: the escape hatch for text. */
 export class StrColumn extends Array<string> {
@@ -13,11 +13,33 @@ export class StrColumn extends Array<string> {
   }
 }
 
+/**
+ * A column of arbitrary structured-cloneable values (nested JSON, an LLM's memory). The escape hatch of last resort:
+ * snapshots deep-copy it and hashes serialize it, so it is slow, and it cannot go to a GPU. A column of this type
+ * marks a set as "carries free-form state" for the inspector.
+ */
+export class ObjColumn extends Array<unknown> {
+  static get [Symbol.species]() { return Array }
+  constructor(n = 0) {
+    super(n)
+    this.fill(null)
+  }
+  set(src: ArrayLike<unknown>): void {
+    for (let i = 0; i < src.length; i++) this[i] = structuredClone(src[i])
+  }
+}
+
+/** Serialize with sorted keys so equal values hash equal whatever order their keys were added in. */
+export function canonicalJson(v: unknown): string {
+  return JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x)) ?? 'null'
+}
+
 export type Column = Float32Array | Float64Array | Int32Array | Uint32Array | Uint8Array
 export type EntityId = number
 
 const CTORS = {
   str: StrColumn,
+  obj: ObjColumn,
   f32: Float32Array,
   f64: Float64Array,
   i32: Int32Array,
@@ -44,6 +66,8 @@ export interface TableSnapshot {
   slotToRow: Int32Array
   slotGen: Uint32Array
 }
+
+const blank = (t: ColumnType): never => (t === 'str' ? '' : t === 'obj' ? null : 0) as never
 
 const SLOT_BITS = 20
 const SLOT_MASK = (1 << SLOT_BITS) - 1
@@ -106,7 +130,7 @@ export class Table<K extends string = string> {
     const row = this.size++
     this.slotToRow[slot] = row
     this.rowToSlot[row] = slot
-    for (const k of Object.keys(this.schema) as K[]) this.cols[k].fill(this.schema[k] === 'str' ? ('' as never) : (0 as never), row * this.strides[k], (row + 1) * this.strides[k])
+    for (const k of Object.keys(this.schema) as K[]) this.cols[k].fill(blank(this.schema[k]), row * this.strides[k], (row + 1) * this.strides[k])
     return this.slotGen[slot] * (SLOT_MASK + 1) + slot
   }
 
@@ -151,7 +175,10 @@ export class Table<K extends string = string> {
   /** A copy of everything the table holds, ids included, so a restored table hands out the same ids as the original would have. */
   snapshot(): TableSnapshot {
     const cols: Record<string, Column> = {}
-    for (const k of Object.keys(this.schema)) cols[k] = (this.cols[k as K] as Float64Array).slice(0, this.size * this.strides[k as K]) as Column
+    for (const k of Object.keys(this.schema)) {
+      const n = this.size * this.strides[k as K]
+      cols[k] = this.schema[k as K] === 'obj' ? (structuredClone((this.cols[k as K] as unknown as unknown[]).slice(0, n)) as unknown as Column) : ((this.cols[k as K] as Float64Array).slice(0, n) as Column)
+    }
     return {
       size: this.size,
       nextSlot: this.nextSlot,
@@ -167,7 +194,7 @@ export class Table<K extends string = string> {
     while (this.capacity < Math.max(s.size, s.nextSlot)) this.grow()
     for (const k of Object.keys(this.schema) as K[]) {
       const col = this.cols[k] as Float64Array
-      col.fill(this.schema[k] === 'str' ? ('' as never) : (0 as never))
+      col.fill(blank(this.schema[k]))
       col.set(s.cols[k] as Float64Array)
     }
     this.rowToSlot.fill(0)
@@ -186,6 +213,11 @@ export class Table<K extends string = string> {
     let h = 0x811c9dc5
     for (const k of Object.keys(this.schema).sort() as K[]) {
       const c = this.cols[k]
+      if (this.schema[k] === 'obj') {
+        const text = canonicalJson((c as unknown as unknown[]).slice(0, this.size))
+        for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+        continue
+      }
       if (this.schema[k] === 'str') {
         for (const text of (c as unknown as string[]).slice(0, this.size)) for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) }
         continue

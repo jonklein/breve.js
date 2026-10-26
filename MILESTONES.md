@@ -52,8 +52,8 @@ Also built, outside the original list:
 Pending:
 
 - [ ] A 1000×1000 Life tick is ~80 ms against the 30 ms target. Ways to close it are listed in `docs/perf.md` (fused field operations, WASM, GPU).
-- [ ] General relation tables (typed, attributed, directed edges). Networks have links, which covered the demos, but there is no relation component yet.
-- [ ] Object-column fallback for arbitrary JS values (string columns exist; objects do not).
+- [x] General relation tables: named, directed, attributed edges with CSR neighbor lookup, owned by the `Sim` (`sim.relations`), included in snapshot, fork and hash. Scripts do not reach them yet (that comes with `via` sensors in M5).
+- [x] Object columns (`'obj'`) for arbitrary structured-cloneable values: deep-copied by snapshots, hashed as canonical JSON, flagged as the slow escape hatch.
 
 ## M2 — Sim as a value — Done, no worker pool
 

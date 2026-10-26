@@ -1,5 +1,6 @@
+export { Relation, Relations, type EdgeId } from './relations'
 export { Rng } from './rng'
-export { Table, type ColumnType, type EntityId } from './store'
+export { Table, ObjColumn, StrColumn, canonicalJson, type ColumnType, type EntityId } from './store'
 export {
   parseScene,
   validateScene,

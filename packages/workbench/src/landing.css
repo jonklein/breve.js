@@ -1,0 +1,24 @@
+/* the front page: a live simulation fills the window and the words sit on top of it */
+body.landing { background: #070b14; }
+#backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+#backdrop canvas { display: block; width: 100%; height: 100%; }
+/* darker toward the left where the words are, and at the bottom so the footer reads */
+.veil { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(7, 11, 20, 0.86) 0%, rgba(7, 11, 20, 0.55) 45%, rgba(7, 11, 20, 0.1) 100%), linear-gradient(0deg, rgba(7, 11, 20, 0.7) 0%, transparent 28%); }
+.landing .site-header { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(180deg, rgba(7, 11, 20, 0.92) 0%, rgba(7, 11, 20, 0) 100%); border-bottom: none; z-index: 5; padding-bottom: 28px; }
+main.stage-copy { position: relative; z-index: 2; display: block; flex: none; } /* the workbench styles every <main> as a flex row */
+.landing-hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 96px clamp(20px, 7vw, 120px) 64px; max-width: 760px; }
+.landing-hero .eyebrow { color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; font-size: 13px; margin: 0 0 14px; }
+.landing-hero h1 { font-size: clamp(38px, 7vw, 76px); line-height: 1.02; margin: 0 0 18px; letter-spacing: -0.02em; }
+.landing-hero .quote { color: var(--accent); font-style: italic; font-size: clamp(16px, 2vw, 20px); margin: 0 0 18px; }
+.landing-hero .sub { color: #b9c4d6; font-size: clamp(16px, 1.6vw, 19px); line-height: 1.55; max-width: 56ch; margin: 0 0 8px; }
+.landing .cta { margin-top: 26px; }
+.landing a.button { background: rgba(18, 25, 40, 0.72); backdrop-filter: blur(6px); padding: 11px 22px; font-size: 16px; }
+.landing a.button.primary { background: var(--accent); }
+.landing-points { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; padding: 0 clamp(20px, 7vw, 120px) 96px; max-width: 1180px; }
+.point { background: rgba(14, 20, 33, 0.66); backdrop-filter: blur(8px); border: 1px solid rgba(120, 140, 175, 0.22); border-radius: 12px; padding: 16px 18px; }
+.point h2 { margin: 0 0 6px; font-size: 17px; }
+.point p { margin: 0; color: #b9c4d6; font-size: 14px; line-height: 1.5; }
+.backdrop-toggle { position: fixed; right: 16px; bottom: 16px; z-index: 6; background: rgba(14, 20, 33, 0.7); backdrop-filter: blur(6px); font-size: 12px; color: var(--muted); }
+.landing .site-footer { position: relative; z-index: 2; background: rgba(7, 11, 20, 0.55); border-top-color: rgba(120, 140, 175, 0.18); }
+@media (max-width: 700px) { .veil { background: linear-gradient(0deg, rgba(7, 11, 20, 0.9) 0%, rgba(7, 11, 20, 0.6) 100%); } }
+@media (prefers-reduced-motion: reduce) { .backdrop-toggle { display: inline-block; } }

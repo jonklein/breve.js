@@ -3,38 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>breve</title>
+    <title>breve: simulations you can tinker with</title>
     <meta name="description" content="Simulations you can poke at: write the rules in a few lines of JavaScript, change them while they run, and watch what happens." />
     <link rel="stylesheet" href="/src/style.css" />
     <link rel="stylesheet" href="/src/site.css" />
+    <link rel="stylesheet" href="/src/landing.css" />
   </head>
-  <body>
+  <body class="landing">
+    <!-- a real simulation, running behind everything -->
+    <div id="backdrop" aria-hidden="true"></div>
+    <div class="veil" aria-hidden="true"></div>
     <header class="site-header"><nav id="site-nav" class="site-nav" aria-label="Site"></nav></header>
-    <div class="page">
-      <section class="hero">
+    <main class="stage-copy">
+      <section class="landing-hero">
+        <p class="eyebrow">breve</p>
         <h1>Simulations you can tinker with.</h1>
         <p class="quote">All models are wrong, some are useful.</p>
-        <p>breve runs flocks, ant colonies, epidemics, markets and walking creatures from a short script and a small JSON file. Nothing is hard-wired: the rules, the bodies and the numbers are all yours to change while it runs, and to compare side by side.</p>
+        <p class="sub">Flocks, ant colonies, epidemics, markets and walking creatures, from a short script and a small JSON file. Change the rules while it runs, and compare the versions side by side.</p>
         <div class="cta">
-          <a class="button primary" href="/sim/">Open the workbench</a>
-          <a class="button" href="/gallery/">Browse the gallery</a>
-          <a class="button" href="/sim/?tab=docs">Read the docs</a>
+          <a class="button primary" href="/explore/">Explore</a>
+          <a class="button" href="/sim/">Open the workbench</a>
         </div>
       </section>
-
-      <h2>See it run</h2>
-      <p class="lede">These are live. Each one starts when you scroll to it and pauses when you scroll away. Drag to look around.</p>
-      <div class="demos" id="demos"></div>
-
-      <h2>What you can do</h2>
-      <div class="features">
-        <div class="feature"><h3>Change the rules</h3><p>A behavior is a plain function. Edit it and the running simulation picks it up.</p></div>
-        <div class="feature"><h3>Ask "what if"</h3><p>Sweep a parameter, fork a run mid-way, or let a search find the settings that work.</p></div>
-        <div class="feature"><h3>Swap the thinker</h3><p>Give any agent a rule, a small neural network, a keyboard or a language model.</p></div>
-        <div class="feature"><h3>Describe it in words</h3><p>The assistant turns "make the predators slower" into a checked change you can accept or undo.</p></div>
-      </div>
-    </div>
-    <footer class="site-footer">breve · <a href="https://github.com/jonklein/breve.js" target="_blank" rel="noopener">source</a></footer>
+      <section class="landing-points">
+        <div class="point"><h2>Change the rules</h2><p>A behavior is a plain function. Edit it and the running simulation picks it up.</p></div>
+        <div class="point"><h2>Ask "what if"</h2><p>Sweep a parameter, fork a run mid-way, or let a search find the settings that work.</p></div>
+        <div class="point"><h2>Swap the thinker</h2><p>Give any agent a rule, a small neural network, a keyboard or a language model.</p></div>
+        <div class="point"><h2>Evolve it</h2><p>Bodies and brains that breed, run as many simulations at once.</p></div>
+      </section>
+    </main>
+    <button id="backdrop-toggle" class="backdrop-toggle" aria-pressed="false" title="Pause the simulation behind the page">Pause</button>
+    <footer class="site-footer">breve · <a href="/about/">about</a> · <a href="https://github.com/jonklein/breve.js" target="_blank" rel="noopener">source</a></footer>
     <script type="module" src="/src/home.ts"></script>
   </body>
 </html>

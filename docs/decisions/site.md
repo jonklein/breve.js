@@ -17,3 +17,7 @@
 ## Editor drawer and tree-first JSON (2026-10-26)
 
 The workbench's editor (scene, script, experiment, assistant, docs) is a drawer that slides over the left edge instead of a permanent half of the page, so the simulation has the stage. It opens from the header button, the edge tab or the E key, closes with Esc or the close button, and the choice is remembered. It overlays rather than pushes, so the canvases never resize. A red dot on the button and tab says there is a problem to look at while the drawer is closed. JSON files open as the tree of fields by default (the text view is one click away, and the last choice is remembered); `?embed` hides all of this as before.
+
+## Front page and Explore (2026-10-26)
+
+`/` is now a marketing-style front page: a real simulation (boids, through the same `@breve/embed` the old home page used) fills the window behind a headline, two buttons and four one-line points. The page that used to be the home page (hero, three live demos, what you can do) is now `/explore/`, one click in, and the site navigation has an Explore link. The background is a decoration: it does not take mouse input, it pauses on request (and starts paused when the system asks for reduced motion), and if it cannot start the page reads fine without it. The words are plain statements of what is already true of the project; the headline and tagline are public positioning, so they are the owner's to rewrite.

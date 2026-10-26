@@ -24,11 +24,15 @@ const sim = async (hash) => {
 const openDrawer = async () => { if (!(await page.locator('main.drawer-open').count())) await page.click('#drawer-toggle'); await page.waitForTimeout(350) }
 const tickOf = async () => Number((await page.textContent('#timeline-label')).match(/tick (\d+)/)[1])
 
-// home: three demos start when scrolled to, and an old workbench link still works
+// the front page: a live simulation behind the words, and a way in; the three live demos are on the explore page
 await page.goto(`${base}/`)
+await page.waitForTimeout(4500)
+check('front page runs a simulation behind the content', (await page.locator('#backdrop canvas').count()) === 1)
+check('front page offers Explore and the workbench', (await page.locator('a.button[href="/explore/"]').count()) === 1 && (await page.locator('a.button[href="/sim/"]').count()) === 1)
+await page.goto(`${base}/explore/`)
 await page.evaluate(() => document.getElementById('demos').scrollIntoView())
 await page.waitForTimeout(6000)
-check('home runs three live demos', (await page.locator('.demo canvas').count()) === 3)
+check('explore runs three live demos', (await page.locator('.demo canvas').count()) === 3)
 await page.goto(`${base}/?embed#boids`)
 await page.waitForTimeout(800)
 check('old /?embed#id links redirect to /sim/', page.url().includes('/sim/?embed'), page.url())

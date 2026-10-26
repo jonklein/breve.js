@@ -6,9 +6,9 @@ body.landing { background: #070b14; }
 .veil { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(7, 11, 20, 0.86) 0%, rgba(7, 11, 20, 0.55) 45%, rgba(7, 11, 20, 0.1) 100%), linear-gradient(0deg, rgba(7, 11, 20, 0.7) 0%, transparent 28%); }
 .landing .site-header { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(180deg, rgba(7, 11, 20, 0.92) 0%, rgba(7, 11, 20, 0) 100%); border-bottom: none; z-index: 5; padding-bottom: 28px; }
 main.stage-copy { position: relative; z-index: 2; display: block; flex: none; } /* the workbench styles every <main> as a flex row */
-.landing-hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 96px clamp(20px, 7vw, 120px) 64px; max-width: 760px; }
-.landing-hero .eyebrow { color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; font-size: 13px; margin: 0 0 14px; }
-.landing-hero h1 { font-size: clamp(38px, 7vw, 76px); line-height: 1.02; margin: 0 0 18px; letter-spacing: -0.02em; }
+.landing-hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 96px clamp(20px, 7vw, 120px) 64px; max-width: 960px; }
+.landing-hero h1 { font-size: clamp(40px, 6.5vw, 84px); line-height: 1; margin: 0 0 18px; letter-spacing: -0.02em; }
+.landing-hero .tagline { color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; font-size: 14px; margin: 0 0 18px; }
 .landing-hero .quote { color: var(--accent); font-style: italic; font-size: clamp(16px, 2vw, 20px); margin: 0 0 18px; }
 .landing-hero .sub { color: #b9c4d6; font-size: clamp(16px, 1.6vw, 19px); line-height: 1.55; max-width: 56ch; margin: 0 0 8px; }
 .landing .cta { margin-top: 26px; }

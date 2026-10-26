@@ -5,14 +5,23 @@
     "description": "Flocking birds in 3D: cohesion, alignment, separation.",
     "scene": "scene.json",
     "script": "flock.js",
-    "experiment": "experiment.json"
+    "experiment": "experiment.json",
+    "tags": [
+      "agents",
+      "flocking"
+    ]
   },
   {
     "id": "life3d",
     "name": "3D Life",
     "description": "Conway-style cellular automaton on a 3D grid.",
     "scene": "scene.json",
-    "script": "life.js"
+    "script": "life.js",
+    "tags": [
+      "grid",
+      "cellular automaton",
+      "3d"
+    ]
   },
   {
     "id": "creature",
@@ -20,21 +29,36 @@
     "description": "Four-legged walkers on bumpy Perlin terrain: a JSON body, joint motors and an oscillator.",
     "scene": "scene.json",
     "script": "creature.js",
-    "experiment": "experiment.json"
+    "experiment": "experiment.json",
+    "tags": [
+      "physics",
+      "bodies",
+      "terrain"
+    ]
   },
   {
     "id": "life2d",
     "name": "2D Life (fast path)",
     "description": "Conway's Life on a flat grid using whole-grid field operations instead of a per-cell rule.",
     "scene": "scene.json",
-    "script": "life.js"
+    "script": "life.js",
+    "tags": [
+      "grid",
+      "cellular automaton",
+      "fast"
+    ]
   },
   {
     "id": "neural",
     "name": "Neural agents",
     "description": "Each agent has its own neural network brain, kept as per-agent state arrays: weights and a memory.",
     "scene": "scene.json",
-    "script": "brain.js"
+    "script": "brain.js",
+    "tags": [
+      "agents",
+      "neural network",
+      "learning"
+    ]
   },
   {
     "id": "ants",
@@ -42,49 +66,79 @@
     "description": "Foraging ants lay scent on a ground layer: two entity sets (agents and cells) in one world, trails form by themselves.",
     "scene": "scene.json",
     "script": "ants.js",
-    "experiment": "experiment.json"
+    "experiment": "experiment.json",
+    "tags": [
+      "agents",
+      "patches",
+      "emergence"
+    ]
   },
   {
     "id": "herding",
     "name": "Sheepdog (you drive)",
     "description": "Drive the dog with W A S D and herd sheep. Two sets of agents, a cross-set sensor, ctx.blend, and keyboard input.",
     "scene": "scene.json",
-    "script": "herding.js"
+    "script": "herding.js",
+    "tags": [
+      "agents",
+      "interactive",
+      "keyboard"
+    ]
   },
   {
     "id": "epidemic",
     "name": "Epidemic on a network",
     "description": "S-I-R contagion across a small-world graph of people.",
     "scene": "scene.json",
-    "script": "contagion.js"
+    "script": "contagion.js",
+    "tags": [
+      "network",
+      "epidemic"
+    ]
   },
   {
     "id": "epidemic-grid",
     "name": "Epidemic on a grid",
     "description": "The very same contagion script, now running on a grid of cells.",
     "scene": "scene.json",
-    "script": "../epidemic/contagion.js"
+    "script": "../epidemic/contagion.js",
+    "tags": [
+      "grid",
+      "epidemic"
+    ]
   },
   {
     "id": "market",
     "name": "Market on a network",
     "description": "Traders with cash and goods buy from the cheapest neighbor; trades are atomic exchanges, prices adapt.",
     "scene": "scene.json",
-    "script": "market.js"
+    "script": "market.js",
+    "tags": [
+      "network",
+      "economics"
+    ]
   },
   {
     "id": "urdf-bot",
     "name": "Robot from a URDF",
     "description": "A four-legged robot converted from a URDF file (robot.urdf) and walked by a script.",
     "scene": "scene.json",
-    "script": "urdf-bot.js"
+    "script": "urdf-bot.js",
+    "tags": [
+      "physics",
+      "import"
+    ]
   },
   {
     "id": "llm-wanderers",
     "name": "Characters that ask a language model",
     "description": "Each character's slow think() asks Claude where to go; answers are logged and replayable. Needs ANTHROPIC_API_KEY.",
     "scene": "scene.json",
-    "script": "wanderers.js"
+    "script": "wanderers.js",
+    "tags": [
+      "agents",
+      "language model"
+    ]
   },
   {
     "id": "morphology",
@@ -92,6 +146,10 @@
     "description": "Leg length is a param used inside the body's geometry, so an experiment can search body shape and gait together.",
     "scene": "scene.json",
     "script": "../creature/creature.js",
-    "experiment": "experiment.json"
+    "experiment": "experiment.json",
+    "tags": [
+      "physics",
+      "search"
+    ]
   }
 ]

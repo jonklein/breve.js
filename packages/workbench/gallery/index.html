@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>breve gallery</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/site.css" />
+  </head>
+  <body>
+    <header class="site-header"><nav id="site-nav" class="site-nav" aria-label="Site"></nav></header>
+    <div class="page">
+      <section class="hero" style="padding-bottom: 8px">
+        <h1>Gallery</h1>
+        <p>Every example, ready to run. Open one to watch it and change it, or fork it to start your own.</p>
+      </section>
+      <div id="filters" class="filters" role="group" aria-label="Filter by tag"></div>
+      <div id="cards" class="cards"></div>
+      <h2 id="mine-title" class="hidden">Your projects</h2>
+      <p id="mine-note" class="lede hidden">These live in this browser only. Use Share in the workbench to get a link that carries one.</p>
+      <div id="mine" class="cards"></div>
+    </div>
+    <footer class="site-footer">breve · <a href="https://github.com/jonklein/breve.js" target="_blank" rel="noopener">source</a></footer>
+    <script type="module" src="/src/gallery.ts"></script>
+  </body>
+</html>

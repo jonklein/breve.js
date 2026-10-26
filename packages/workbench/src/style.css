@@ -130,3 +130,12 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 .embed header, .embed #editors, .embed #panel, .embed #inspector, .embed #thinkbar, .embed #sweepbar { display: none !important; }
 .embed main { display: block; height: 100vh; }
 .embed #right { height: 100vh; }
+
+/* site navigation, shared by every page */
+.site-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.site-nav a { color: var(--muted); text-decoration: none; padding: 2px 0; border-bottom: 2px solid transparent; }
+.site-nav a:hover { color: var(--text); }
+.site-nav a[aria-current='page'] { color: var(--text); border-bottom-color: var(--accent); }
+.site-nav .brand { color: var(--text); font-weight: 700; letter-spacing: 0.02em; margin-right: 6px; border-bottom: 0; }
+.site-nav .external::after { content: ' ↗'; font-size: 0.85em; }
+.embed .site-nav { display: none; }

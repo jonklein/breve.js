@@ -10,6 +10,7 @@ import {
 import { ChatPanel } from './chat'
 import { DocsPanel } from './docs'
 import { InspectorPanel } from './inspector'
+import { decodeShare, encodeShare } from './share'
 import { ExperimentPanel, defaultExperiment } from './experiment-panel'
 import type { FromWorker, ToWorker } from './sim.worker'
 
@@ -298,6 +299,8 @@ async function main(): Promise<void> {
     }),
   )
 
+  if (new URLSearchParams(location.search).get('tab') === 'docs') document.querySelector<HTMLButtonElement>('[data-tab=docs]')!.click()
+
   let running = true
   $('play').addEventListener('click', () => {
     running = !running
@@ -384,7 +387,33 @@ async function main(): Promise<void> {
     }
   }
 
+  // a link made by Share carries the whole project: keep it as one of your own, then open it
+  const openShared = async (code: string): Promise<boolean> => {
+    const doc = await decodeShare(code)
+    if (!doc) return false
+    const p = createProject(doc.name ?? 'Shared project', undefined, { scene: doc.scene, script: doc.script, experiment: doc.experiment })
+    await open(p.id)
+    return true
+  }
+  window.addEventListener('hashchange', () => { if (location.hash.startsWith('#s=')) void openShared(location.hash.slice(3)) })
+
+  $('share').addEventListener('click', async () => {
+    const link = `${location.origin}/sim/#s=${await encodeShare({ name: projectName(), ...docNow() })}`
+    try { await navigator.clipboard.writeText(link) } catch { window.prompt('Copy this link', link) }
+    $('share').textContent = 'Link copied'
+    setTimeout(() => { $('share').textContent = 'Share' }, 1500)
+  })
+
   const start = location.hash.slice(1)
+  const fromGallery = new URLSearchParams(location.search).get('fork')
+  if (start.startsWith('s=') && (await openShared(start.slice(2)))) return
+  if (fromGallery && (isExample(fromGallery) || userProjects().some((p) => p.id === fromGallery))) {
+    // "Fork" in the gallery: open the project and copy it into one of your own
+    history.replaceState(null, '', '/sim/')
+    await open(fromGallery)
+    $('fork').click()
+    return
+  }
   await open(start && (isExample(start) || userProjects().some((p) => p.id === start)) ? start : examples[0].id)
 }
 

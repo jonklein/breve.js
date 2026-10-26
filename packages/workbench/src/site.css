@@ -1,0 +1,55 @@
+/* pages other than the workbench: home, gallery, about */
+body { display: block; height: auto; min-height: 100%; }
+.site-header { display: flex; align-items: center; padding: 12px 24px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+.site-header .site-nav { font-size: 15px; }
+.page { max-width: 1040px; margin: 0 auto; padding: 0 24px 64px; }
+.hero { padding: 56px 0 24px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.1; margin: 0 0 12px; letter-spacing: -0.01em; }
+.hero .quote { color: var(--accent); font-style: italic; margin: 0 0 18px; font-size: 18px; }
+.hero p { max-width: 62ch; color: var(--muted); font-size: 16px; line-height: 1.55; margin: 0 0 12px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+a.button { display: inline-block; padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); text-decoration: none; background: var(--panel); }
+a.button:hover { border-color: var(--muted); }
+a.button.primary { background: var(--accent); border-color: var(--accent); color: #07101c; font-weight: 600; }
+h2 { font-size: 22px; margin: 40px 0 6px; }
+.lede { color: var(--muted); margin: 0 0 18px; max-width: 62ch; }
+.demos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.demo { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.demo .stage { height: 260px; position: relative; background: #0a0d12; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+.demo .stage canvas { display: block; width: 100%; height: 100%; }
+.demo .info { padding: 12px 14px 14px; }
+.demo h3 { margin: 0 0 4px; font-size: 16px; }
+.demo p { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.demo a { color: var(--accent); text-decoration: none; font-size: 13px; }
+.demo a:hover { text-decoration: underline; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+.feature { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.feature h3 { margin: 0 0 4px; font-size: 15px; }
+.feature p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+footer.site-footer { border-top: 1px solid var(--border); padding: 20px 24px; color: var(--muted); font-size: 13px; text-align: center; }
+footer.site-footer a { color: var(--muted); }
+.prose { max-width: 70ch; line-height: 1.6; font-size: 15px; }
+.prose h2 { margin-top: 28px; }
+.prose h1 { font-size: 32px; margin: 40px 0 8px; }
+.prose code { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; background: rgba(255, 255, 255, 0.07); padding: 1px 4px; border-radius: 3px; }
+.prose a { color: var(--accent); }
+@media (max-width: 600px) { .page { padding: 0 16px 48px; } .site-header { padding: 10px 16px; } .demo .stage { height: 220px; } }
+
+/* gallery */
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 20px; }
+.chip { border-radius: 999px; padding: 3px 12px; color: var(--muted); font-size: 13px; }
+.chip[aria-pressed='true'] { color: var(--text); border-color: var(--accent); background: rgba(90, 169, 255, 0.12); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.card:hover { border-color: var(--muted); }
+.thumb-link { display: block; }
+.thumb { aspect-ratio: 16 / 10; background: linear-gradient(135deg, #131a24, #0a0d12); display: block; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.card-body h3 { margin: 0; font-size: 16px; }
+.card-body h3 a { color: var(--text); text-decoration: none; }
+.card-body p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0 8px; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.actions a.button, .actions button { padding: 4px 12px; font-size: 13px; }

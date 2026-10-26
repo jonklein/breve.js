@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About breve</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/site.css" />
+  </head>
+  <body>
+    <header class="site-header"><nav id="site-nav" class="site-nav" aria-label="Site"></nav></header>
+    <div class="page prose">
+      <h1>About breve</h1>
+      <p><em>All models are wrong, some are useful.</em> (George Box)</p>
+      <p>A simulation is a model, and every model leaves things out. breve is built around that: it is a place to build a model quickly, see what it does, change what you think is wrong, and compare the versions, rather than a place to find the one right answer.</p>
+      <h2>Principles</h2>
+      <ul>
+        <li><strong>Nothing is hard-wired.</strong> Rules are small scripts, bodies and worlds are JSON, and searches are plug-ins. The engine only knows how to hold state and step time.</li>
+        <li><strong>Everything can be changed while it runs.</strong> Edit a rule, move a slider, poke one agent, or swap its controller.</li>
+        <li><strong>Runs are values.</strong> A simulation can be copied mid-run, replayed exactly from a seed, and run beside others to compare.</li>
+        <li><strong>Defaults do the boring parts.</strong> A scene with almost nothing in it still runs, draws and can be inspected.</li>
+      </ul>
+      <h2>What is in it</h2>
+      <p>Free agents (flocks, ants, herds), cellular grids and patch worlds, networks, and articulated bodies with physics; neural networks and language models as controllers; sweeps and searches over parameters; and an assistant that proposes checked changes in plain language. It runs in the browser, and a headless mode runs the same scenes from the command line.</p>
+      <h2>Source</h2>
+      <p>The code is on <a href="https://github.com/jonklein/breve.js" target="_blank" rel="noopener">GitHub</a>.</p>
+    </div>
+    <footer class="site-footer">breve · <a href="https://github.com/jonklein/breve.js" target="_blank" rel="noopener">source</a></footer>
+    <script type="module" src="/src/about.ts"></script>
+  </body>
+</html>

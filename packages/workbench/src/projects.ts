@@ -2,6 +2,7 @@ export interface ExampleInfo {
   id: string
   name: string
   description: string
+  tags?: string[]
   scene: string
   script: string
   experiment?: string

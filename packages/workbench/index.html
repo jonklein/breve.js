@@ -3,77 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>breve workbench</title>
+    <title>breve</title>
+    <meta name="description" content="Simulations you can poke at: write the rules in a few lines of JavaScript, change them while they run, and watch what happens." />
     <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/site.css" />
   </head>
   <body>
-    <header>
-      <strong>breve</strong>
-      <select id="project" aria-label="Project"></select>
-      <input id="name" class="hidden" aria-label="Project name" />
-      <button id="fork" title="Copy this project so you can change it freely">Fork</button>
-      <button id="delete" class="hidden" title="Delete this project">Delete</button>
-      <span class="spacer"></span>
-      <button id="play" title="Play or pause">Pause</button>
-      <button id="step" title="Advance one tick">Step</button>
-      <button id="reset" title="Restart from the seed">Reset</button>
-      <button id="sweep" title="Run many copies of this scene side by side, each with a different value of one param">Sweep</button>
-      <span id="stats" class="muted mono"></span>
-      <button id="restore" title="Discard your edits and reload the example">Restore example</button>
-    </header>
-    <main>
-      <section id="editors">
-        <nav>
-          <button class="tab active" data-tab="scene">scene.json</button>
-          <button class="tab" data-tab="script" id="script-tab">script.js</button>
-          <button class="tab" data-tab="experiment">experiment.json</button>
-          <button class="tab" data-tab="chat">Assistant</button>
-          <button class="tab" data-tab="docs">Docs</button>
-          <span id="status" class="status ok">ok</span>
-        </nav>
-        <div id="editor-scene" class="editor"></div>
-        <div id="editor-script" class="editor hidden"></div>
-        <div id="exp" class="exp hidden">
-          <div id="editor-experiment" class="editor"></div>
-          <div class="exp-bar">
-            <button id="exp-run" title="Run every candidate to the end, one after another, and rank them">Run</button>
-            <button id="exp-watch" title="Show up to 12 of the runs side by side, live">Watch</button>
-            <button id="exp-stop" disabled>Stop</button>
-            <button id="exp-apply" disabled title="Put the best run's params into scene.json">Apply best</button>
-            <button id="exp-csv" disabled>Export CSV</button>
-            <span id="exp-status" class="muted mono"></span>
-          </div>
-          <div id="exp-results" class="exp-results"></div>
-        </div>
-        <div id="chat" class="chat hidden"></div>
-        <div id="docs" class="docs hidden"></div>
-        <ul id="problems" class="problems"></ul>
-      </section>
-      <section id="right">
-        <div id="sweepbar" class="hidden">
-          <span class="muted">Watching the experiment's runs side by side. Click one to continue from it.</span>
-          <button id="sweep-exit">Back to one run</button>
-        </div>
-        <div id="thinkbar" class="hidden">
-          <span class="muted">Thinking</span>
-          <select id="think-mode" title="Realtime never makes the sim wait for a model; lockstep waits for every answer, so a run repeats exactly">
-            <option value="realtime">realtime</option>
-            <option value="lockstep">lockstep (repeatable)</option>
-          </select>
-          <span id="think-count" class="muted mono"></span>
-          <button id="think-save" title="Download every decision made so far">Save log</button>
-          <button id="think-replay" title="Pick a saved log: the run restarts and plays those decisions back without asking the model">Replay log…</button>
-          <input id="think-file" type="file" accept=".json,application/json" class="hidden" />
-        </div>
-        <div id="viewport"></div>
-        <div id="inspector" class="inspector hidden"></div>
-        <div id="tiles" class="hidden"></div>
-        <div id="panel">
-          <div id="params"></div>
-          <div id="metrics"></div>
+    <header class="site-header"><nav id="site-nav" class="site-nav" aria-label="Site"></nav></header>
+    <div class="page">
+      <section class="hero">
+        <h1>Simulations you can tinker with.</h1>
+        <p class="quote">All models are wrong, some are useful.</p>
+        <p>breve runs flocks, ant colonies, epidemics, markets and walking creatures from a short script and a small JSON file. Nothing is hard-wired: the rules, the bodies and the numbers are all yours to change while it runs, and to compare side by side.</p>
+        <div class="cta">
+          <a class="button primary" href="/sim/">Open the workbench</a>
+          <a class="button" href="/gallery/">Browse the gallery</a>
+          <a class="button" href="/sim/?tab=docs">Read the docs</a>
         </div>
       </section>
-    </main>
-    <script type="module" src="/src/main.ts"></script>
+
+      <h2>See it run</h2>
+      <p class="lede">These are live. Each one starts when you scroll to it and pauses when you scroll away. Drag to look around.</p>
+      <div class="demos" id="demos"></div>
+
+      <h2>What you can do</h2>
+      <div class="features">
+        <div class="feature"><h3>Change the rules</h3><p>A behavior is a plain function. Edit it and the running simulation picks it up.</p></div>
+        <div class="feature"><h3>Ask "what if"</h3><p>Sweep a parameter, fork a run mid-way, or let a search find the settings that work.</p></div>
+        <div class="feature"><h3>Swap the thinker</h3><p>Give any agent a rule, a small neural network, a keyboard or a language model.</p></div>
+        <div class="feature"><h3>Describe it in words</h3><p>The assistant turns "make the predators slower" into a checked change you can accept or undo.</p></div>
+      </div>
+    </div>
+    <footer class="site-footer">breve · <a href="https://github.com/jonklein/breve.js" target="_blank" rel="noopener">source</a></footer>
+    <script type="module" src="/src/home.ts"></script>
   </body>
 </html>

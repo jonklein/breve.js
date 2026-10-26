@@ -1,10 +1,10 @@
-import { looksOf, looksOfAll } from './display'
+import { looksOf, looksOfAll, type Looks } from './display'
 import { initResult } from './init-shape'
 import { StrColumn, Table, type Column, type ColumnType, type TableSnapshot } from './store'
-import { fillList, resolve, stateFields, type Params, type StateField, type StateType } from './scene'
+import { resolve, type Params, type StateField, type StateType } from './scene'
 import { Field, type NeighborTable } from '@breve/stdlib'
 import { Nums, Vec3, Vecs } from '@breve/stdlib'
-import { actAllOf, actOf, type Ctx, type FrameData, type Host, type MetricInput, type PatchLayer, type World } from './world'
+import { type Ctx, type FrameData, type Host, type MetricInput, type PatchLayer, type World } from './world'
 
 const CTORS = { u8: Uint8Array, i32: Int32Array, f32: Float32Array, f64: Float64Array, str: StrColumn } as const
 
@@ -64,15 +64,13 @@ export class LatticeWorld implements World, PatchLayer {
     const L = def.lattice!
     this.dims = L.size
     this.n = L.size[0] * L.size[1] * L.size[2]
-    const sf = stateFields(def.state)
+    const sf = host.fields
     for (const f of sf) { this.fieldOf[f.name] = f; this.types[f.name] = f.type }
     this.fields = sf.map((f) => f.name)
     this.table = new Table<string>(this.types as Record<string, ColumnType>, this.n)
     for (let i = 0; i < this.n; i++) this.table.spawn()
     for (const f of sf) {
       this.next[f.name] = new CTORS[f.type](this.n) as unknown as Column
-      // a field that says what it starts as starts that way in every cell
-      if (f.init !== undefined && typeof f.init !== 'object') this.table.cols[f.name].fill((typeof f.init === 'boolean' ? (f.init ? 1 : 0) : f.init) as never)
     }
 
     for (let dk = -1; dk <= 1; dk++)
@@ -88,9 +86,8 @@ export class LatticeWorld implements World, PatchLayer {
     const { Cell, Cells } = this.makeTypes()
     this.Cells = Cells
     this.Cell = Cell
-    if (!this.fields.length) host.fail('init', new Error(`"${def.name}" has no state: a lattice needs "state" in the scene, or an init that returns fields (return { alive: 0 })`))
-    else if (L.show !== undefined && !this.fieldOf[L.show]) host.fail('lattice', new Error(`lattice.show: "${L.show}" is not a state field of "${def.name}" (it has: ${this.fields.join(', ')})`))
-    if (!from) { this.applyInit(); this.fill() } // a fork gets its cells from the snapshot
+    if (!this.fields.length) host.fail('init', new Error(`"${def.name}" has no state: a lattice needs an init that returns fields (return { alive: 0 })`))
+    if (!from) this.applyInit() // a fork gets its cells from the snapshot
   }
 
   patchAt(x: number, y: number, z: number): unknown | null {
@@ -210,38 +207,6 @@ export class LatticeWorld implements World, PatchLayer {
     }
   }
 
-  /** Seed the starting state: each fill sets cells of one field, at random or inside a region. */
-  private fill(): void {
-    const [nx, ny, nz] = this.dims
-    const sp = this.host.def.lattice!.spacing ?? 1.2
-    for (const f of fillList(this.host.def.fill)) {
-      const density = resolve(f.density, this.host.params, 1)
-      const within = f.within ?? 1
-      const value = f.value ?? 1
-      const col = this.table.cols[f.field]
-      const inside = (v: number, n: number) => Math.abs(v - (n - 1) / 2) <= (within * n) / 2
-      const eligible: number[] = []
-      for (let r = 0; r < this.n; r++) {
-        const i = r % nx, j = Math.floor(r / nx) % ny, k = Math.floor(r / (nx * ny))
-        if (!(inside(i, nx) && inside(j, ny) && inside(k, nz))) continue
-        if (f.region) {
-          const d = Math.hypot((i - (nx - 1) / 2) * sp - f.region.center[0], (j - (ny - 1) / 2) * sp - f.region.center[1], (k - (nz - 1) / 2) * sp - f.region.center[2])
-          if (d > f.region.radius) continue
-        }
-        eligible.push(r)
-      }
-      if (f.count !== undefined) {
-        // exactly `count` distinct cells: a partial shuffle driven by the seed
-        for (let i = 0; i < Math.min(f.count, eligible.length); i++) {
-          const j = i + Math.floor(this.host.rng.next() * (eligible.length - i))
-          ;[eligible[i], eligible[j]] = [eligible[j], eligible[i]]
-          col[eligible[i]] = value
-        }
-      } else {
-        for (const r of eligible) if (density >= 1 || this.host.rng.next() < density) col[r] = value
-      }
-    }
-  }
 
   sceneChanged(): void {
     /* rule params are read live; grid shape and fill only change on reset */
@@ -303,9 +268,9 @@ export class LatticeWorld implements World, PatchLayer {
   step(): void {
     this.applyPending()
     const ctrl = this.host.controller()
-    const all = actAllOf(ctrl)
+    const all = ctrl?.actAll
     if (all) return this.stepFields(all)
-    const act = actOf(ctrl)
+    const act = ctrl?.act
     const ctx = this.host.ctx()
     const { params } = this.host
     const cols = this.table.cols
@@ -332,8 +297,8 @@ export class LatticeWorld implements World, PatchLayer {
   }
 
   /** Cell colors and visibility from the script's `displayAll` (every cell at once) or `display` (one at a time). */
-  private look(): { rgb: Uint8Array | null; visible: Uint8Array | null } {
-    const none = { rgb: null, visible: null }
+  private look(): Looks {
+    const none: Looks = { rgb: null, visible: null, alpha: null, scale: null }
     const ctrl = this.host.controller()
     const fail = (e: unknown) => this.host.fail('display', e)
     if (ctrl?.displayAll) {
@@ -350,19 +315,11 @@ export class LatticeWorld implements World, PatchLayer {
     const L = this.host.def.lattice!
     const [nx, ny, nz] = this.dims
     const sp = L.spacing ?? 1.2
-    // with no `show` field, every cell is drawn (unless `display` says otherwise); a field that does not exist is reported when the world is built
-    const showCol = L.show !== undefined ? this.table.cols[L.show] ?? new Uint8Array(this.n) : new Uint8Array(this.n).fill(1)
-    const tintCol = L.color ? this.table.cols[L.color] : null
-    const max = L.colorMax ?? 1
     const look = this.look()
-    const show = new Uint8Array(this.n)
-    const attr = tintCol && !look.rgb ? new Float32Array(this.n) : null
+    // with no `display` visibility, every cell is drawn
+    const show = look.visible ?? new Uint8Array(this.n).fill(1)
     let live = 0
-    for (let r = 0; r < this.n; r++) {
-      // the script's `display` decides what is drawn when it says; otherwise the scene's `show` field does
-      if (look.visible ? look.visible[r] !== 0 : showCol[r] !== 0) { show[r] = 1; live++ }
-      if (attr && tintCol) attr[r] = Math.min(1, tintCol[r] / max)
-    }
+    for (let r = 0; r < this.n; r++) if (show[r] !== 0) live++
     return {
       kind: 'lattice',
       count: live,
@@ -370,8 +327,7 @@ export class LatticeWorld implements World, PatchLayer {
       unit: sp * 0.9,
       pos: new Float32Array(0),
       vel: null,
-      attr,
-      lattice: { dims: [nx, ny, nz], spacing: sp, show, fade: L.fade ?? 0, palette: L.palette, thickness: L.thickness, ...(look.rgb ? { rgb: look.rgb } : {}) },
+      lattice: { dims: [nx, ny, nz], spacing: sp, show, fade: L.fade ?? 0, thickness: L.thickness, ...(look.rgb ? { rgb: look.rgb } : {}), ...(look.alpha ? { alpha: look.alpha } : {}), ...(look.scale ? { sizes: look.scale } : {}) },
     }
   }
 

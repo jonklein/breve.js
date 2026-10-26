@@ -7,10 +7,10 @@ const grid = () => parse({ seed: 1, params: {}, bounds: { size: 10 }, entities: 
 
 const init = ({ x }: { x?: number }) => ({ alive: (x ?? 0) % 2, age: x ?? 0 })
 
-test('display colors and hides cells; with no show field in the scene every cell is drawn unless display says not', () => {
+test('display colors and hides cells; with no display every cell is drawn', () => {
   const plain = new Sim(grid(), { default: { init, act: () => ({}) } })
   const f0 = plain.frames()[0]
-  assert.equal(f0.lattice!.show.filter((v) => v).length, 16, 'no show field and no display: everything is drawn')
+  assert.equal(f0.lattice!.show.filter((v) => v).length, 16, 'no display: everything is drawn')
   assert.equal(f0.lattice!.rgb, undefined)
 
   const sim = new Sim(grid(), { default: {
@@ -39,12 +39,12 @@ test('displayAll gives the same picture as display, from whole fields', () => {
 test('free agents and network nodes get colors from display', () => {
   const agents = parse({ seed: 1, params: {}, bounds: { size: 20 }, entities: [{ name: 'a', count: 3, controller: 'x.js' }], metrics: [] })
   const sim = new Sim(agents, { default: { init: ({ index }) => ({ hot: index === 1 }), act: () => ({}), display: ({ self }) => ({ color: self.hot ? '#ff0000' : '#0000ff' }) } })
-  const c = sim.frames()[0].colors!
+  const c = sim.frames()[0].look!.rgb!
   assert.deepEqual(Array.from(c), [0, 0, 255, 255, 0, 0, 0, 0, 255])
 
   const net = parse({ seed: 1, params: {}, bounds: { size: 20 }, entities: [{ name: 'n', count: 4, network: { topology: 'ring', degree: 2 }, controller: 'x.js' }], metrics: [] })
   const ns = new Sim(net, { default: { init: ({ index }) => ({ sick: index === 2 ? 1 : 0 }), act: () => ({}), displayAll: ({ sick }, _p, ctx) => ({ color: ctx.colors.rampField(['#00ff00', '#ff0000'], sick) }) } })
-  const nc = ns.frames()[0].colors!
+  const nc = ns.frames()[0].look!.rgb!
   assert.deepEqual(Array.from(nc.slice(6, 9)), [255, 0, 0])
   assert.deepEqual(Array.from(nc.slice(0, 3)), [0, 255, 0])
 })

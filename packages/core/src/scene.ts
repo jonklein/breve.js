@@ -40,23 +40,6 @@ export type StateType = 'u8' | 'i32' | 'f32' | 'f64' | 'str'
 /** What a field holds, as scripts see it. */
 export type StateKind = 'number' | 'boolean' | 'string'
 
-/** How a state field starts: a constant, or random draws from the seeded RNG. */
-export type StateInit = number | boolean | string | { normal: number } | { uniform: [number, number] }
-
-/**
- * A per-entity state field. Say what it starts as and the type follows: `"energy": 10` is a number,
- * `"hungry": false` a boolean, `"mood": "calm"` a string. An object makes an array of numbers per entity
- * (network weights: `{ "length": 24, "init": { "normal": 0.5 } }`) or spells out a type
- * (`"int"`, `"float"`, `"boolean"`, `"string"`; the small storage types `"u8"`, `"i32"` and `"f32"` also work).
- */
-export type StateDef = number | boolean | string | { type?: string; length?: number; init?: StateInit }
-
-const TYPE_WORDS: Record<string, { type: StateType; kind: StateKind }> = {
-  u8: { type: 'u8', kind: 'number' }, i32: { type: 'i32', kind: 'number' }, f32: { type: 'f32', kind: 'number' },
-  int: { type: 'i32', kind: 'number' }, float: { type: 'f64', kind: 'number' }, number: { type: 'f64', kind: 'number' },
-  boolean: { type: 'u8', kind: 'boolean' }, string: { type: 'str', kind: 'string' },
-}
-
 /** A 3D grid of cells with implicit neighbors. Each cell is an entity. */
 export interface LatticeDef {
   size: [number, number, number]
@@ -65,13 +48,6 @@ export interface LatticeDef {
   /** What happens at the edge: cells beyond it are "dead" (absent), or the grid wraps around. */
   edges?: 'dead' | 'wrap'
   neighborhood?: 'moore' | 'von-neumann'
-  /** State field whose non-zero cells are drawn. */
-  show?: string
-  /** State field that tints drawn cells, scaled by `colorMax`. */
-  color?: string
-  colorMax?: number
-  /** Colors for the `color` field, low to high: two or more hex colors, blended in order. Default red to green. */
-  palette?: string[]
   /** For a flat grid (size 1 on one axis): how thick the drawn cells are along that axis, as a fraction of their width. Default 1. */
   thickness?: number
   /** Ease cells in and out over this fraction of a tick (0 = instant, the default; 1 = a whole tick). */
@@ -95,26 +71,8 @@ export interface NetworkDef {
   layout?: 'force' | 'circle' | 'sphere'
   /** Size of the drawn layout in world units (default 20). */
   radius?: number
-  /** State field that tints nodes, scaled by `colorMax` (default 1), through `palette` (default red to green). */
-  color?: string
-  colorMax?: number
-  palette?: string[]
   /** How big nodes are drawn, as a multiple of the default. */
   size?: number
-}
-
-/**
- * Fill a state field at the start. `density` is the share of cells set (default 1); `within` limits it to the central
- * fraction of the grid; `region` limits it to a ball in world units around `center`; `value` is what cells get (default 1).
- */
-export interface FillDef {
-  field: string
-  density?: NumOrParam
-  within?: number
-  /** Set exactly this many randomly chosen entities (networks and lattices). */
-  count?: number
-  value?: number
-  region?: { center: [number, number, number]; radius: number }
 }
 
 /**
@@ -159,10 +117,6 @@ export interface EntityDef {
   lattice?: LatticeDef
   /** Nodes joined by links, instead of free agents or a grid. Use with `count`. */
   network?: NetworkDef
-  /** Per-entity state: field name to storage type (lattice cells take plain types only). */
-  state?: Record<string, StateDef>
-  /** Fill a state field at the start: `density` of cells, within the central `within` fraction of the grid. */
-  fill?: FillDef | FillDef[]
   /** The script file for this project (the same file serves every set; list it once). */
   controller?: string
   sensors?: SensorDef[]
@@ -226,25 +180,6 @@ const numOrParam = {
 const vec3 = { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 } as const
 
 const color = { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$' }
-
-const fillItem = {
-  type: 'object',
-  required: ['field'],
-  additionalProperties: false,
-  properties: {
-    field: { type: 'string' },
-    density: numOrParam,
-    within: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
-    count: { type: 'integer', minimum: 0 },
-    value: { type: 'number' },
-    region: {
-      type: 'object',
-      required: ['center', 'radius'],
-      additionalProperties: false,
-      properties: { center: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }, radius: { type: 'number', exclusiveMinimum: 0 } },
-    },
-  },
-} as const
 
 export const sceneSchema = {
   $id: 'https://breve.dev/schema/scene.json',
@@ -371,9 +306,6 @@ export const sceneSchema = {
               edges: { type: 'array', items: { type: 'array', items: { type: 'integer', minimum: 0 }, minItems: 2, maxItems: 2 } },
               layout: { enum: ['force', 'circle', 'sphere'] },
               radius: { type: 'number', exclusiveMinimum: 0 },
-              color: { type: 'string' },
-              colorMax: { type: 'number', exclusiveMinimum: 0 },
-              palette: { type: 'array', items: color, minItems: 2, maxItems: 8 },
               size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
             },
           },
@@ -386,38 +318,10 @@ export const sceneSchema = {
               spacing: { type: 'number', exclusiveMinimum: 0 },
               edges: { enum: ['dead', 'wrap'] },
               neighborhood: { enum: ['moore', 'von-neumann'] },
-              show: { type: 'string' },
-              color: { type: 'string' },
-              colorMax: { type: 'number', exclusiveMinimum: 0 },
               thickness: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
-              palette: { type: 'array', items: color, minItems: 2, maxItems: 8 },
               fade: { type: 'number', minimum: 0, maximum: 1 },
             },
           },
-          state: {
-            type: 'object',
-            additionalProperties: {
-              anyOf: [
-                { type: ['number', 'boolean', 'string'] },
-                {
-                  type: 'object',
-                  additionalProperties: false,
-                  properties: {
-                    type: { enum: Object.keys(TYPE_WORDS) },
-                    length: { type: 'integer', minimum: 1, maximum: 4096 },
-                    init: {
-                      anyOf: [
-                        { type: ['number', 'boolean', 'string'] },
-                        { type: 'object', required: ['normal'], additionalProperties: false, properties: { normal: { type: 'number' } } },
-                        { type: 'object', required: ['uniform'], additionalProperties: false, properties: { uniform: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } } },
-                      ],
-                    },
-                  },
-                },
-              ],
-            },
-          },
-          fill: { anyOf: [fillItem, { type: 'array', items: fillItem }] },
           controller: { type: 'string' },
           body: bodySchema,
           oscillator: {
@@ -465,14 +369,27 @@ export function parseScene(text: string): SceneResult {
   return validateScene(data)
 }
 
+/** Scene settings that moved into the script, by where they were (`set`: on a set; `look`: in its lattice or network). */
+const REMOVED: Record<string, string> = {
+  'set.state': "a set's state is what its script's init returns, for example `init() { return { alive: 0, age: 0 } }`",
+  'set.fill': "set starting values in the script's init (or initAll), for example `init(self, p, ctx) { return { alive: ctx.random() < p.density ? 1 : 0 } }`",
+  'look.show': "say what is drawn in the script's display, for example `display({ self }) { return { visible: self.alive } }`",
+  'look.color': "say the color in the script's display, for example `display({ self }, p, ctx) { return { color: ctx.colors.ramp(['#ff0d0d', '#0dff0d'], self.age / 20) } }`",
+  'look.colorMax': "scale the value yourself in the script's display (for example `self.age / 20`)",
+  'look.palette': "give the colors in the script's display (`ctx.colors.ramp(['#4f86f7', '#ffd34a'], t)`)",
+}
+
 export function validateScene(data: unknown): SceneResult {
   if (!validateSchema(data)) {
     const errors = (validateSchema.errors ?? [])
       .filter((e) => e.keyword !== 'anyOf')
       .map((e) => {
         const where = e.instancePath ? e.instancePath.slice(1).replace(/\//g, '.') : 'scene'
-        if (e.keyword === 'additionalProperties')
-          return `${where}: unknown property "${(e.params as { additionalProperty: string }).additionalProperty}"`
+        if (e.keyword === 'additionalProperties') {
+          const prop = (e.params as { additionalProperty: string }).additionalProperty
+          const gone = REMOVED[`${/^entities\.\d+\.(lattice|network)$/.test(where) ? 'look' : /^entities\.\d+$/.test(where) ? 'set' : ''}.${prop}`]
+          return gone ? `${where}: "${prop}" is gone: ${gone}` : `${where}: unknown property "${prop}"`
+        }
         if (e.keyword === 'required')
           return `${where}: missing "${(e.params as { missingProperty: string }).missingProperty}"`
         return `${where}: ${e.message}`
@@ -494,28 +411,10 @@ export function validateScene(data: unknown): SceneResult {
   if (scene.entities.length > 1 && scene.entities.some((e) => e.body)) errors.push('entities: creatures (a set with a "body") cannot be mixed with other sets yet')
   scene.entities.forEach((e, i) => {
     if (!e.lattice === (e.count === undefined)) errors.push(`entities.${i}: give either "count" (free agents) or "lattice" (a grid of cells)`)
-    if (e.lattice) {
-      // without a "state" block the fields come from the script's init, so they are checked when the sim is built
-      const fields = Object.keys(e.state ?? {})
-      const declared = e.state !== undefined
-      if (declared && !fields.length) errors.push(`entities.${i}.state: a lattice needs at least one state field`)
-      if (declared && e.lattice.show !== undefined && !fields.includes(e.lattice.show)) errors.push(`entities.${i}.lattice.show: "${e.lattice.show}" is not a state field`)
-      if (declared && e.lattice.color && !fields.includes(e.lattice.color)) errors.push(`entities.${i}.lattice.color: "${e.lattice.color}" is not a state field`)
-      for (const [k, f] of fillList(e.fill).entries()) {
-        if (declared && !fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)
-        check(f.density, `entities.${i}.fill.density`)
-      }
-      for (const [k, d] of Object.entries(e.state ?? {}))
-        if (typeof d === 'object' && d.length !== undefined) errors.push(`entities.${i}.state.${k}: lattice cells hold one value per field, not an array`)
-    }
     if (e.network) {
       if (e.lattice || e.body) errors.push(`entities.${i}.network: a set is a network, a lattice or creatures, not several`)
       if (e.count === undefined) errors.push(`entities.${i}.count: a network needs "count", the number of nodes`)
-      const fields = stateFields(e.state).map((f) => f.name)
-      if (e.state !== undefined && e.network.color && !fields.includes(e.network.color)) errors.push(`entities.${i}.network.color: "${e.network.color}" is not a state field`)
       if (e.network.topology === 'edges' && !e.network.edges) errors.push(`entities.${i}.network.edges: topology "edges" needs the list of links`)
-      for (const [k, f] of fillList(e.fill).entries())
-        if (e.state !== undefined && !fields.includes(f.field)) errors.push(`entities.${i}.fill${Array.isArray(e.fill) ? '.' + k : ''}.field: "${f.field}" is not a state field`)
     }
     if (e.spawn?.at && e.spawn.box) errors.push(`entities.${i}.spawn: give "at" or "box", not both`)
     if (e.spawn?.spread !== undefined && !e.spawn.at) errors.push(`entities.${i}.spawn.spread: "spread" scatters entities around "at"`)
@@ -562,26 +461,36 @@ export interface StateField {
   /** Values per entity: 1 unless the field is an array. */
   length: number
   array: boolean
-  init?: StateInit
 }
 
-/** Every state field of an entity set in one shape: a name, how it is stored, what it holds, and how it starts. */
-export function stateFields(state: Record<string, StateDef> | undefined): StateField[] {
-  return Object.entries(state ?? {}).map(([name, d]): StateField => {
-    if (typeof d === 'number') return { name, type: 'f64', kind: 'number', length: 1, array: false, init: d }
-    if (typeof d === 'boolean') return { name, type: 'u8', kind: 'boolean', length: 1, array: false, init: d }
-    if (typeof d === 'string') {
-      const w = TYPE_WORDS[d]
-      return w ? { name, ...w, length: 1, array: false } : { name, type: 'str', kind: 'string', length: 1, array: false, init: d }
-    }
-    const init = d.init
-    const w = d.type ? TYPE_WORDS[d.type] : typeof init === 'boolean' ? TYPE_WORDS.boolean : typeof init === 'string' ? TYPE_WORDS.string : TYPE_WORDS.float
-    return { name, ...(w ?? TYPE_WORDS.float), length: d.length ?? 1, array: d.length !== undefined, init }
-  })
+/**
+ * The state field a value shows. A number is a number, `true`/`false` a boolean, text is text, and an array of numbers is a
+ * field of that length, stored as its own kind of array (`Uint8Array` one byte a value, `Int32Array`, `Float32Array`; a plain
+ * array is full precision). Null for anything else (objects, empty arrays).
+ */
+export function fieldOfValue(name: string, v: unknown): StateField | null {
+  if (typeof v === 'number') return { name, type: 'f64', kind: 'number', length: 1, array: false }
+  if (typeof v === 'boolean') return { name, type: 'u8', kind: 'boolean', length: 1, array: false }
+  if (typeof v === 'string') return { name, type: 'str', kind: 'string', length: 1, array: false }
+  if (Array.isArray(v) || ArrayBuffer.isView(v)) {
+    const a = v as ArrayLike<unknown>
+    if (!a.length || typeof a[0] !== 'number') return null
+    return { name, type: storageOf(v), kind: 'number', length: a.length, array: true }
+  }
+  return null
 }
 
-export function fillList(f: FillDef | FillDef[] | undefined): FillDef[] {
-  return f === undefined ? [] : Array.isArray(f) ? f : [f]
+/** The field one value per entity makes when it comes as a column (`initAll`): the column's kind sets how it is stored. */
+export function fieldOfColumn(name: string, col: ArrayLike<unknown>): StateField | null {
+  const first = col[0]
+  if (typeof first === 'boolean') return { name, type: 'u8', kind: 'boolean', length: 1, array: false }
+  if (typeof first === 'string') return { name, type: 'str', kind: 'string', length: 1, array: false }
+  if (typeof first === 'number') return { name, type: storageOf(col), kind: 'number', length: 1, array: false }
+  return null
+}
+
+function storageOf(a: unknown): StateType {
+  return a instanceof Float32Array ? 'f32' : a instanceof Uint8Array ? 'u8' : a instanceof Int32Array ? 'i32' : 'f64'
 }
 
 export function paramValues(scene: Scene): Params {

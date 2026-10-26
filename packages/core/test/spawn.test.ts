@@ -24,10 +24,10 @@ test('spawn.velocity sets the starting heading', () => {
 })
 
 test('a controller init callback places each new entity and sets its state', () => {
-  const sc = scene(undefined, { state: { tag: '' } })
+  const sc = scene(undefined)
   const script: ScriptModule = {
     default: {
-      init: ({ index, count }, _p, ctx) => ({ position: ctx.vec(index - count / 2, 0, 0), state: { tag: `#${index}` } }),
+      init: ({ index, count }, _p, ctx) => ({ position: ctx.vec(index - count / 2, 0, 0), tag: `#${index}` }),
       act: () => ({}),
     },
   }
@@ -60,7 +60,7 @@ test('a fence fires onLeave once per crossing, and self.reset() sends the agent 
 })
 
 test('ctx.blend adds steering and amounts, and merges state', () => {
-  const sc = scene(undefined, { state: { a: 0, b: 0 } })
+  const sc = scene(undefined)
   let got: unknown
   const s = new Sim(sc, { default: { act: ({ self }, _p, ctx) => {
     if (self.row === 0) got = ctx.blend({ steer: [1, 0, 0], add: { x: 1, deep: { y: 2 } }, state: { a: 1 } }, null, { steer: [0, 2, 0], add: { x: 2, deep: { y: 3 } }, state: { b: 5 } })
@@ -88,8 +88,8 @@ test('keys held by a person reach ctx.input, are logged, and a controller can sa
 })
 
 test('inspect shows one entity with typed fields; poke edits it; controllerNames lists the script exports', () => {
-  const sc = scene({ at: [1, 2, 3] }, { state: { energy: 5, awake: true, name: 'x', w: { length: 3, init: 0.5 } } })
-  const s = new Sim(sc, { default: { act: () => ({}) }, Other: { act: () => ({}) }, metrics: {} })
+  const sc = scene({ at: [1, 2, 3] })
+  const s = new Sim(sc, { default: { init: () => ({ energy: 5, awake: true, name: 'x', w: [0.5, 0.5, 0.5] }), act: () => ({}) }, Other: { act: () => ({}) }, metrics: {} })
   const i = s.inspect(0, 2)!
   assert.equal(i.set, 'a')
   assert.equal(i.kind, 'agent')

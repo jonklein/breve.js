@@ -7,7 +7,7 @@ import { Sim, parseScene, type ScriptModule } from '../src/index'
 // the same rule written with a closure per cell (the way it used to be) and with whole-field operations
 const withClosures: ScriptModule = {
   default: {
-    update: ({ alive, age }: Record<string, any>) => {
+    actAll: ({ alive, age }: Record<string, any>) => {
       const crowd = alive.neighborSum()
       const next = alive.zip(crowd, (a: number, n: number) => ((a ? n === 2 || n === 3 : n === 3) ? 1 : 0))
       return { alive: next, age: next.zip(age, (now: number, old: number) => (now ? old + 1 : 0)) }

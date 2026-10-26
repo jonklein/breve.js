@@ -1,7 +1,7 @@
-import { initResult, stateDefOf } from './init-shape'
+import { initResult } from './init-shape'
 import { handleFor, type Model, type ModelHandle } from './inference'
 import { Relations, type RelationsSnapshot } from './relations'
-import { Colors, Mlp } from '@breve/stdlib'
+import { Colors, Field, Mlp } from '@breve/stdlib'
 import { Rng } from './rng'
 import { Vec3 } from '@breve/stdlib'
 import { AgentWorld } from './agent-world'
@@ -9,7 +9,7 @@ import { LatticeWorld } from './lattice-world'
 import { RigidWorld } from './rigid-world'
 import { NetworkWorld } from './network-world'
 import type { PhysicsEngine } from './physics/types'
-import { paramValues, stateFields, type EntityDef, type Params, type Scene, type StateDef } from './scene'
+import { fieldOfColumn, fieldOfValue, paramValues, type EntityDef, type Params, type Scene, type StateField } from './scene'
 import { blend } from './blend'
 import { HOOKS, type AskOptions, type ModelRequest, type ThinkCtx, type Controller, type Ctx, type FrameData, type Host, type MetricInput, type Message, type ScriptModule, type World } from './world'
 
@@ -45,19 +45,19 @@ class SetHost implements Host {
   get rng() { return this.sim.rng }
   get tick() { return this.sim.tick }
   get script() { return this.sim.script }
-  private defCache: { base: EntityDef; script: ScriptModule | null; eff: EntityDef } | null = null
+  private fieldsCache: { base: EntityDef; script: ScriptModule | null; fields: StateField[] } | null = null
+  get def(): EntityDef { return this.sim.scene.entities[this.index] }
   /**
-   * The set's definition as the worlds should see it: the scene's, plus any state the script's `init` shows (a field that `init`
-   * returns exists, with a kind and length taken from the value). Worked out once per scene and script.
+   * The set's state fields: what its script's `init` (or `initAll`) returns, with the kind and length of each value. Worked out
+   * once per scene and script.
    */
-  get def(): EntityDef {
-    const base = this.sim.scene.entities[this.index]
-    const c = this.defCache
-    if (c && c.base === base && c.script === this.sim.script) return c.eff
-    const inferred = this.sim.inferState(this.index, base)
-    const eff = inferred ? { ...base, state: { ...inferred, ...(base.state ?? {}) } } : base
-    this.defCache = { base, script: this.sim.script, eff }
-    return eff
+  get fields(): StateField[] {
+    const base = this.def
+    const c = this.fieldsCache
+    if (c && c.base === base && c.script === this.sim.script) return c.fields
+    const fields = this.sim.inferFields(this.index)
+    this.fieldsCache = { base, script: this.sim.script, fields }
+    return fields
   }
   fail(where: string, e: unknown) { this.sim.fail(where, e) }
   ctx() { return this.sim.ctx() }
@@ -135,33 +135,38 @@ export class Sim {
   private hosts: SetHost[] = []
 
   /**
-   * State a set's `init` (or `initAll`) shows, by field name: ask it for one entity with a throwaway random generator (so the
-   * run's own random numbers are untouched) and take the kind and length of each value. Null when there is no init to ask.
-   * A script that throws here is not reported now; the real call will report it.
+   * The state fields a set's `init` (or `initAll`) shows: ask it for one entity with a throwaway random generator (so the run's own
+   * random numbers are untouched) and take the kind and length of each value. A script that throws here is not reported now; the
+   * real call will report it.
    */
-  inferState(set: number, def: EntityDef): Record<string, StateDef> | null {
+  inferFields(set: number): StateField[] {
     const ctrl = new SetControllerLookup(this, set).get()
-    if (!ctrl?.init && !ctrl?.initAll) return null
+    if (!ctrl?.init && !ctrl?.initAll) return []
     const probe = new Rng(this.scene.seed ^ 0x9e3779b9)
     const ctx = { ...this.ctx(), random: () => probe.next(), normal: () => normalDraw(() => probe.next()) }
-    let values: Record<string, unknown>
+    const out: StateField[] = []
     try {
       if (ctrl.initAll) {
-        const out = ctrl.initAll({ count: 1, probe: true }, this.params, ctx) as Record<string, ArrayLike<unknown>> | undefined
-        values = Object.fromEntries(Object.entries(out ?? {}).map(([k, v]) => [k, v && typeof v === 'object' ? (v as { data?: ArrayLike<unknown> }).data?.[0] ?? v[0] : v]))
-      } else values = initResult(ctrl.init!({ index: 0, count: 1, x: 0, y: 0, z: 0, at: new Vec3(0, 0, 0) }, this.params, ctx))
+        for (const [name, col] of Object.entries((ctrl.initAll({ count: 1, probe: true }, this.params, ctx) ?? {}) as Record<string, unknown>)) {
+          const data = col instanceof Field ? col.data : (col as ArrayLike<unknown>)
+          const f = data && typeof data === 'object' ? fieldOfColumn(name, data) : null
+          if (f) out.push(f)
+        }
+      } else {
+        for (const [name, v] of Object.entries(initResult(ctrl.init!({ index: 0, count: 1, x: 0, y: 0, z: 0, at: new Vec3(0, 0, 0) }, this.params, ctx)))) {
+          const f = fieldOfValue(name, v)
+          if (f) out.push(f)
+        }
+      }
     } catch {
-      return null
+      return []
     }
-    const out: Record<string, StateDef> = {}
-    for (const [k, v] of Object.entries(values)) { const d = stateDefOf(v); if (d !== null) out[k] = d }
-    void def
-    return Object.keys(out).length ? out : null
+    return out
   }
 
-  /** Every set's state fields as the worlds see them, as text: it changes when a script's `init` starts returning different fields. */
+  /** Every set's state fields as text: it changes when a script's `init` starts returning different fields. */
   stateShape(): string {
-    return JSON.stringify(this.hosts.map((h) => h.def.state ?? {}))
+    return JSON.stringify(this.hosts.map((h) => h.fields))
   }
 
   /** The first entity set's table (the only one in most scenes). */
@@ -272,7 +277,7 @@ export class Sim {
     const def = this.scene.entities[set]
     const table = this.worlds[set]?.table
     if (!def || !table || row < 0 || row >= table.size) return null
-    const kinds = Object.fromEntries(stateFields(def.state).map((f) => [f.name, f]))
+    const kinds = Object.fromEntries(this.hosts[set].fields.map((f) => [f.name, f]))
     const fields: Inspected['fields'] = {}
     for (const k of Object.keys(table.schema)) {
       const stride = table.strides[k], col = table.cols[k] as unknown as ArrayLike<number | string>
@@ -290,7 +295,7 @@ export class Sim {
     if (!def || !table || row < 0 || row >= table.size) throw new Error('no such entity')
     if (def.body) throw new Error('creatures cannot be edited yet: their pose lives in the physics engine')
     if (!(field in table.schema)) throw new Error(`there is no field "${field}"`)
-    const f = stateFields(def.state).find((x) => x.name === field)
+    const f = this.hosts[set].fields.find((x) => x.name === field)
     const col = table.cols[field] as unknown as (number | string)[]
     const at = row * table.strides[field] + index
     if (f?.kind === 'string') col[at] = String(value)

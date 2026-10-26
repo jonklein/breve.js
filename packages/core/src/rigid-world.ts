@@ -6,7 +6,7 @@ import { Terrain } from './terrain'
 import { Nums, Vec3, Vecs } from '@breve/stdlib'
 import type { Articulation, PhysicsEngine, PhysicsWorld } from './physics/types'
 import type { RigidFrame } from './rigid-frame'
-import { actOf, type FrameData, type Host, type MetricInput, type World } from './world'
+import { type FrameData, type Host, type MetricInput, type World } from './world'
 
 const SCHEMA = {
   px: 'f32', py: 'f32', pz: 'f32',
@@ -246,7 +246,7 @@ export class RigidWorld implements World {
     // act: a script may set any motor target by joint name; the rest follow the oscillator
     this.targets.set(this.gait)
     const ctrl = this.host.controller()
-    const act = actOf(ctrl)
+    const act = ctrl?.act
     if (act) {
       const ctx = this.host.ctx()
       const none = new Creatures()
@@ -404,7 +404,7 @@ export class RigidWorld implements World {
         terrain: { size: t.size, n: t.n, heights: t.heights.slice(), color: t.color, texture: t.texture },
       }
     }
-    return { kind: 'bodies', count: n, size: this.terrain.size / 2, unit: 1, pos, vel, attr: null, rigid }
+    return { kind: 'bodies', count: n, size: this.terrain.size / 2, unit: 1, pos, vel, rigid }
   }
 
   metricInput(): MetricInput {

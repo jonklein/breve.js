@@ -4,7 +4,7 @@ import type { Relations } from './relations'
 import type { Colors, Mlp } from '@breve/stdlib'
 import type { Look } from './display'
 import type { Rng } from './rng'
-import type { EntityDef, Params, Scene } from './scene'
+import type { EntityDef, Params, Scene, StateField } from './scene'
 import type { Table } from './store'
 import type { Vec3 } from '@breve/stdlib'
 import type { Agents } from '@breve/stdlib'
@@ -74,12 +74,8 @@ export interface ThinkCtx extends Ctx {
   ask(prompt: string, options?: AskOptions): Promise<string>
 }
 
-/** The every-tick rule of a controller, under its current name or either old one. */
-export const actOf = (c: Controller | undefined): Controller['act'] => c?.act ?? c?.decide
-/** The whole-set form of the every-tick rule, under its current name or either old one. */
-export const actAllOf = (c: Controller | undefined): Controller['actAll'] => c?.actAll ?? c?.decideAll ?? c?.update
 /** Names that make an exported object a controller. */
-export const HOOKS = ['act', 'actAll', 'decide', 'decideAll', 'update', 'init'] as const
+export const HOOKS = ['init', 'initAll', 'act', 'actAll', 'think', 'thinkAll', 'display', 'displayAll'] as const
 
 export interface Controller {
   spec?: {
@@ -100,9 +96,6 @@ export interface Controller {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   actAll?(fields: any, params: Params, ctx: Ctx): unknown
-  /** Old names for `actAll`; they still work. */
-  decideAll?(fields: any, params: Params, ctx: Ctx): unknown
-  update?(fields: any, params: Params, ctx: Ctx): unknown
   /**
    * Called once for each new entity as it is created: `init({ index, count }, params, ctx)` returns what it starts as. The plain
    * keys are its state (`return { alive: 1, age: 0 }`), and a field that `init` returns exists, with its kind and length taken
@@ -119,14 +112,14 @@ export interface Controller {
   /**
    * A slow, asynchronous step for each entity, every `think.every` ticks: look around, maybe ask a language model
    * (`await ctx.ask('...')`), and return what it decided as state: `return { goal: 'go east' }` writes the field `goal` (one that
-   * `init` returns), and the fast `act` reads it as `self.goal`. A result that is not state is kept as `self.decision`, the older way.
+   * `init` returns), and the fast `act` reads it as `self.goal`. A result that is not state (or names a field `init` does not return) is an error.
    * Every answer is logged with the tick it took effect, so a run can be replayed without asking again.
    */
   think?(obs: { self: any; neighbors: any }, params: Params, ctx: ThinkCtx): Promise<unknown>
   /**
    * Like `think`, but one call for every entity of the set that is due, so a model can run them as one batch
    * (`ctx.model('policy').runBatch(...)`). Return one decision per entity, in the same order. Each decision is logged and
-   * read as `self.decision` exactly like `think`'s, so replaying a log needs neither the model nor its runtime.
+   * written to state exactly like `think`'s, so replaying a log needs neither the model nor its runtime.
    */
   thinkAll?(obs: { self: any; neighbors: any }[], params: Params, ctx: ThinkCtx): Promise<unknown[]>
   /**
@@ -136,8 +129,6 @@ export interface Controller {
   onLeave?(obs: { self: any }, params: Params, ctx: Ctx): void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   act?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
-  /** Old name for `act`; it still works. */
-  decide?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
   /**
    * How one entity looks: `display({ self }, params, ctx)` returns `{ color, visible }`, for example
    * `{ visible: self.alive, color: ctx.colors.ramp(['#4f86f7', '#7be495'], self.age / 20) }`. It only reads state, never changes
@@ -182,6 +173,8 @@ export interface ScriptModule {
 
 /** What the sim shares with the kind of world it contains. */
 export interface Host {
+  /** The set's state fields: what its script's `init` returns. */
+  fields: StateField[]
   scene: Scene
   params: Params
   rng: Rng
@@ -204,8 +197,8 @@ export interface Host {
 
 /** Everything a renderer needs for one frame, as transferable buffers. */
 export interface FrameData {
-  /** Red, green and blue (0 to 255) per agent or node, from the script's `display`. */
-  colors?: Uint8Array
+  /** The look of each agent or node, from the script's `display` (null entries mean the script said nothing). */
+  look?: { rgb: Uint8Array | null; visible: Uint8Array | null; alpha: Uint8Array | null; scale: Float32Array | null }
   /** The entity set this frame draws, and its color override. */
   name?: string
   color?: string
@@ -222,15 +215,10 @@ export interface FrameData {
   pos: Float32Array
   /** xyz heading per thing (agents only). */
   vel: Float32Array | null
-  /**
-   * 0..1 tint per thing (lattices with a `color` field only). For lattices this holds one value per
-   * cell, indexed like `lattice.show`, not one per drawn thing.
-   */
-  attr: Float32Array | null
   /** Lattices send every cell (1 = drawn), so the renderer can animate cells coming and going. */
-  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; palette?: string[]; thickness?: number; /** red, green, blue (0 to 255) per cell, from `display` */ rgb?: Uint8Array }
+  lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; thickness?: number; /** from `display`: red, green, blue (0 to 255), opacity (0 to 255) and a size multiplier per cell */ rgb?: Uint8Array; alpha?: Uint8Array; sizes?: Float32Array }
   /** Networks (`kind: 'graph'`): the links as pairs of node numbers (redrawn when `version` changes), and how to color and size nodes. `pos` holds the layout. */
-  graph?: { edges: Uint32Array; version: number; palette?: string[]; nodeSize: number }
+  graph?: { edges: Uint32Array; version: number; nodeSize: number }
   /** Physics bodies (`kind: 'bodies'`): one pose per part, plus the terrain on the first frame. */
   rigid?: RigidFrame
 }

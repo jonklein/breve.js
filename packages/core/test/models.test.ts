@@ -31,7 +31,8 @@ const script: ScriptModule = {
       const out = await ctx.model('policy').runBatch(obs.map(({ self }) => [self.x / 20, self.z / 20]))
       return out.map(([dx, dz]) => ({ dx, dz }))
     },
-    act: ({ self }) => { const d = self.decision as { dx: number; dz: number } | undefined; return d ? { steer: [d.dx * 10, 0, d.dz * 10] } : {} },
+    init: () => ({ dx: 0, dz: 0 }),
+    act: ({ self }) => ({ steer: [self.dx * 10, 0, self.dz * 10] }),
   },
 }
 
@@ -61,11 +62,11 @@ test('a missing model, a wrong width and a wrong count of answers are each repor
   const none = new Sim(scene(), script)
   await none.think()
   assert.match(none.takeErrors().join(), /no model called "policy" is loaded \(the scene declares: policy/)
-  const wide = new Sim(scene(), { default: { thinkAll: async (obs, _p, ctx) => (await ctx.model('policy').runBatch(obs.map(() => [1, 2, 3]))).map(() => 0) } })
+  const wide = new Sim(scene(), { default: { init: () => ({ dx: 0 }), thinkAll: async (obs, _p, ctx) => (await ctx.model('policy').runBatch(obs.map(() => [1, 2, 3]))).map(() => ({ dx: 0 })) } })
   wide.models.policy = fake([])
   await wide.think()
   assert.match(wide.takeErrors().join(), /takes 2 numbers per observation, got 3/)
-  const short = new Sim(scene(), { default: { thinkAll: async () => [1] } })
+  const short = new Sim(scene(), { default: { init: () => ({ dx: 0 }), thinkAll: async () => [{ dx: 1 }] } })
   await short.think()
   assert.match(short.takeErrors().join(), /one decision per entity \(6\), got 1/)
 })
@@ -84,7 +85,7 @@ test('only sets that asked a language model are flagged, and a very long decisio
   s.models.policy = fake([])
   await s.think()
   assert.deepEqual(s.nondeterministic(), [], 'a CPU model alone does not make a run unrepeatable')
-  const talker = new Sim(scene(), { default: { think: async (_o, _p, ctx) => ctx.ask('hi').catch(() => 0) } })
+  const talker = new Sim(scene(), { default: { init: () => ({ ok: 0 }), think: async (_o, _p, ctx) => ctx.ask('hi').then(() => ({ ok: 1 }), () => ({ ok: 0 })) } })
   await talker.think()
   assert.deepEqual(talker.nondeterministic(), ['a'])
   talker.replay([])

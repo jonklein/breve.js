@@ -14,11 +14,9 @@ const scene = () => {
 // a controller that asks a "model" where to go; the model's answer steers the agent until the next answer
 const script: ScriptModule = {
   default: {
+    init: () => ({ dx: 0, dz: 0 }),
     think: async ({ self }, _p, ctx) => JSON.parse(await ctx.ask(`you are agent ${self.row} at ${self.x.toFixed(1)}, ${self.z.toFixed(1)}: where to?`, { json: true })),
-    act: ({ self }) => {
-      const d = self.decision as { dx: number; dz: number } | undefined
-      return d ? { steer: [d.dx * 10, 0, d.dz * 10] } : {}
-    },
+    act: ({ self }) => ({ steer: [self.dx * 10, 0, self.dz * 10] }),
   },
 }
 
@@ -117,7 +115,7 @@ test('a think that returns state writes those fields, and act reads them as self
   await s.think()
   const c = s.worlds[0].table.cols as unknown as Record<string, Float64Array>
   assert.deepEqual([c.dx[0], c.dz[0]], [1, -1])
-  assert.equal(s.decisionLog.length, 5, 'still logged, with the same shape as before')
+  assert.equal(s.decisionLog.length, 5, 'still logged')
   s.step()
   assert.ok(c.vx[0] !== 0, 'act used it')
   assert.equal(s.takeErrors().length, 0, s.takeErrors().join('\n'))
@@ -126,8 +124,8 @@ test('a think that returns state writes those fields, and act reads them as self
   again.replay(s.decisionLog)
   await again.think(); again.step()
   assert.equal(again.hash(), s.hash())
-  // an answer that is not state is kept as self.decision, as before
-  const legacy = new Sim(scene(), { default: { think: async () => ({ other: 1 }), act: ({ self }: { self: { decision: unknown } }) => (self.decision ? {} : {}) } })
-  await legacy.think()
-  assert.equal(legacy.takeErrors().length, 0)
+  // an answer that is not state is an error, with a hint
+  const bad = new Sim(scene(), { default: { init: () => ({ dx: 0 }), think: async () => 'north', act: () => ({}) } })
+  await bad.think()
+  assert.match(bad.takeErrors().join('\n'), /think must return state/)
 })

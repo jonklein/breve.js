@@ -26,20 +26,22 @@ test('mlp: counts weights, checks sizes, and computes a known case', () => {
 })
 
 test('state types are inferred from what a field starts as', async () => {
-  const { stateFields, Sim, parseScene } = await import('../src/index')
-  const f = Object.fromEntries(stateFields({ energy: 10, hungry: false, mood: 'calm', n: 'int', w: { length: 3, init: 1 }, label: { type: 'string', init: 'x' } }).map((x) => [x.name, x]))
+  const { fieldOfValue, Sim, parseScene } = await import('../src/index')
+  const f = Object.fromEntries(Object.entries({ energy: 10, hungry: false, mood: 'calm', w: [1, 1, 1], b: new Float32Array(4) }).map(([k, v]) => [k, fieldOfValue(k, v)!]))
   assert.deepEqual([f.energy.kind, f.energy.type], ['number', 'f64'])
   assert.equal(f.hungry.kind, 'boolean')
-  assert.deepEqual([f.mood.kind, f.mood.init], ['string', 'calm'])
-  assert.equal(f.n.type, 'i32')
+  assert.equal(f.mood.kind, 'string')
   assert.deepEqual([f.w.kind, f.w.array, f.w.length], ['number', true, 3])
-  assert.equal(f.label.kind, 'string')
+  assert.deepEqual([f.b.type, f.b.length], ['f32', 4])
 
-  const r = parseScene(JSON.stringify({ seed: 1, params: {}, bounds: { size: 5 }, entities: [{ name: 'a', count: 3, state: { energy: 10, hungry: false, mood: 'calm' } }], metrics: [] }))
+  const r = parseScene(JSON.stringify({ seed: 1, params: {}, bounds: { size: 5 }, entities: [{ name: 'a', count: 3 }], metrics: [] }))
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
   const seen: unknown[] = []
   const sim = new Sim(r.ok ? r.scene : (null as never), {
-    default: { act: ({ self }) => { seen.push([self.energy, self.hungry, self.mood]); return { state: { energy: self.energy - 1, hungry: true, mood: 'tense' } } } },
+    default: {
+      init: () => ({ energy: 10, hungry: false, mood: 'calm' }),
+      act: ({ self }) => { seen.push([self.energy, self.hungry, self.mood]); return { state: { energy: self.energy - 1, hungry: true, mood: 'tense' } } },
+    },
   })
   sim.step(); sim.step()
   assert.deepEqual(seen[0], [10, false, 'calm'])

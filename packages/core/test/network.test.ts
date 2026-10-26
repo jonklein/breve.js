@@ -70,12 +70,13 @@ test('network runs are repeatable and can be forked and snapshotted', async () =
 
 test('exchange moves things between linked nodes whole or not at all, and never overdraws', () => {
   const r = parseScene(JSON.stringify({
-    seed: 3, params: {}, entities: [{ name: 'p', count: 2, network: { topology: 'edges', edges: [[0, 1]], layout: 'circle' }, state: { cash: 10, goods: 0 } }], metrics: [],
+    seed: 3, params: {}, entities: [{ name: 'p', count: 2, network: { topology: 'edges', edges: [[0, 1]], layout: 'circle' } }], metrics: [],
   }))
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
   const sim = new Sim(r.ok ? r.scene : (null as never), {
     default: {
       // node 0 buys goods from node 1 at 4 cash each, but node 1 has none; then node 1 buys from 0 (also none)
+      init: () => ({ cash: 10, goods: 0 }),
       act: ({ self, neighbors }) => (self.row === 0 ? { exchange: [{ with: neighbors[0], give: { cash: 4 }, get: { goods: 1 } }] } : {}),
     },
   })

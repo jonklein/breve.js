@@ -5,7 +5,7 @@ import { Sim, parseScene, type ScriptModule } from '../src/index'
 const scene = (topology: string, n: number) => {
   const r = parseScene(JSON.stringify({
     seed: 3, params: {}, bounds: { size: 10 },
-    entities: [{ name: 'n', count: n, network: { topology, degree: 4, layout: 'circle' }, state: { heat: 0 }, fill: [{ field: 'heat', count: 1, value: 100 }] }],
+    entities: [{ name: 'n', count: n, network: { topology, degree: 4, layout: 'circle' } }],
     metrics: [],
   }))
   assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
@@ -13,8 +13,9 @@ const scene = (topology: string, n: number) => {
 }
 
 // one rule, written two ways: each node moves a quarter of the way toward its neighbors' average
-const perNode: ScriptModule = { default: { act: ({ self, neighbors }) => ({ heat: self.heat + 0.25 * (neighbors.heat.average() - self.heat) }) } }
-const wholeNetwork: ScriptModule = { default: { actAll: ({ heat }) => ({ heat: heat.zip(heat.neighborAverage(), (h: number, avg: number) => h + 0.25 * (avg - h)) }) } }
+const init = ({ index }: { index: number }) => ({ heat: index === 0 ? 100 : 0 }) // one hot node
+const perNode: ScriptModule = { default: { init, act: ({ self, neighbors }) => ({ heat: self.heat + 0.25 * (neighbors.heat.average() - self.heat) }) } }
+const wholeNetwork: ScriptModule = { default: { init, actAll: ({ heat }) => ({ heat: heat.zip(heat.neighborAverage(), (h: number, avg: number) => h + 0.25 * (avg - h)) }) } }
 
 test('a whole-network update gives the same result as the same rule written per node', () => {
   const heat = (s: Sim) => Array.from(s.worlds[0].table.cols.heat as Float64Array).slice(0, 12)
@@ -27,33 +28,12 @@ test('a whole-network update gives the same result as the same rule written per 
 })
 
 test('whole-network fields cope with hubs: a complete graph of 300 nodes has 299 neighbors each', () => {
-  const sim = new Sim(scene('complete', 300), { default: { actAll: ({ heat }) => ({ heat: heat.neighborSum() }) } })
+  const sim = new Sim(scene('complete', 300), { default: { init, actAll: ({ heat }) => ({ heat: heat.neighborSum() }) } })
   sim.step()
   assert.equal(sim.takeErrors().length, 0)
   const h = sim.worlds[0].table.cols.heat as Float64Array
-  // the one hot node (picked by the seed) has only cold neighbors; everyone else sums to its 100
+  // the one hot node has only cold neighbors; everyone else sums to its 100
   const values = Array.from(h).slice(0, 300)
   assert.equal(values.filter((v) => v === 0).length, 1)
   assert.equal(values.filter((v) => v === 100).length, 299)
-})
-
-test('the old names still work: update and decideAll for actAll, decide for act; the new name wins when both are given', () => {
-  const rule = (name: string) => ({ [name]: ({ heat }: Record<string, any>) => ({ heat: heat.add(1) }) })
-  const reference = new Sim(scene('ring', 8), { default: rule('actAll') })
-  reference.step()
-  for (const old of ['update', 'decideAll']) {
-    const s = new Sim(scene('ring', 8), { default: rule(old) })
-    s.step()
-    assert.equal(s.hash(), reference.hash(), old)
-  }
-  const both = new Sim(scene('ring', 8), { default: { update: ({ heat }: Record<string, any>) => ({ heat: heat.add(100) }), actAll: ({ heat }: Record<string, any>) => ({ heat: heat.add(1) }) } })
-  both.step()
-  assert.equal(both.hash(), reference.hash())
-
-  // per-entity: decide is the old name of act
-  const per = (name: string) => ({ [name]: ({ self, neighbors }: Record<string, any>) => ({ heat: self.heat + 1 + neighbors.heat.sum() * 0 }) })
-  const a = new Sim(scene('ring', 8), { default: per('act') }), b = new Sim(scene('ring', 8), { default: per('decide') })
-  a.step(); b.step()
-  assert.equal(a.hash(), b.hash())
-  assert.equal(a.takeErrors().length + b.takeErrors().length, 0)
 })

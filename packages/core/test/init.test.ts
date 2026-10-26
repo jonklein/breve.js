@@ -4,7 +4,7 @@ import { Sim, parseScene, type ScriptModule } from '../src/index'
 
 const parse = (o: object) => { const r = parseScene(JSON.stringify(o)); assert.ok(r.ok, r.ok ? '' : r.errors.join('\n')); return r.ok ? r.scene : (null as never) }
 
-const lattice = (extra: object = {}) => parse({ seed: 5, params: { density: { value: 0.3, min: 0, max: 1 } }, bounds: { size: 10 }, entities: [{ name: 'cell', lattice: { size: [12, 12, 1], show: 'alive' }, controller: 'x.js', ...extra }], metrics: [] })
+const lattice = (extra: object = {}) => parse({ seed: 5, params: { density: { value: 0.3, min: 0, max: 1 } }, bounds: { size: 10 }, entities: [{ name: 'cell', lattice: { size: [12, 12, 1] }, controller: 'x.js', ...extra }], metrics: [] })
 
 test('a lattice needs no "state" block: the fields are what init returns, and init says how each cell starts', () => {
   const script: ScriptModule = { default: {
@@ -26,15 +26,15 @@ test('a lattice needs no "state" block: the fields are what init returns, and in
   assert.equal(new Sim(lattice(), script).hash(), new Sim(lattice(), script).hash())
 })
 
-test('initAll starts every cell at once; the scene may still give a field a type to save memory', () => {
+test('initAll starts every cell at once; the kind of array it returns sets how the field is stored', () => {
   const script: ScriptModule = { default: {
-    initAll: ({ count }, p, ctx) => ({ alive: Float32Array.from({ length: count }, () => (ctx.random() < p.density ? 1 : 0)), age: new Float32Array(count) }),
+    initAll: ({ count }, p, ctx) => ({ alive: Uint8Array.from({ length: count }, () => (ctx.random() < p.density ? 1 : 0)), age: new Float32Array(count) }),
     actAll: ({ alive, age }) => ({ alive, age: age.add(1) }),
   } }
-  const sim = new Sim(lattice({ state: { alive: 'u8' } }), script)
+  const sim = new Sim(lattice(), script)
   const cols = sim.worlds[0].table.cols as unknown as Record<string, ArrayLike<number>>
-  assert.equal(cols.alive.constructor.name, 'Uint8Array', 'the scene\'s type word wins')
-  assert.equal(cols.age.constructor.name, 'Float64Array', 'and an inferred number is a plain number')
+  assert.equal(cols.alive.constructor.name, 'Uint8Array', 'a Uint8Array is stored as bytes')
+  assert.equal(cols.age.constructor.name, 'Float32Array')
   assert.ok(Array.from(cols.alive).some((v) => v === 1))
   sim.step()
   assert.equal(cols.age[3], 1)
@@ -59,7 +59,7 @@ test('init works for networks and free agents too (agents may also set position 
 })
 
 test('init does not use up the run\'s own random numbers, and unknown fields are reported once', () => {
-  const noInit = new Sim(lattice({ state: { alive: 0 } }), { default: { act: () => ({}) } })
+  const noInit = new Sim(lattice(), { default: { init: () => ({ alive: 0 }), act: () => ({}) } })
   const withInit = new Sim(lattice(), { default: { init: (_o, _p, ctx) => ({ alive: ctx.random() < 0.3 ? 1 : 0 }), act: () => ({}) } })
   void noInit
   // both start from the same generator state: only what init itself draws differs
@@ -67,7 +67,7 @@ test('init does not use up the run\'s own random numbers, and unknown fields are
   assert.equal(probe.takeErrors().length, 0)
   assert.ok(withInit.rng.getState() !== noInit.rng.getState())
 
-  const bad = new Sim(lattice({ state: { alive: 0 } }), { default: { init: () => ({ alive: 1, ghost: 3 }), act: () => ({}) } })
+  const bad = new Sim(lattice(), { default: { init: () => ({ alive: 1, ghost: 3 }), act: () => ({}) } })
   // "ghost" is inferred from init, so it is not an error: it is a field
   assert.equal(bad.takeErrors().length, 0)
   assert.ok('ghost' in bad.worlds[0].table.cols)

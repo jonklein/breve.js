@@ -18,7 +18,6 @@ function small(scene: Scene, n = 5): Scene {
   const s = structuredClone(scene)
   s.entities[0].lattice!.size = [n, n, n]
   s.entities[0].lattice!.edges = 'dead'
-  s.entities[0].state = { alive: 0, age: 0 } // scripts in these tests may not have an init
   return s
 }
 
@@ -87,7 +86,7 @@ test('cells that keep surviving get older, and a newborn starts at age 0', async
 
 test('writing to a cell inside act() explains what to do instead', async () => {
   const { scene } = await load()
-  const bad: ScriptModule = { default: { act({ self }: { self: { alive: number } }) { self.alive = 1 } } }
+  const bad: ScriptModule = { default: { init: () => ({ alive: 0, age: 0 }), act({ self }: { self: { alive: number } }) { self.alive = 1 } } }
   const s = new Sim(small(scene), bad)
   s.step()
   assert.match(s.takeErrors()[0], /read-only inside act\(\)/)
@@ -106,19 +105,13 @@ test('wrap makes edge cells neighbors of the opposite edge', async () => {
   assert.equal(seen, 7)
 })
 
-test('a lattice scene needs a valid show field', async () => {
+test('the removed scene fields say where they went', async () => {
   const { scene } = await load()
-  const bad = structuredClone(scene)
-  bad.entities[0].lattice!.show = 'missing'
-  bad.entities[0].state = { alive: 0, age: 0 } // declared in the scene, so the scene can check it
+  const bad = structuredClone(scene) as any
+  bad.entities[0].lattice.show = 'alive'
   const r = parseScene(JSON.stringify(bad))
   assert.equal(r.ok, false)
-  assert.match(r.ok ? '' : r.errors.join('\n'), /"missing" is not a state field/)
-  // with no state block the fields come from init, so the check happens when the sim is built
-  const late = structuredClone(scene)
-  late.entities[0].lattice!.show = 'missing'
-  const s = new Sim(late, { default: { init: () => ({ alive: 0, age: 0 }), act: () => ({}) } })
-  assert.match(s.takeErrors().join('\n'), /lattice.show: "missing" is not a state field of "cell" \(it has: alive, age\)/)
+  assert.match(r.ok ? '' : r.errors.join('\n'), /"show" is gone/)
   const none = new Sim(scene, { default: { act: () => ({}) } })
-  assert.match(none.takeErrors().join('\n'), /"cell" has no state: a lattice needs "state" in the scene, or an init that returns fields/)
+  assert.match(none.takeErrors().join('\n'), /"cell" has no state/)
 })

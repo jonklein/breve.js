@@ -118,8 +118,7 @@ test('scene-level terrain and physics are validated too', () => {
 
 test('a lattice cannot have a body', () => {
   const s = example()
-  s.entities[0].lattice = { size: [3, 3, 3], show: 'a' }
-  s.entities[0].state = { a: 'u8' }
+  s.entities[0].lattice = { size: [3, 3, 3] }
   delete s.entities[0].count
   const r = parseScene(JSON.stringify(s))
   assert.equal(r.ok, false)

@@ -1,11 +1,11 @@
-import { looksOfAll, looksOf } from './display'
+import { looksOfAll, looksOf, type Looks } from './display'
 import { initResult } from './init-shape'
 import { Field, Nums, type NeighborTable } from '@breve/stdlib'
 import { adjacency, makeEdges, type Adjacency, type Edges } from './graph'
 import { layoutNodes } from './layout'
-import { fillList, resolve, stateFields, type Params, type StateField } from './scene'
+import { resolve, type Params, type StateField } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
-import { actAllOf, actOf, type Ctx, type FrameData, type Host, type MetricInput, type World } from './world'
+import { type Ctx, type FrameData, type Host, type MetricInput, type World } from './world'
 
 const LAYOUT = { px: 'f32', py: 'f32', pz: 'f32' } as const
 const RESERVED = new Set(['exchange', 'px', 'py', 'pz'])
@@ -46,7 +46,7 @@ export class NetworkWorld implements World {
     const def = host.def
     const net = def.network!
     this.n = Math.max(0, Math.min(100000, Math.round(resolve(def.count, host.params, 0))))
-    this.fields = stateFields(def.state)
+    this.fields = host.fields
     for (const f of this.fields) {
       if (RESERVED.has(f.name)) throw new Error(`"${f.name}" cannot be a state field of a network (it is a reserved name)`)
       this.fieldOf[f.name] = f
@@ -70,25 +70,7 @@ export class NetworkWorld implements World {
     const { Node, Nodes } = this.makeTypes()
     this.Node = Node
     this.Nodes = Nodes
-    for (let r = 0; r < this.n; r++) this.initState(r)
-    if (!from) { this.applyInit(); this.fill() }
-  }
-
-  private initState(r: number): void {
-    const rng = this.host.rng
-    for (const f of this.fields) {
-      const col = this.table.cols[f.name]
-      const init = f.init
-      if (init === undefined) continue
-      for (let k = 0; k < f.length; k++) {
-        const i = r * f.length + k
-        if (typeof init === 'number') col[i] = init
-        else if (typeof init === 'boolean') col[i] = init ? 1 : 0
-        else if (typeof init === 'string') (col as unknown as string[])[i] = init
-        else if ('normal' in init) col[i] = init.normal * Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next())
-        else col[i] = rng.range(init.uniform[0], init.uniform[1])
-      }
-    }
+    if (!from) this.applyInit()
   }
 
   /** Run the script's `init` (a node at a time) or `initAll` (every node at once): they say what the nodes start as. */
@@ -99,7 +81,7 @@ export class NetworkWorld implements World {
     const unknown = new Set<string>()
     const field = (name: string): StateField | undefined => {
       const f = this.fieldOf[name]
-      if (!f && !unknown.has(name)) { unknown.add(name); this.host.fail('init', new Error(`state "${name}" does not exist: a set's state is what its init returns (or the scene's "state")`)) }
+      if (!f && !unknown.has(name)) { unknown.add(name); this.host.fail('init', new Error(`state "${name}" does not exist: a set's state is what its init returns `)) }
       return f
     }
     try {
@@ -121,26 +103,6 @@ export class NetworkWorld implements World {
       }
     } catch (e) {
       this.host.fail('init', e)
-    }
-  }
-
-  /** Starting values: a share of the nodes (`density`) or an exact number of them (`count`). */
-  private fill(): void {
-    for (const f of fillList(this.host.def.fill)) {
-      const col = this.table.cols[f.field]
-      const value = f.value ?? 1
-      if (f.count !== undefined) {
-        // pick exactly `count` distinct nodes: a partial shuffle driven by the seed
-        const order = Array.from({ length: this.n }, (_, i) => i)
-        for (let i = 0; i < Math.min(f.count, this.n); i++) {
-          const j = i + Math.floor(this.host.rng.next() * (this.n - i))
-          ;[order[i], order[j]] = [order[j], order[i]]
-          col[order[i]] = value
-        }
-      } else {
-        const density = resolve(f.density, this.host.params, 1)
-        for (let r = 0; r < this.n; r++) if (density >= 1 || this.host.rng.next() < density) col[r] = value
-      }
     }
   }
 
@@ -244,9 +206,9 @@ export class NetworkWorld implements World {
 
   step(): void {
     const ctrl = this.host.controller()
-    const all = actAllOf(ctrl)
+    const all = ctrl?.actAll
     if (all) return this.stepFields(all)
-    const act = actOf(ctrl)
+    const act = ctrl?.act
     if (!act) return
     const ctx = this.host.ctx()
     const { params } = this.host
@@ -307,14 +269,15 @@ export class NetworkWorld implements World {
   }
 
   /** Node colors from the script's `displayAll` (every node at once) or `display` (one at a time), or null. */
-  private look(): Uint8Array | null {
+  private look(): Looks {
+    const none: Looks = { rgb: null, visible: null, alpha: null, scale: null }
     const ctrl = this.host.controller()
     const fail = (e: unknown) => this.host.fail('display', e)
     if (ctrl?.displayAll) {
-      try { return looksOfAll(this.n, ctrl.displayAll(this.fieldsOf(), this.host.params, this.host.ctx()), fail).rgb } catch (e) { fail(e); return null }
+      try { return looksOfAll(this.n, ctrl.displayAll(this.fieldsOf(), this.host.params, this.host.ctx()), fail) } catch (e) { fail(e); return none }
     }
     const display = ctrl?.display
-    return display ? looksOf(this.n, (i) => display({ self: this.handles[i] }, this.host.params, this.host.ctx()), fail).rgb : null
+    return display ? looksOf(this.n, (i) => display({ self: this.handles[i] }, this.host.params, this.host.ctx()), fail) : none
   }
 
   /** Every single-number state field as a `Field` that follows the links (what `actAll` and `displayAll` are given). */
@@ -327,13 +290,9 @@ export class NetworkWorld implements World {
 
   frame(): FrameData {
     const net = this.host.def.network!
-    const tint = net.color ? this.table.cols[net.color] : null
-    const max = net.colorMax ?? 1
-    const attr = tint ? new Float32Array(this.n) : null
-    if (attr && tint) for (let r = 0; r < this.n; r++) attr[r] = Math.min(1, Math.max(0, tint[r] / max))
     const edges = new Uint32Array(this.edges.length * 2)
     this.edges.forEach(([a, b], i) => { edges[i * 2] = a; edges[i * 2 + 1] = b })
-    const colors = this.look()
+    const look = this.look()
     return {
       kind: 'graph',
       count: this.n,
@@ -341,9 +300,8 @@ export class NetworkWorld implements World {
       unit: 1,
       pos: this.layout.slice(),
       vel: null,
-      attr,
-      ...(colors ? { colors } : {}),
-      graph: { edges, version: this.version, palette: net.palette, nodeSize: net.size ?? 1 },
+      look,
+      graph: { edges, version: this.version, nodeSize: net.size ?? 1 },
     }
   }
 

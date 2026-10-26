@@ -2,9 +2,9 @@ import { Picture } from './image'
 import { Agent, type AgentCols } from './agents'
 import { looksOf } from './display'
 import { initResult } from './init-shape'
-import { actOf, type Controller } from './world'
+import type { Controller } from './world'
 import { Agents } from '@breve/stdlib'
-import { resolve, stateFields } from './scene'
+import { resolve, type StateField } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
 import { Nums, toVec } from '@breve/stdlib'
 import { spawnPosition } from './spawn'
@@ -29,7 +29,7 @@ const DEFAULT_BOUNDS = { size: 30, mode: 'soft' as const }
 export class AgentWorld implements World {
   readonly table: Table<string>
   private handles: Agent[] = []
-  private extra: ReturnType<typeof stateFields>
+  private extra: StateField[]
   private AgentClass: new (cols: AgentCols, row: number) => Agent
   /** Groups of these agents, with a list for every declared state field (`neighbors.energy.average()`). */
   private GroupClass: new (origin: Agent | null) => Agents
@@ -44,7 +44,7 @@ export class AgentWorld implements World {
   private builtAt = 0
 
   constructor(private host: Host) {
-    this.extra = stateFields(host.def.state)
+    this.extra = host.fields
     const schema: Record<string, ColumnType> = { ...SCHEMA }
     const strides: Record<string, number> = {}
     for (const f of this.extra) { schema[f.name] = f.type as ColumnType; strides[f.name] = f.length }
@@ -81,7 +81,6 @@ export class AgentWorld implements World {
     c.vz[r] = Math.sin(th) * s * sp
     c.out[r] = 0
     for (const f of this.extra) this.table.cols[f.name].fill((f.kind === 'string' ? '' : 0) as never, r * f.length, (r + 1) * f.length)
-    this.initState(r)
     this.placeNew(r, count)
   }
 
@@ -105,10 +104,8 @@ export class AgentWorld implements World {
     const table = this.table
     const world = this
     class Stateful extends Agent {
-      /** What the controller's last `think` decided for this agent (anything JSON), or undefined before the first. */
       /** This agent's id: what relations store (`ctx.relations.get('follows').add(self.id, other.id)`). */
       get id(): number { return table.idAt(this.row) }
-      get decision(): unknown { return world.decisions.get(table.idAt(this.row)) }
       /** True while beyond the set's `fence`. */
       get outside(): boolean { return table.cols.out[this.row] !== 0 }
       /** Put it back at its starting place and state. Happens at the end of the tick. */
@@ -204,23 +201,6 @@ export class AgentWorld implements World {
     }
   }
 
-  private initState(r: number): void {
-    const rng = this.host.rng
-    for (const f of this.extra) {
-      const col = this.table.cols[f.name]
-      const init = f.init
-      if (init === undefined) continue
-      for (let k = 0; k < f.length; k++) {
-        const i = r * f.length + k
-        if (typeof init === 'number') col[i] = init
-        else if (typeof init === 'boolean') col[i] = init ? 1 : 0
-        else if (typeof init === 'string') (col as unknown as string[])[i] = init
-        else if ('normal' in init) col[i] = init.normal * Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next())
-        else col[i] = rng.range(init.uniform[0], init.uniform[1])
-      }
-    }
-  }
-
   step(): void {
     const { scene, params: p } = this.host
     const def = this.host.def
@@ -246,7 +226,7 @@ export class AgentWorld implements World {
     for (let i = 0; i < n; i++) {
       let ax = 0, ay = 0, az = 0
       const ctrl = pick && pick[i] ? this.host.controllerNamed(pick[i]) : setCtrl
-      const act = actOf(ctrl)
+      const act = ctrl?.act
       if (act) {
         try {
           const obs: Record<string, unknown> = { self: this.handles[i], neighbors: ownVia ? this.linkedTo(i, ownVia, this) : this.neighborsOf(i, radius) }
@@ -338,7 +318,7 @@ export class AgentWorld implements World {
     const c = this.cols
     // a script's `display` colors each agent; it runs once per drawn frame, not every tick
     const display = this.host.controller()?.display
-    const colors = display ? looksOf(n, (i) => display({ self: this.handleAt(i) }, this.host.params, this.host.ctx()), (e) => this.host.fail('display', e)).rgb : null
+    const look = display ? looksOf(n, (i) => display({ self: this.handleAt(i) }, this.host.params, this.host.ctx()), (e) => this.host.fail('display', e)) : null
     return {
       kind: 'agents',
       count: n,
@@ -346,13 +326,11 @@ export class AgentWorld implements World {
       unit: 1,
       pos: interleave(n, c.px, c.py, c.pz),
       vel: interleave(n, c.vx, c.vy, c.vz),
-      attr: null,
-      ...(colors ? { colors } : {}),
+      ...(look ? { look } : {}),
     }
   }
 
   /** What each agent was last told to do by a `think` (keyed by agent id so it follows the agent when rows move). */
-  readonly decisions = new Map<number, unknown>()
 
   /** The agents a `think` is due for right now, with what each should see. Empty when the controller does not think. */
   thinkers(): { row: number; obs: { self: unknown; neighbors: unknown } }[] {
@@ -371,26 +349,21 @@ export class AgentWorld implements World {
   }
 
   /**
-   * What a `think` answered. An object whose keys are all state fields is state: it is written to those fields, and `act`
-   * reads it as `self.dx`. Anything else is kept as `self.decision` (the older way, which still works).
+   * What a `think` answered: state, written to the fields it names (which `init` must return) so that `act` reads it as `self.dx`.
+   * Anything else is an error, reported once.
    */
   setDecision(row: number, decision: unknown): void {
     if (row >= this.table.size) return
-    const isState = decision && typeof decision === 'object' && !Array.isArray(decision) && Object.keys(decision).length > 0
-      && Object.keys(decision).every((k) => this.extra.some((f) => f.name === k))
-    if (isState) this.writeState(row, decision as Record<string, unknown>, 'think')
-    else this.decisions.set(this.table.idAt(row), decision)
+    if (!decision || typeof decision !== 'object' || Array.isArray(decision)) { this.host.fail('think', new Error('think must return state: an object like { goal: 1 } whose fields init returns')); return }
+    this.writeState(row, decision as Record<string, unknown>, 'think')
   }
 
   snapshot(): unknown {
-    return { table: this.table.snapshot(), decisions: [...this.decisions] }
+    return { table: this.table.snapshot() }
   }
 
   restore(s: unknown): void {
-    const x = s as { table: TableSnapshot; decisions: [number, unknown][] }
-    this.table.restore(x.table)
-    this.decisions.clear()
-    for (const [k, v] of x.decisions) this.decisions.set(k, structuredClone(v))
+    this.table.restore((s as { table: TableSnapshot }).table)
     this.moved++
     while (this.handles.length < this.table.size) this.handles.push(new this.AgentClass(this.cols, this.handles.length))
   }

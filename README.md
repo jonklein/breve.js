@@ -33,7 +33,7 @@ npm run typecheck
 - **Share**: copies a link that carries the whole project. A project opened from a link is held until you read its script and press Run.
 - **Thinking bar** (for scenes where something thinks): lockstep or realtime, and save or replay a decision log.
 
-Command line (no browser): `npm run run -- <example>` runs an example headless, `npm run urdf -- robot.urdf` and `npm run mjcf -- model.xml` convert a robot description into a body, `npm run docs` regenerates `docs/stdlib.md`, and `node scripts/thumbs.mjs` remakes the gallery pictures (it needs Playwright and the dev server).
+Command line (no browser): `npm run run -- <example>` runs an example headless, `npm run urdf -- robot.urdf` and `npm run mjcf -- model.xml` convert a robot description into a body, `npm run docs` regenerates `docs/stdlib.md`, `node scripts/thumbs.mjs` remakes the gallery pictures, and `node scripts/check-ui.mjs` clicks through the site in a headless browser and checks the main flows (both need Playwright and the dev server running).
 
 ### The assistant (LLM)
 

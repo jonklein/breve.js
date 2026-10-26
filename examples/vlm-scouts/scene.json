@@ -1,0 +1,35 @@
+{
+  "name": "vlm-scouts",
+  "seed": 4,
+  "bounds": { "size": 20, "mode": "clamp" },
+  "world": { "sky": { "top": "#10172b", "horizon": "#44536f" }, "grid": true },
+  "params": {
+    "speed": { "value": 4, "min": 1, "max": 10, "step": 0.5 },
+    "push": { "value": 14, "min": 1, "max": 30, "step": 1, "label": "how hard they follow what they see" }
+  },
+  "entities": [
+    {
+      "name": "scouts",
+      "type": "Scout",
+      "controller": "scouts.js",
+      "count": 4,
+      "color": "#ffcf6b",
+      "size": 2.5,
+      "spawn": { "box": [[-18, 0, -16], [-6, 0, 16]], "velocity": [1, 0, 0] },
+      "think": { "every": 90 },
+      "sensors": [{ "type": "camera", "name": "view", "size": 24, "radius": 18 }],
+      "motion": { "maxSpeed": "$speed", "minSpeed": 0, "maxAccel": 40, "plane": "xz" }
+    },
+    {
+      "name": "food",
+      "type": "Food",
+      "controller": "scouts.js",
+      "count": 1,
+      "color": "#7be495",
+      "size": 3,
+      "spawn": { "box": [[8, 0, -14], [16, 0, 14]] },
+      "motion": { "maxSpeed": 0, "plane": "xz" }
+    }
+  ],
+  "metrics": ["distanceToFood"]
+}

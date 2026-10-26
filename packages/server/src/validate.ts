@@ -33,3 +33,21 @@ export function problemsWith(change: { scene?: string; script?: string }): strin
   }
   return out
 }
+
+export interface DecideRequest { prompt: string; json: boolean; images: string[] }
+
+const MAX_IMAGES = 4
+const MAX_IMAGE_CHARS = 400_000 // about 300 KB of PNG as base64 (four fit in the 2 MB request limit); a camera sensor makes a few kilobytes
+
+/** Check the body of a `/api/decide` call: a prompt, whether to answer in JSON, and optional base64 PNG pictures. */
+export function parseDecide(body: unknown): DecideRequest | { error: string } {
+  const b = (body ?? {}) as { prompt?: unknown; json?: unknown; images?: unknown }
+  if (typeof b.prompt !== 'string' || !b.prompt.trim() || b.prompt.length > 20000) return { error: 'expected { prompt: string, json?: boolean, images?: string[] }' }
+  const images = b.images === undefined ? [] : b.images
+  if (!Array.isArray(images) || images.length > MAX_IMAGES) return { error: `"images" must be a list of at most ${MAX_IMAGES} base64 PNG strings` }
+  for (const img of images) {
+    if (typeof img !== 'string' || img.length > MAX_IMAGE_CHARS || !/^[A-Za-z0-9+/]+=*$/.test(img)) return { error: '"images" must hold plain base64 text (no "data:" prefix), each under about 300 KB' }
+    if (!img.startsWith('iVBORw0KGgo')) return { error: '"images" must be PNG files' }
+  }
+  return { prompt: b.prompt, json: b.json === true, images: images as string[] }
+}

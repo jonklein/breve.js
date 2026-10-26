@@ -133,12 +133,18 @@ export async function chat(history: Turn[], request: string, project: ProjectFil
 export const DECIDE_MODEL = process.env.BREVE_DECIDE_MODEL || 'claude-haiku-5-5'
 
 /** One short question from a script's `think`: returns the model's reply as text. */
-export async function decide(prompt: string, json: boolean): Promise<string> {
+export async function decide(prompt: string, json: boolean, images: string[] = []): Promise<string> {
   const msg = await client().messages.create({
     model: DECIDE_MODEL,
     max_tokens: 400,
     system: 'You decide what one character in a simulation does next. Answer briefly and exactly in the form the question asks for.' + (json ? ' Reply with a single JSON value and nothing else.' : ''),
-    messages: [{ role: 'user', content: prompt }],
+    messages: [{
+      role: 'user',
+      // pictures first, then the question about them
+      content: images.length
+        ? [...images.map((data) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png' as const, data } })), { type: 'text' as const, text: prompt }]
+        : prompt,
+    }],
   })
   return msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('').trim()
 }

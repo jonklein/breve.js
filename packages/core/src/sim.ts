@@ -9,7 +9,7 @@ import { NetworkWorld } from './network-world'
 import type { PhysicsEngine } from './physics/types'
 import { paramValues, stateFields, type EntityDef, type Params, type Scene } from './scene'
 import { blend } from './blend'
-import type { Controller, Ctx, FrameData, Host, MetricInput, Message, ScriptModule, World } from './world'
+import type { AskOptions, ModelRequest, Controller, Ctx, FrameData, Host, MetricInput, Message, ScriptModule, World } from './world'
 
 /** One entity as an inspector shows it. */
 export interface Inspected {
@@ -24,7 +24,7 @@ export interface Inspected {
 
 export interface SimSnapshot { tick: number; rng: number; worlds: unknown[]; waiting: Message[]; outbox: Message[]; keys: string[]; relations: RelationsSnapshot }
 
-export type { Ctx, Controller, FrameData, Message, MetricInput, ScriptModule } from './world'
+export type { AskOptions, Ctx, Controller, FrameData, Message, MetricInput, ModelRequest, ScriptModule } from './world'
 
 const DT = 1 / 60
 
@@ -254,7 +254,7 @@ export class Sim {
   }
 
   /** How `ctx.ask` reaches a language model. Set by whatever hosts the sim (the workbench's server connection, or a test double). */
-  provider: ((prompt: string, options?: { json?: boolean }) => Promise<string>) | null = null
+  provider: ((prompt: string, options?: ModelRequest) => Promise<string>) | null = null
   /** Every decision a `think` produced, with the tick it took effect. Feed it back with `replay` to rerun without the model. */
   readonly decisionLog: { tick: number; set: number; row: number; decision: unknown }[] = []
   private replaying: { tick: number; set: number; row: number; decision: unknown }[] | null = null
@@ -299,7 +299,7 @@ export class Sim {
           set, row: t.row,
           run: async () => {
             try {
-              const ask = (prompt: string, options?: { json?: boolean }) => (this.provider ? this.provider(prompt, options) : Promise.reject(new Error('no language model is connected: ctx.ask needs one')))
+              const ask = (prompt: string, options?: AskOptions) => (this.provider ? this.provider(prompt, options && { ...options, images: options.images?.map((p) => p.toBase64()) }) : Promise.reject(new Error('no language model is connected: ctx.ask needs one')))
               return { ok: true as const, value: await ctrl!.think!(t.obs as never, this.params, { ...this.ctx(), ask }) }
             } catch (e) {
               this.fail('think', e)

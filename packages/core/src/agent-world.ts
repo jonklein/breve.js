@@ -1,3 +1,4 @@
+import { Picture } from './image'
 import { Agent, type AgentCols } from './agents'
 import type { Controller } from './world'
 import { Agents } from '@breve/stdlib'
@@ -223,7 +224,8 @@ export class AgentWorld implements World {
     const n = this.table.size
     const c = this.cols
     // the sensor with no `of` looks at this set's own agents and shows up as `neighbors`; the rest are named
-    const sensors = def.sensors ?? []
+    const sensors = (def.sensors ?? []).filter((s) => s.type !== 'camera')
+    const cameras = (def.sensors ?? []).filter((s) => s.type === 'camera')
     const own = sensors.find((s) => !s.of || s.of === def.name)
     const others = sensors.filter((s) => s !== own).map((s) => ({ name: s.name!, radius: resolve(s.radius, p, 0), via: s.via, world: this.agentWorld(s.of!) }))
     const radius = resolve(own?.radius, p, 0)
@@ -245,6 +247,7 @@ export class AgentWorld implements World {
         try {
           const obs: Record<string, unknown> = { self: this.handles[i], neighbors: ownVia ? this.linkedTo(i, ownVia, this) : this.neighborsOf(i, radius) }
           for (const o of others) obs[o.name] = o.via ? this.linkedTo(i, o.via, o.world) : o.world?.around(this.handles[i], o.radius) ?? new this.GroupClass(this.handles[i])
+          this.attachCameras(obs, i, cameras)
           const out = ctrl.decide!(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
           if (out && ((out.state && typeof out.state === 'object') || (out.add && typeof out.add === 'object'))) writes.push({ row: i, state: out.state ?? {}, add: out.add })
           if (out && out.steer) {
@@ -348,10 +351,15 @@ export class AgentWorld implements World {
     const ctrl = this.host.controller()
     const every = this.host.def.think?.every ?? 60
     if (!ctrl?.think || this.host.tick % every !== 0) return []
-    const own = this.host.def.sensors?.find((s) => !s.of)
+    const own = this.host.def.sensors?.find((s) => !s.of && s.type !== 'camera')
+    const cameras = (this.host.def.sensors ?? []).filter((s) => s.type === 'camera')
     const radius = resolve(own?.radius, this.host.params, 0)
     this.ensureGrid(radius)
-    return Array.from({ length: this.table.size }, (_, row) => ({ row, obs: { self: this.handles[row], neighbors: own?.via ? this.linkedTo(row, own.via, this) : this.neighborsOf(row, radius) } }))
+    return Array.from({ length: this.table.size }, (_, row) => {
+      const obs: Record<string, unknown> = { self: this.handles[row], neighbors: own?.via ? this.linkedTo(row, own.via, this) : this.neighborsOf(row, radius) }
+      this.attachCameras(obs, row, cameras)
+      return { row, obs: obs as { self: unknown; neighbors: unknown } }
+    })
   }
 
   setDecision(row: number, decision: unknown): void {
@@ -423,6 +431,52 @@ export class AgentWorld implements World {
     for (let i = 0; i < n; i++) this.gridItems[fill[this.cellOf[i]]++] = i
   }
 
+  /** Cameras are read like any other sensor (`obs.view`) but the picture is only drawn when a script asks for it. */
+  private attachCameras(obs: Record<string, unknown>, i: number, cameras: NonNullable<typeof this.host.def.sensors>): void {
+    for (const cam of cameras) {
+      let picture: Picture | null = null
+      Object.defineProperty(obs, cam.name!, { enumerable: true, get: () => (picture ??= this.look(i, cam.size ?? 32, resolve(cam.radius, this.host.params, 20))) })
+    }
+  }
+
+  /**
+   * A top-down picture centered on agent `i`, turned so that "up" is the way it is heading (north when it is standing still).
+   * Every agent of every set within `range` is a dot in its set's color, the agent itself is white with a tick showing forward,
+   * and ground beyond the world's bounds is dark. Drawn from the state alone, so it is the same in every run.
+   */
+  private look(i: number, size: number, range: number): Picture {
+    const c = this.cols
+    const x = c.px[i], z = c.pz[i]
+    let fx = c.vx[i], fz = c.vz[i]
+    const speed = Math.hypot(fx, fz)
+    if (speed < 1e-3) { fx = 0; fz = -1 } else { fx /= speed; fz /= speed }
+    const rx = -fz, rz = fx // right of forward, seen from above with x to the east and z to the south
+    const half = this.host.scene.bounds?.size ?? Infinity
+    const pic = new Picture(size, size, [14, 18, 28])
+    const scale = size / (2 * range) // pixels per world unit
+    for (let py = 0; py < size; py++) for (let px = 0; px < size; px++) {
+      const right = ((px + 0.5) / size * 2 - 1) * range, fwd = (1 - (py + 0.5) / size * 2) * range
+      const wx = x + rx * right + fx * fwd, wz = z + rz * right + fz * fwd
+      if (Math.abs(wx) > half || Math.abs(wz) > half) pic.set(px, py, [52, 56, 64])
+    }
+    this.host.worlds().forEach((w, set) => {
+      if (!(w instanceof AgentWorld)) return
+      const look = hexRgb(this.host.scene.entities[set].color) ?? PALETTE[set % PALETTE.length]
+      const wc = w.cols, radius = Math.max(1, ((this.host.scene.entities[set].size ?? 1) / 2) * scale)
+      for (let j = 0; j < w.table.size; j++) {
+        if (w === this && j === i) continue
+        const dx = wc.px[j] - x, dz = wc.pz[j] - z
+        const right = dx * rx + dz * rz, fwd = dx * fx + dz * fz
+        if (Math.abs(right) > range + radius / scale || Math.abs(fwd) > range + radius / scale) continue
+        pic.dot((right / range + 1) / 2 * size, (1 - fwd / range) / 2 * size, radius, look)
+      }
+    })
+    const mid = size / 2
+    pic.dot(mid, mid, Math.max(1, ((this.host.def.size ?? 1) / 2) * scale), [255, 255, 255])
+    pic.dot(mid, mid - Math.max(2, ((this.host.def.size ?? 1) / 2) * scale + 1), 0.8, [255, 255, 255]) // forward tick
+    return pic
+  }
+
   /** The agents of `world` that agent `i` points at in the named relation: declared neighbors instead of nearby ones. */
   private linkedTo(i: number, relation: string, world: AgentWorld | null): Agents {
     const out = new this.GroupClass(this.handles[i])
@@ -474,4 +528,13 @@ function interleave(n: number, a: Float32Array, b: Float32Array, c: Float32Array
   const out = new Float32Array(n * 3)
   for (let i = 0; i < n; i++) { out[i * 3] = a[i]; out[i * 3 + 1] = b[i]; out[i * 3 + 2] = c[i] }
   return out
+}
+
+const PALETTE: [number, number, number][] = [[255, 207, 107], [123, 228, 149], [255, 107, 107], [107, 168, 255], [214, 140, 255]]
+
+function hexRgb(c: string | undefined): [number, number, number] | null {
+  const m = c?.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
+  if (!m) return null
+  const h = m[1].length === 3 ? [...m[1]].map((x) => x + x).join('') : m[1]
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
 }

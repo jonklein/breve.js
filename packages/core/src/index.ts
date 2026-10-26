@@ -1,4 +1,5 @@
 export { Relation, Relations, type EdgeId } from './relations'
+export { Picture } from './image'
 export { Rng } from './rng'
 export { Table, ObjColumn, StrColumn, canonicalJson, type ColumnType, type EntityId } from './store'
 export {

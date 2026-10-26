@@ -34,3 +34,16 @@ test('the project block quotes both files', () => {
   const b = projectBlock({ name: 'x', scene: '{}', script: 'export default {}' })
   assert.ok(b.includes('<file name="scene.json">') && b.includes('export default {}'))
 })
+
+test('decide requests: a prompt, optional JSON, and at most a few small base64 PNGs', async () => {
+  const { parseDecide } = await import('../src/validate')
+  const png = 'iVBORw0KGgoAAAANSUhEUg=='
+  assert.deepEqual(parseDecide({ prompt: 'go?', json: true, images: [png] }), { prompt: 'go?', json: true, images: [png] })
+  assert.deepEqual(parseDecide({ prompt: 'go?' }), { prompt: 'go?', json: false, images: [] })
+  for (const bad of [{}, { prompt: '  ' }, { prompt: 'x', images: 'nope' }, { prompt: 'x', images: [png, png, png, png, png] }, { prompt: 'x', images: ['data:image/png;base64,' + png] }, { prompt: 'x', images: ['/9j/4AAQSkZJRg=='] }, { prompt: 'x', images: [png.padEnd(400_001, 'A')] }])
+    assert.ok('error' in parseDecide(bad), JSON.stringify(bad).slice(0, 60))
+})
+
+test('the vision example validates like the others', () => {
+  assert.deepEqual(problemsWith({ scene: ex('vlm-scouts/scene.json'), script: ex('vlm-scouts/scouts.js') }), [])
+})

@@ -136,7 +136,7 @@ Pending:
 
 - [ ] ONNX or WebGPU inference, and batched inference for populations.
 - [ ] Loading models from the Hugging Face Hub into an asset store.
-- [ ] A camera sensor so a VLM can drive an agent.
+- [x] A camera sensor so a VLM can drive an agent: `"sensors": [{ "type": "camera", "name": "view" }]` gives an egocentric top-down picture drawn from sim state (no renderer), `ctx.ask(..., { images })` shows it to a vision model through the server, and decisions are logged and replayed like any other (`examples/vlm-scouts`). A first-person 3D render would need the renderer and is left out on purpose: the core stays headless.
 - [x] Workbench controls for lockstep mode and for saving and replaying a decision log (a bar above the view when a set thinks; checked in a headless browser with a stubbed model).
 
 ## M8 — Site and editing polish — Done

@@ -151,5 +151,17 @@
       "physics",
       "search"
     ]
+  },
+  {
+    "id": "vlm-scouts",
+    "name": "Scouts that look",
+    "description": "Each scout has a camera: a top-down picture of what is around it. Its think() shows the picture to a vision model and asks where to go; it is never told where the food is.",
+    "tags": [
+      "agents",
+      "vision",
+      "language model"
+    ],
+    "scene": "scene.json",
+    "script": "scouts.js"
   }
 ]

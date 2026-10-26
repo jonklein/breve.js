@@ -94,8 +94,8 @@ async function applyScript(code: string): Promise<void> {
 // async because scenes with a physics body wait for the physics engine to load
 let builds = 0
 /** `ctx.ask` goes through the local server, which holds the API key. */
-async function askModel(prompt: string, options?: { json?: boolean }): Promise<string> {
-  const r = await fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, json: options?.json === true }) })
+async function askModel(prompt: string, options?: { json?: boolean; images?: string[] }): Promise<string> {
+  const r = await fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, json: options?.json === true, images: options?.images }) })
   const body = (await r.json()) as { text?: string; error?: string }
   if (!r.ok || body.text === undefined) throw new Error(body.error ?? `the model request failed (${r.status})`)
   return body.text

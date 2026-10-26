@@ -61,9 +61,9 @@
         </div>
         <div id="thinkbar" class="hidden">
           <span class="muted">Thinking</span>
-          <select id="think-mode" title="Realtime never makes the sim wait for a model; lockstep waits for every answer, so a run repeats exactly">
+          <select id="think-mode" title="Realtime never makes the sim wait for a model; lockstep waits for every answer before each tick. Save the log to repeat a run exactly">
             <option value="realtime">realtime</option>
-            <option value="lockstep">lockstep (repeatable)</option>
+            <option value="lockstep">lockstep (wait for answers)</option>
           </select>
           <span id="think-count" class="muted mono"></span>
           <button id="think-save" title="Download every decision made so far">Save log</button>

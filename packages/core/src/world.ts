@@ -1,3 +1,4 @@
+import type { Picture } from './image'
 import type { Relations } from './relations'
 import type { Mlp } from '@breve/stdlib'
 import type { Rng } from './rng'
@@ -45,10 +46,24 @@ export interface Ctx {
   vec(x?: number, y?: number, z?: number): Vec3
 }
 
+/** What a model can be asked besides the question. */
+export interface AskOptions {
+  /** Ask for a JSON answer. */
+  json?: boolean
+  /** Pictures to show a vision model, such as an agent's camera sensor (`obs.view`). */
+  images?: Picture[]
+}
+
+/** What reaches the model host: the same, with pictures as base64 PNG text. */
+export interface ModelRequest {
+  json?: boolean
+  images?: string[]
+}
+
 /** What `think` gets: everything in `ctx`, plus a way to ask a model. */
 export interface ThinkCtx extends Ctx {
   /** Ask a language model. Resolves to its text reply; rejects when no model is connected. */
-  ask(prompt: string, options?: { json?: boolean }): Promise<string>
+  ask(prompt: string, options?: AskOptions): Promise<string>
 }
 
 export interface Controller {

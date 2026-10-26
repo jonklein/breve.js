@@ -1,3 +1,4 @@
+import { flooredInertia } from './inertia'
 import { quatFromEuler } from '../rot'
 import RAPIER from '@dimforge/rapier3d-deterministic-compat'
 import type { BodyDef, JointDef, PartDef } from '../body'
@@ -236,20 +237,6 @@ class RapierArticulation implements Articulation {
   }
 }
 
-/** Rotational inertia about each of a part's own axes for its mass, from its shape (a capsule is treated as a cylinder with its caps). */
-function inertiaOf(p: PartDef): [number, number, number] {
-  const m = p.mass, s = p.size
-  switch (p.shape) {
-    case 'box': return [m * (s[1] ** 2 + s[2] ** 2) / 12, m * (s[0] ** 2 + s[2] ** 2) / 12, m * (s[0] ** 2 + s[1] ** 2) / 12]
-    case 'sphere': { const i = 0.4 * m * s[0] ** 2; return [i, i, i] }
-    default: { // long axis is y; `size` is [straight length, radius]
-      const h = p.shape === 'capsule' ? s[0] + 2 * s[1] : s[0], r = s[1]
-      const side = m * (3 * r * r + h * h) / 12
-      return [side, 0.5 * m * r * r, side]
-    }
-  }
-}
-
 function colliderFor(p: PartDef, groups: number, minGyration: number): RAPIER.ColliderDesc {
   const s = p.size
   let d: RAPIER.ColliderDesc
@@ -262,8 +249,7 @@ function colliderFor(p: PartDef, groups: number, minGyration: number): RAPIER.Co
   if (p.rotation) { const [x, y, z, w] = quatFromEuler(p.rotation); d.setRotation({ x, y, z, w }) }
   if (minGyration > 0) {
     // the same mass, but never easier to spin than a body with this radius of gyration (keeps tiny parts from whipping around under joint forces)
-    const floor = p.mass * minGyration * minGyration
-    const [x, y, z] = inertiaOf(p).map((v) => Math.max(v, floor))
+    const [x, y, z] = flooredInertia(p, minGyration)
     d.setMassProperties(p.mass, { x: 0, y: 0, z: 0 }, { x, y, z }, { x: 0, y: 0, z: 0, w: 1 })
   } else d.setMass(p.mass)
   return d.setFriction(p.friction ?? 1).setRestitution(0).setCollisionGroups(groups).setActiveHooks(RAPIER.ActiveHooks.FILTER_CONTACT_PAIRS)

@@ -45,7 +45,7 @@ packages/
   core/          sim kernel: storage, clock, scenes, Sim, no DOM
   stdlib/        the standard library scripts use (Vec3, Vecs, Nums, Agents, Field, Mlp): no engine code, no DOM; docs/stdlib.md is generated from its comments (`npm run docs`)
   render/        renderer reading world state
-  physics-*/     adapters (for now: packages/core/src/physics/, Rapier loaded lazily)
+  physics-*/     optional physics engines, one package each (physics-mujoco); the default, Rapier, lives in packages/core/src/physics/ behind the same adapter interface, loaded lazily. The core never imports an optional engine: hosts register it (`registerPhysicsEngine`)
   controllers/   built-in controllers
   experiment/    Strategy interface and runners, plus mutate/crossover helpers for hand-written searches
   inference/     the only package that knows ONNX Runtime Web: loads models (path, URL or hf:owner/repo/file) into sim.models (docs/decisions/inference.md)

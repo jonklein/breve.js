@@ -200,5 +200,18 @@
       "neural",
       "sub-simulations"
     ]
+  },
+  {
+    "id": "evolved-creatures-mujoco",
+    "name": "Evolved creatures (MuJoCo)",
+    "description": "The evolving creatures again, on the MuJoCo physics engine instead of Rapier: about four times faster per tick. Same script; only the scene's physics.engine differs.",
+    "scene": "scene.json",
+    "script": "../evolved-creatures/creatures.js",
+    "tags": [
+      "evolution",
+      "physics",
+      "mujoco",
+      "sub-simulations"
+    ]
   }
 ]

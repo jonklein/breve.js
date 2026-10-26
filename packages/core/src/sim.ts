@@ -9,6 +9,7 @@ import { LatticeWorld } from './lattice-world'
 import { RigidWorld } from './rigid-world'
 import { NetworkWorld } from './network-world'
 import type { PhysicsEngine } from './physics/types'
+import { loadPhysicsEngine } from './physics/registry'
 import { fieldOfColumn, fieldOfValue, paramValues, type EntityDef, type Params, type Scene, type StateField } from './scene'
 import { blend } from './blend'
 import { HOOKS, type AskOptions, type ModelRequest, type ThinkCtx, type Controller, type Ctx, type FrameData, type Host, type MetricInput, type Message, type ScriptModule, type World } from './world'
@@ -108,7 +109,7 @@ export class Sim {
    * so use `await Sim.create(scene, script)` for any scene; `new Sim` still works for the rest.
    */
   static async create(scene: Scene, script?: ScriptModule): Promise<Sim> {
-    const physics = scene.entities.some((e) => e.body) ? await (await import('./physics/rapier')).loadRapier() : undefined
+    const physics = scene.entities.some((e) => e.body) ? await loadPhysicsEngine(scene.physics?.engine) : undefined
     return new Sim(scene, script, { physics })
   }
 

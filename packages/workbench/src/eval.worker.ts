@@ -1,3 +1,4 @@
+import './engines'
 import { parseScene, type Scene, type ScriptModule } from '@breve/core'
 import { evaluate, type ExperimentSpec, type Trial } from '@breve/experiment'
 import { compile } from './script-load'

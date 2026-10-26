@@ -1,3 +1,4 @@
+import './engines'
 import { compile } from './script-load'
 import { loadSceneModels } from '@breve/inference'
 import { ParentRun, parentOf, Sim, SimGroup, type Parent, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'

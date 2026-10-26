@@ -7,6 +7,8 @@ import type { BodyDef } from '../body'
  */
 export interface PhysicsEngine {
   readonly name: string
+  /** What this engine cannot do, so a scene that asks for it can be told plainly. Anything not listed works. */
+  readonly limits?: { /** Creatures never touch each other, whatever the scene's `collide` says. */ creatureCollisions?: false }
   /** `collide`: creatures bump into each other (never into their own parts). */
   createWorld(opts: { gravity: number; collide: boolean; minGyration?: number }): PhysicsWorld
 }

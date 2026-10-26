@@ -383,6 +383,12 @@ async function main(): Promise<void> {
         thinkMode.value = m.think.mode
         $('think-count').textContent = `${m.think.decisions} decisions${m.think.replaying ? ' · replaying a log, the model is not asked' : ''}`
       }
+      const flags = $('flags')
+      flags.classList.toggle('hidden', m.nondeterministic.length === 0)
+      if (m.nondeterministic.length) {
+        flags.textContent = '⚠ not repeatable'
+        flags.title = `${m.nondeterministic.join(', ')} depend${m.nondeterministic.length === 1 ? 's' : ''} on something outside the simulation (a person at the keyboard, or a language model). A rerun or a fork may not match. To repeat a run exactly, save its decision log and replay it.`
+      }
       viewport.update(m.frames.map((f) => ({ ...f, rate: m.rate })))
       if (inspecting) { if (m.inspected) inspector.update(m.inspected); else stopInspecting() }
       if (m.metrics) metrics.push(m.metrics)

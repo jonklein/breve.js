@@ -167,3 +167,5 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320p
 #view-toggle + .status { margin-left: 8px; }
 #editors nav { flex-wrap: wrap; }
 #editors nav .status { white-space: nowrap; }
+.flag { color: #f5c26b; border: 1px solid #5c4a1f; border-radius: 6px; padding: 1px 8px; font-size: 12px; cursor: help; }
+.embed .flag { display: none !important; }

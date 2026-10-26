@@ -13,7 +13,7 @@ About 120 tests pass (stdlib 5, experiment 9, core 99, server 5). Every mileston
 | M0 | Playable slice | **Done** | `boids` |
 | M1 | Kernel hardening | **Done**, with two gaps (relation tables, 1M-cell tick time) | `life2d`, `life3d` |
 | M2 | Sim as a value | **Done**, no multi-worker pool | Sweep / Watch, `neural` |
-| M3 | Controllers and inspector | **Done**, one small gap (non-determinism flag not shown in the UI) | `ants`, `herding` |
+| M3 | Controllers and inspector | **Done** | `ants`, `herding` |
 | M4 | Experiment layer | **Done** | `boids`, `creature`, `ants`, `morphology` experiments |
 | M5 | Abstract worlds | **Done**, minus `transform.meaning` | `epidemic`, `epidemic-grid`, `market` |
 | M6 | Bodies and physics | **Mostly done** (no MuJoCo, MJCF, glTF, mutation utilities) | `creature`, `urdf-bot`, `morphology` |
@@ -77,7 +77,7 @@ Pending:
 
 Pending:
 
-- [ ] Show the non-determinism flag in the workbench UI.
+- [x] The workbench shows "⚠ not repeatable" (with the reason on hover) for sets driven by a person or a model, and clears it while a decision log is replayed.
 - [x] Controller per entity: a text state field called `controller` names the script export an agent runs; the inspector menu sets it for the clicked entity.
 - [ ] Oscillator as a standalone controller for agents (the creature oscillator is built into joint drives).
 

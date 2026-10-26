@@ -52,7 +52,7 @@ export type FromWorker =
   | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
   | { type: 'log'; log: DecisionLog }
-  | { type: 'frame'; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean }; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
+  | { type: 'frame'; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -112,6 +112,8 @@ async function rebuild(): Promise<void> {
 }
 
 let lastPosted = -1
+/** Controllers that declare themselves non-deterministic (a person at the keyboard), and sets that ask a model, until a saved decision log is being replayed. */
+const flagged = (s: Sim): string[] => [...new Set([...s.nondeterministic(), ...(!s.isReplaying ? s.scene.entities.filter((e) => e.think).map((e) => e.name) : [])])]
 let thinkMode: 'realtime' | 'lockstep' = 'realtime'
 let lockBusy = false // a lockstep tick is waiting for its answers
 let stepMs = 0 // smoothed time one tick takes, shown in the stats line
@@ -147,7 +149,7 @@ function post(): void {
     const frames = sim.frames()
     const m = sim.tick % 4 === 0 || sim.rate < 30 ? sim.metrics() : null
     const inspected = selection ? sim.inspect(selection.set, selection.row) : null
-    const msg: FromWorker = { type: 'frame', tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying }, inspected, metrics: m, stepMs, rate: sim.rate, frames }
+    const msg: FromWorker = { type: 'frame', tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying }, nondeterministic: flagged(sim), inspected, metrics: m, stepMs, rate: sim.rate, frames }
     postMessage(msg, frames.flatMap(transfers))
   }
   const runtime = sim.takeErrors()

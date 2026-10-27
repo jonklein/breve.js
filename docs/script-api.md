@@ -25,10 +25,8 @@ The per-entity form is the readable one and suits up to tens of thousands of ent
   "data": { "genome": { } },             // optional. Plain JSON for scripts, read as ctx.data: what is too structured for a slider (see Parents)
   "clock": { "rate": 60 },                // optional. Ticks per second (default 60, max 240).
   "bounds": { "size": 30 },               // free agents only. Half-width of the cube: the drawn box, and `ctx.world.size` in scripts. The engine keeps nothing inside it (see "Keeping entities inside")
-  "world": {                              // optional, visual only
-    "sky": { "top": "#0b1226", "horizon": "#2a4a7a" },   // or one color: "sky": "#112233"
-    "grid": true,
-    "boundsColor": "#3a4658",
+  "world": {                              // optional, visual only: see "Look" below. A one-word start: { "preset": "dusk" }
+    "preset": "dusk",                     // "day", "dusk", "night", "studio", "space" or "plain"; everything below overrides it
     "agentColor": "heading",              // "heading" colors by direction, or one hex color
     "shadows": true                       // cast shadows (default: on for physics scenes with terrain, off otherwise)
   },
@@ -220,6 +218,48 @@ Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy t
 - **Sensors:** declare what `act` can read. `pose` (always available), `joints` (`self.joints`: hinge angles by joint name), `touch` (`self.touch`: which parts touch the ground by name; default the parts nothing hangs off, or give `"parts": ["FL.lower"]`). Each joint with a `motor` is an actuator.
 - Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains and the script apply live. Nothing resets a creature on its own: check in `act` (`self.up.y`, `self.y`) and call `self.place(...)` (see below).
 - Validation rejects unknown joint or part names, parts not connected to the root, duplicate names, sizes that do not fit the shape, a template or placeholder that does not exist, and unknown `"$param"` names.
+
+## Look: the world, a set's style, textures and effects
+
+Everything here is visual only (it never changes what the simulation does) and every field has a default. With no `world` block at all a scene looks like `dusk`.
+
+**`world.preset`** picks a complete look: `day` (blue sky, clouds, sun, haze), `dusk` (orange horizon, low sun), `night` (stars, moonlight), `studio` (neutral, soft light, no sky), `space` (black, stars), `plain` (the flat, older look, used when a `world` block has no preset). Any field below overrides the preset.
+
+```jsonc
+"world": {
+  "preset": "dusk",
+  "sky": { "top": "#141f45", "horizon": "#c8704f", "ground": "#2b2233", "stars": 0.3, "clouds": 0.4, "sun": true },
+  "fog": { "near": 60, "far": 260, "color": "#6d4a5c" },      // or { "density": 0.01 } for exponential fog, true/false
+  "light": {
+    "sun": { "color": "#ffb27a", "intensity": 2.8, "azimuth": 235, "elevation": 16 },   // degrees: azimuth turns from +x toward +z
+    "hemisphere": { "sky": "#8a9ad8", "ground": "#4a3a50", "intensity": 1.2 },          // soft light from above and below
+    "ambient": { "color": "#a090c0", "intensity": 0.35 },
+    "exposure": 1.1, "toneMapping": "aces"                    // "none", "aces" (filmic) or "neutral"
+  },
+  "shadows": { "softness": 2, "resolution": 2048, "bias": -0.0004 },   // or true / false
+  "reflections": 0.4,                                         // how much shiny surfaces mirror the sky, 0 to 2
+  "effects": { "bloom": { "strength": 0.3, "threshold": 0.75 }, "ao": true, "vignette": 0.25, "saturation": 1.1, "contrast": 1.08 },   // true/false for the preset's
+  "camera": { "distance": 2.3, "elevation": 13, "azimuth": 45, "fov": 55 },   // where the view starts (distance is a multiple of the world's size)
+  "floor": { "texture": { "kind": "grid", "colors": ["#5a4670", "#1b1328"], "scale": 6, "tile": 30 }, "roughness": 0.9 },   // ground for scenes without terrain
+  "frame": false                                              // hide the outline of the world's box
+}
+```
+
+Screen effects (ambient occlusion, bloom, grading) run in the main view only, and step down by themselves if frames run long; add `?quality=low`, `medium` or `high` to the page address to choose the start.
+
+**Textures** are a name (`"grass"`) or an object. Generated kinds are made from a few numbers, are the same every time, and tile without seams: `noise`, `fbm`, `checker`, `stripes`, `grid`, `dots`, `bricks`, `marble`, `grass`, `sand`, `water`. Options: `colors` (two or more, blended), `scale` (pattern cells per tile), `seed`, `contrast` (0 to 2), `bump` (relief, 0 turns it off), `tile` (world units per repeat). An image works too: `{ "url": "ground.png", "tile": 8 }` (relative to the project's files; a missing file leaves a plain surface). Textures can go on `world.floor` and on `terrain.texture` (the older `"static"`, `"grid"`, `"none"` still work). Terrain also takes `shading` (`"smooth"` by default or `"flat"`) and a `palette` that tints by height and slope: `{ "low": "#d8cfa8", "mid": "#ffffff", "high": "#e6e6e6", "steep": "#9a9084" }` (leave a color white to let the texture show).
+
+**A set's `style`** (on an entity set in `entities`) says how its things are drawn:
+
+```jsonc
+"style": {
+  "shape": "capsule",          // cone (default for agents), sphere, cube, rounded, capsule, octahedron, tetrahedron, disc, cylinder
+  "material": { "roughness": 0.5, "metalness": 0, "glow": 0.4, "opacity": 1 },   // glow: how much the color lights itself (above 1 blooms)
+  "trail": { "length": 12, "strength": 0.6 }   // a fading line behind each agent (ticks, up to 240)
+}
+```
+
+Colors still come from `color`, `world.agentColor` or the script's `display`. Matte materials (roughness around 0.5 to 0.9, metalness 0) read best; shiny, metallic things mirror the sky strongly.
 
 ## Scripts
 

@@ -34,7 +34,7 @@ export const KIND_DEFAULTS: Record<Exclude<TextureKind, 'url'>, { colors: string
   dots: { colors: ['#2a3240', '#d8c9a8'], scale: 8, bump: 0.5 },
   bricks: { colors: ['#6b2f26', '#b4573f', '#cbb9a4'], scale: 6, bump: 1.2 },
   marble: { colors: ['#e8e4dc', '#9aa0aa', '#4b5260'], scale: 3, bump: 0.2 },
-  grass: { colors: ['#2f5a24', '#4f8a33', '#8cc152'], scale: 24, bump: 1 },
+  grass: { colors: ['#22401a', '#3d6a28', '#7a9f45'], scale: 24, bump: 1 },
   sand: { colors: ['#b9965f', '#d9bd86', '#efdcb0'], scale: 10, bump: 1 },
   water: { colors: ['#0f3d63', '#2a7fb0', '#a8e0ff'], scale: 6, bump: 1.4 },
 }

@@ -91,7 +91,7 @@ export const PRESETS: Record<string, Preset> = {
     exposure: 1.1, toneMapping: 'aces', softness: 2, reflections: 0.35,
   },
   night: {
-    fx: { bloom: 0.5, ao: 0.8, vignette: 0.35, saturation: 1.1, contrast: 1.1 },
+    fx: { bloom: 0.5, ao: 0, vignette: 0.35, saturation: 1.1, contrast: 1.1 },
     skyFx: { stars: 1, clouds: 0.15, sun: false },
     sky: { top: '#03050d', horizon: '#0f1b36', ground: '#05070f' }, fog: { color: '#0a1228', near: 1.6, far: 7.5 },
     sun: { color: '#9dbcff', intensity: 1.3, azimuth: 120, elevation: 40 },

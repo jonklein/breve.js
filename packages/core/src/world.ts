@@ -83,7 +83,7 @@ export interface ThinkCtx extends Ctx {
 }
 
 /** Names that make an exported object a controller. */
-export const HOOKS = ['init', 'initAll', 'act', 'actAll', 'think', 'thinkAll', 'display', 'displayAll'] as const
+export const HOOKS = ['init', 'initAll', 'initFormula', 'act', 'actAll', 'actFormula', 'think', 'thinkAll', 'display', 'displayAll', 'displayFormula'] as const
 
 export interface Controller {
   spec?: {
@@ -146,6 +146,21 @@ export interface Controller {
    * `{ visible: alive, color: ctx.colors.gradientField(['#4f86f7', '#7be495'], age.div(20)) }`.
    */
   displayAll?(fields: any, params: Params, ctx: Ctx): unknown
+  /**
+   * Lattices: a rule written ONCE as an expression instead of run for every cell. `actFormula(fields, params, k)` is called a
+   * single time; its fields are expressions (use `a.add(b)`, `a.eq(3)`, `c.where(x, y)`, `a.neighborSum()`, not operators), and what it returns
+   * says how to compute the new state of every cell: `({ alive }) => { const n = alive.neighborSum(); return { alive: n.eq(3).or(alive.and(n.eq(2))) } }`.
+   * `k.hash('name')` is a random number per cell and tick, `k.x`, `k.y`, `k.z`, `k.index` and `k.tick` say where and when. Because it
+   * is a program and not a loop, it can run on a graphics card where there is one, and gives the same cells either way.
+   * `initFormula(fields, params, k)` says what the cells start as (it gets no fields: `({}, p, k) => ({ alive: k.hash().lt(p.density) })`),
+   * and `displayFormula` returns `{ visible, r, g, b }` (colors 0 to 1) the same way.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actFormula?: (fields: any, params: any, k: any) => unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initFormula?: (fields: any, params: any, k: any) => unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  displayFormula?: (fields: any, params: any, k: any) => unknown
 }
 
 export interface MetricInput {

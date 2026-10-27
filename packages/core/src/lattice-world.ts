@@ -1,8 +1,9 @@
 import { looksOf, looksOfAll, type Looks } from './display'
 import { initResult } from './init-shape'
+import { runFormula } from './formula-run'
 import { StrColumn, Table, type Column, type ColumnType, type TableSnapshot } from './store'
 import { resolve, type Params, type StateField, type StateType } from './scene'
-import { Field, type NeighborTable } from '@breve/stdlib'
+import { Field, type Formula, type Grid, type NeighborTable } from '@breve/stdlib'
 import { Nums, Vec3, Vecs } from '@breve/stdlib'
 import { type Ctx, type FrameData, type Host, type MetricInput, type PatchLayer, type World } from './world'
 
@@ -171,7 +172,7 @@ export class LatticeWorld implements World, PatchLayer {
   /** Run the script's `init` (a cell at a time) or `initAll` (every cell at once): they say what the cells start as. */
   private applyInit(): void {
     const ctrl = this.host.controller()
-    if (!ctrl?.init && !ctrl?.initAll) return
+    if (!ctrl?.init && !ctrl?.initAll && !ctrl?.initFormula) return
     const ctx = this.host.ctx(), { params } = this.host
     const [nx, ny, nz] = this.dims
     const sp = this.host.def.lattice!.spacing ?? 1.2
@@ -183,6 +184,14 @@ export class LatticeWorld implements World, PatchLayer {
       return f
     }
     try {
+      if (ctrl.initFormula) {
+        const out = runFormula(ctrl.initFormula as Formula, this.grid(), [], { state: {}, params, tick: 0, seed: this.host.scene.seed })
+        for (const [name, data] of Object.entries(out)) {
+          const f = field(name)
+          if (f) store(cols[name], f, data, this.n)
+        }
+        return
+      }
       if (ctrl.initAll) {
         for (const [name, v] of Object.entries((ctrl.initAll({ count: this.n }, params, ctx) ?? {}) as Record<string, unknown>)) {
           const f = field(name)
@@ -265,9 +274,37 @@ export class LatticeWorld implements World, PatchLayer {
     }
   }
 
+  /** The shape of the grid, for formulas. */
+  private grid(): Grid {
+    const L = this.host.def.lattice!
+    return { size: this.dims, wrap: L.edges === 'wrap', neighborhood: L.neighborhood }
+  }
+
+  /**
+   * The whole-lattice rule written as a formula (`actFormula`): a program made once from the script's function, run for every cell.
+   * Like `actAll`, every cell reads the old state and the new state lands at the end of the tick.
+   */
+  private stepFormula(rule: Formula): void {
+    const cols = this.table.cols
+    const numbers = this.fields.filter((f) => this.fieldOf[f].kind === 'number')
+    let out: Record<string, Float32Array>
+    try {
+      out = runFormula(rule, this.grid(), numbers, { state: Object.fromEntries(numbers.map((f) => [f, cols[f] as ArrayLike<number>])), params: this.host.params, tick: this.host.tick, seed: this.host.scene.seed })
+    } catch (e) {
+      this.host.fail('actFormula', e)
+      return
+    }
+    for (const [name, data] of Object.entries(out)) {
+      const f = this.fieldOf[name]
+      if (!f) { this.host.fail('actFormula', new Error(`"${name}" is not a state field of "${this.name}" (it has: ${this.fields.join(', ')})`)); continue }
+      store(cols[name], f, data, this.n)
+    }
+  }
+
   step(): void {
     this.applyPending()
     const ctrl = this.host.controller()
+    if (ctrl?.actFormula) return this.stepFormula(ctrl.actFormula as Formula)
     const all = ctrl?.actAll
     if (all) return this.stepFields(all)
     const act = ctrl?.act
@@ -301,6 +338,15 @@ export class LatticeWorld implements World, PatchLayer {
     const none: Looks = { rgb: null, visible: null, alpha: null, scale: null }
     const ctrl = this.host.controller()
     const fail = (e: unknown) => this.host.fail('display', e)
+    if (ctrl?.displayFormula) {
+      const cols = this.table.cols
+      const numbers = this.fields.filter((f) => this.fieldOf[f].kind === 'number')
+      try {
+        const out = runFormula(ctrl.displayFormula as Formula, this.grid(), numbers, { state: Object.fromEntries(numbers.map((f) => [f, cols[f] as ArrayLike<number>])), params: this.host.params, tick: this.host.tick, seed: this.host.scene.seed })
+        const { r, g, b, ...rest } = out
+        return looksOfAll(this.n, { ...rest, ...(r && g && b ? { color: { r, g, b } } : {}) }, fail)
+      } catch (e) { fail(e); return none }
+    }
     if (ctrl?.displayAll) {
       const table: NeighborTable = { nbr: this.nbr, count: this.nbrCount, stride: this.stride }
       const fields: Record<string, Field> = {}

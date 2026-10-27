@@ -71,6 +71,21 @@
     "about": "about.md"
   },
   {
+    "id": "life2d-formula",
+    "name": "2D Life (formulas)",
+    "description": "Life with each rule written once as an expression, run for every cell on the GPU when there is one.",
+    "scene": "scene.json",
+    "script": "life.js",
+    "tags": [
+      "grid",
+      "cellular automaton",
+      "fast",
+      "formula"
+    ],
+    "folder": "Cells & patterns",
+    "about": "about.md"
+  },
+  {
     "id": "epidemic-grid",
     "name": "Epidemic on a grid",
     "description": "The very same contagion script, now running on a grid of cells.",

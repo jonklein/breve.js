@@ -13,6 +13,8 @@ import { loadPhysicsEngine } from './physics/registry'
 import { resolveMeshes } from './glb'
 import { fieldOfColumn, fieldOfValue, paramValues, type EntityDef, type Params, type Scene, type StateField } from './scene'
 import { blend } from './blend'
+import { programOf } from './formula-run'
+import type { Formula } from '@breve/stdlib'
 import { HOOKS, type AskOptions, type ModelRequest, type ThinkCtx, type Controller, type Ctx, type FrameData, type Host, type MetricInput, type Message, type ScriptModule, type World } from './world'
 
 /** One entity as an inspector shows it. */
@@ -143,12 +145,15 @@ export class Sim {
    */
   inferFields(set: number): StateField[] {
     const ctrl = new SetControllerLookup(this, set).get()
-    if (!ctrl?.init && !ctrl?.initAll) return []
+    if (!ctrl?.init && !ctrl?.initAll && !ctrl?.initFormula) return []
     const probe = new Rng(this.scene.seed ^ 0x9e3779b9)
     const ctx = { ...this.ctx(), random: () => probe.next(), normal: () => normalDraw(() => probe.next()) }
     const out: StateField[] = []
     try {
-      if (ctrl.initAll) {
+      if (ctrl.initFormula) {
+        // a formula's fields are the names it returns, each a number per entity
+        for (const name of Object.keys(programOf(ctrl.initFormula as Formula, [], Object.keys(this.params)).out)) out.push(fieldOfColumn(name, new Float32Array(1))!)
+      } else if (ctrl.initAll) {
         for (const [name, col] of Object.entries((ctrl.initAll({ count: 1, probe: true }, this.params, ctx) ?? {}) as Record<string, unknown>)) {
           const data = col instanceof Field ? col.data : (col as ArrayLike<unknown>)
           const f = data && typeof data === 'object' ? fieldOfColumn(name, data) : null

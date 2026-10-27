@@ -244,6 +244,12 @@ function colliderFor(p: PartDef, groups: number, minGyration: number): RAPIER.Co
     case 'box': d = RAPIER.ColliderDesc.cuboid(s[0] / 2, s[1] / 2, s[2] / 2); break
     case 'sphere': d = RAPIER.ColliderDesc.ball(s[0]); break
     case 'capsule': d = RAPIER.ColliderDesc.capsule(s[0] / 2, s[1]); break
+    case 'mesh': {
+      const hull = p.points && RAPIER.ColliderDesc.convexHull(Float32Array.from(p.points))
+      if (!hull) throw new Error(`part "${p.name}": the mesh has no usable convex hull (is the model flat, or a single point?)`)
+      d = hull
+      break
+    }
     default: d = RAPIER.ColliderDesc.cylinder(s[0] / 2, s[1])
   }
   if (p.rotation) { const [x, y, z, w] = quatFromEuler(p.rotation); d.setRotation({ x, y, z, w }) }

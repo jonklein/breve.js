@@ -24,7 +24,7 @@
       "body": {
         "motor": { "stiffness": "$strength", "damping": 8 },
         "parts": [
-          { "name": "torso", "shape": "box", "size": [0.9, 0.25, 0.45], "mass": 4, "position": [0, 0.62, 0], "visual": { "gltf": "beetle.glb" } }
+          { "name": "torso", "shape": "mesh", "mass": 4, "position": [0, 0.62, 0], "visual": { "gltf": "beetle.glb" } }
         ],
         "templates": {
           "leg": {

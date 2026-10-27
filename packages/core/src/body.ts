@@ -3,24 +3,27 @@ import Ajv from 'ajv'
 import { evalNumber } from './expr'
 import type { NumOrParam, Params } from './scene'
 
-export type ShapeKind = 'box' | 'sphere' | 'capsule' | 'cylinder'
+export type ShapeKind = 'box' | 'sphere' | 'capsule' | 'cylinder' | 'mesh'
 export type Vec3Tuple = [number, number, number]
 
 /**
  * One rigid piece of a creature. Sizes: box `[width, height, depth]`, sphere `[radius]`,
- * capsule and cylinder `[length, radius]` (long axis is y, `length` is the straight section).
+ * capsule and cylinder `[length, radius]` (long axis is y, `length` is the straight section). A `mesh` has no size to write: its shape is the
+ * convex hull of the model named by `visual`, found when the sim is built (`resolveMeshes`), which then fills in `points` and `size` (the hull's extent).
  */
 export interface PartDef {
   name: string
   shape: ShapeKind
   size: number[]
+  /** Mesh parts, once resolved: the model's vertices as x, y, z triples in the part's own frame (scale, rotation and offset of `visual` applied). */
+  points?: number[]
   /** Kilograms. */
   mass: number
   /** Where the part's center sits in the standing pose, relative to the creature's origin. x is forward, y is up. */
   position: Vec3Tuple
   /**
-   * What to draw instead of the primitive shape: a glTF/GLB model (all of its meshes merged into one). Physics still uses `shape` and `size`;
-   * the picture is only the picture. `gltf` is a path next to the scene (or a full URL). The model's origin sits at the part's center;
+   * What to draw instead of the primitive shape: a glTF/GLB model (all of its meshes merged into one). With a primitive `shape`, physics still uses
+   * `shape` and `size` and the picture is only the picture; with `"shape": "mesh"` the model is the shape too (its convex hull). `gltf` is a path next to the scene (or a full URL). The model's origin sits at the part's center;
    * `scale` (a number, or three for each axis), `rotation` (radians about x, y, z) and `offset` adjust it.
    */
   visual?: { gltf: string; scale?: number | Vec3Tuple; rotation?: Vec3Tuple; offset?: Vec3Tuple }
@@ -116,12 +119,13 @@ const colorSchema = { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}
 
 const partItem = {
   type: 'object',
-  required: ['name', 'shape', 'size', 'mass', 'position'],
+  required: ['name', 'shape', 'mass', 'position'],
   additionalProperties: false,
   properties: {
     name: { type: 'string', minLength: 1 },
-    shape: { enum: ['box', 'sphere', 'capsule', 'cylinder'] },
+    shape: { enum: ['box', 'sphere', 'capsule', 'cylinder', 'mesh'] },
     size: { type: 'array', items: expr, minItems: 1, maxItems: 3 },
+    points: { type: 'array', items: { type: 'number' }, minItems: 12, maxItems: 12000 },
     mass: expr,
     position: vec3,
     rotation: vec3,
@@ -212,7 +216,7 @@ export const bodySchema = {
   },
 } as const
 
-const SIZE_LEN: Record<ShapeKind, number> = { box: 3, sphere: 1, capsule: 2, cylinder: 2 }
+const SIZE_LEN: Record<ShapeKind, number> = { box: 3, sphere: 1, capsule: 2, cylinder: 2, mesh: 3 }
 
 /** Checks a schema-valid body for sense: names resolve, the joints form a tree, sizes fit the shapes. */
 export function checkBody(body: BodyDef, where: string, params: Set<string> | null): string[] {
@@ -223,8 +227,11 @@ export function checkBody(body: BodyDef, where: string, params: Set<string> | nu
   body.parts.forEach((p, i) => {
     if (names.has(p.name)) errors.push(`${where}.parts.${i}.name: duplicate part name "${p.name}"`)
     names.set(p.name, i)
-    if (p.size.length !== SIZE_LEN[p.shape])
-      errors.push(`${where}.parts.${i}.size: a ${p.shape} needs ${SIZE_LEN[p.shape]} number${SIZE_LEN[p.shape] > 1 ? 's' : ''}, got ${p.size.length}`)
+    if (p.shape === 'mesh') {
+      if (!p.visual) errors.push(`${where}.parts.${i}.visual: a mesh part takes its shape from the model named by "visual": { "gltf": "file.glb" }`)
+      if (p.points && p.points.length % 3 !== 0) errors.push(`${where}.parts.${i}.points: must be x, y, z triples`)
+    } else if (p.size.length !== SIZE_LEN[p.shape])
+      errors.push(`${where}.parts.${i}.size: a ${p.shape} needs ${SIZE_LEN[p.shape]} number${SIZE_LEN[p.shape] > 1 ? 's' : ''}, got ${p.size?.length ?? 0}`)
   })
   const parentOf = new Map<string, string>()
   const jointNames = new Set<string>()
@@ -361,7 +368,7 @@ export function expandBody(input: BodyInput, where: string): { body: BodyDef; er
 export function resolveGeometry(input: BodyInput, params: Params, where: string): BodyInput {
   const n = (v: unknown, w: string) => evalNumber(v as number | string, params, w)
   const vec = (v: unknown, w: string) => (v as unknown[]).map((x, i) => n(x, `${w}.${i}`)) as number[]
-  const part = (p: PartDef, w: string): PartDef => ({ ...p, size: vec(p.size, `${w}.size`), mass: n(p.mass, `${w}.mass`), position: vec(p.position, `${w}.position`) as Vec3Tuple, ...(p.rotation ? { rotation: vec(p.rotation, `${w}.rotation`) as Vec3Tuple } : {}) })
+  const part = (p: PartDef, w: string): PartDef => ({ ...p, size: vec(p.size ?? [], `${w}.size`), mass: n(p.mass, `${w}.mass`), position: vec(p.position, `${w}.position`) as Vec3Tuple, ...(p.rotation ? { rotation: vec(p.rotation, `${w}.rotation`) as Vec3Tuple } : {}) })
   const joint = (j: JointDef, w: string): JointDef => ({
     ...j,
     anchor: vec(j.anchor, `${w}.anchor`) as Vec3Tuple,

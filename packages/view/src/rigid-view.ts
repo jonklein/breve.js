@@ -168,7 +168,7 @@ function geometryFor(p: PartShape): THREE.BufferGeometry {
 function baseGeometry(p: PartShape): THREE.BufferGeometry {
   const s = p.size
   switch (p.shape) {
-    case 'box': return new THREE.BoxGeometry(s[0], s[1], s[2])
+    case 'box': case 'mesh': return new THREE.BoxGeometry(s[0], s[1], s[2]) // a mesh shows its extent as a box until its model has loaded
     case 'sphere': return new THREE.SphereGeometry(s[0], 20, 14)
     case 'capsule': return new THREE.CapsuleGeometry(s[1], s[0], 4, 12)
     default: return new THREE.CylinderGeometry(s[1], s[1], s[0], 16)

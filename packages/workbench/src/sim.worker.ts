@@ -1,7 +1,7 @@
 import './engines'
 import { compile } from './script-load'
 import { loadSceneModels } from '@breve/inference'
-import { ParentRun, parentOf, Sim, SimGroup, type Parent, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
+import { ParentRun, parentOf, registerAssetReader, Sim, SimGroup, type Parent, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
 
 export type ToWorker =
   /** `base` is where a scene's relative model paths start (the example's folder). */
@@ -330,6 +330,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       lastPosted = -1
       epoch = m.epoch ?? 0
       modelBase = m.base ?? ''
+      // a mesh part's shape is read from its model file, next to the scene like any other asset
+      registerAssetReader(async (path) => {
+        const r = await fetch(new URL(path, modelBase || self.location.href))
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
+        return new Uint8Array(await r.arrayBuffer())
+      })
       applyScene(m.scene)
       await applyScript(m.script)
       await rebuild()

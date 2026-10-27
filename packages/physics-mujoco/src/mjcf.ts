@@ -57,14 +57,19 @@ const mulQ = (a: Quat, b: Quat): Quat => [
 /** The turn that takes MuJoCo's default capsule/cylinder axis (z) onto ours (y). */
 const Z_TO_Y: Quat = [Math.SQRT1_2, -Math.SQRT1_2, 0, 0]
 
-function geomXml(p: PartDef, minGyration: number): string {
+function geomXml(p: PartDef, minGyration: number, meshes: string[]): string {
   const turn = p.rotation ? fromXyzw(quatFromEuler(p.rotation as [number, number, number])) : IDENTITY
   const common = `friction="${p.friction ?? 1} 0.005 0.0001" contype="2" conaffinity="1" solref="${TUNING.contactSolref.join(' ')}"`
   const mass = minGyration > 0 ? '' : ` mass="${p.mass}"`
   const s = p.size
   let geom: string
   if (p.shape === 'box') geom = `<geom type="box" size="${f([s[0] / 2, s[1] / 2, s[2] / 2])}" quat="${f(turn)}" ${common}${mass}/>`
-  else if (p.shape === 'sphere') geom = `<geom type="sphere" size="${s[0]}" ${common}${mass}/>`
+  else if (p.shape === 'mesh') {
+    // the engine takes the convex hull of the vertices (it recenters the mesh and moves the geom to match)
+    const name = `mesh${meshes.length}`
+    meshes.push(`<mesh name="${name}" vertex="${f(p.points ?? [])}"/>`)
+    geom = `<geom type="mesh" mesh="${name}" quat="${f(turn)}" ${common}${mass}/>`
+  } else if (p.shape === 'sphere') geom = `<geom type="sphere" size="${s[0]}" ${common}${mass}/>`
   else geom = `<geom type="${p.shape === 'capsule' ? 'capsule' : 'cylinder'}" size="${f([s[1], s[0] / 2])}" quat="${f(mulQ(turn, Z_TO_Y))}" ${common}${mass}/>`
   if (minGyration <= 0) return geom
   // the same mass, but never easier to spin than a body with this radius of gyration; the geom then carries no mass of its own
@@ -106,6 +111,7 @@ export function buildMjcf(body: BodyDef, opts: MjcfOptions): Mjcf {
     return actuatorNames.length - 1
   })
 
+  const meshes: string[] = []
   const walk = (i: number, inbound: JointDef | null): string => {
     const p = parts[i]
     let pos: number[], quat: Quat = IDENTITY, joint = ''
@@ -129,17 +135,19 @@ export function buildMjcf(body: BodyDef, opts: MjcfOptions): Mjcf {
       } else if (type === 'ball') joint = `<joint name="${name}" type="ball" pos="${f(anchor)}" armature="${TUNING.hingeArmature}"/>`
       // a fixed joint is no joint: a body without one is welded to its parent
     }
-    return `<body name="${partName[i]}" pos="${f(pos)}" quat="${f(quat)}">${joint}${geomXml(p, opts.minGyration)}${kids.get(i)!.map((j) => walk(byName.get(j.child)!, j)).join('')}</body>`
+    return `<body name="${partName[i]}" pos="${f(pos)}" quat="${f(quat)}">${joint}${geomXml(p, opts.minGyration, meshes)}${kids.get(i)!.map((j) => walk(byName.get(j.child)!, j)).join('')}</body>`
   }
 
   const ground = opts.terrain ? terrainXml(opts.terrain) : null
   const actuator = joints
     .map((j, i) => (actuators[i] >= 0 ? `<position name="a${i}" joint="${jointName[i]}" kp="100" kv="8" forcelimited="true" forcerange="${-TUNING.noLimit} ${TUNING.noLimit}"/>` : ''))
     .join('')
+  const tree = walk(0, null) // building the tree collects the mesh assets, so it goes before the assets are written
+  const assets = (ground ? ground.asset : '') + meshes.join('')
   const xml = `<mujoco model="creature"><compiler angle="radian"/>`
     + `<option timestep="${1 / 240}" integrator="implicitfast" gravity="0 ${-opts.gravity} 0"/>`
-    + `${ground ? `<asset>${ground.asset}</asset>` : ''}`
-    + `<worldbody>${ground?.geom ?? ''}${walk(0, null)}</worldbody>`
+    + `${assets ? `<asset>${assets}</asset>` : ''}`
+    + `<worldbody>${ground?.geom ?? ''}${tree}</worldbody>`
     + `${actuator ? `<actuator>${actuator}</actuator>` : ''}</mujoco>`
   return { xml, parts: partName, joints: jointName, actuators, actuatorNames }
 }

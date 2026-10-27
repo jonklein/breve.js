@@ -10,6 +10,7 @@ import { RigidWorld } from './rigid-world'
 import { NetworkWorld } from './network-world'
 import type { PhysicsEngine } from './physics/types'
 import { loadPhysicsEngine } from './physics/registry'
+import { resolveMeshes } from './glb'
 import { fieldOfColumn, fieldOfValue, paramValues, type EntityDef, type Params, type Scene, type StateField } from './scene'
 import { blend } from './blend'
 import { HOOKS, type AskOptions, type ModelRequest, type ThinkCtx, type Controller, type Ctx, type FrameData, type Host, type MetricInput, type Message, type ScriptModule, type World } from './world'
@@ -110,7 +111,7 @@ export class Sim {
    */
   static async create(scene: Scene, script?: ScriptModule): Promise<Sim> {
     const physics = scene.entities.some((e) => e.body) ? await loadPhysicsEngine(scene.physics?.engine) : undefined
-    return new Sim(scene, script, { physics })
+    return new Sim(physics ? await resolveMeshes(scene) : scene, script, { physics }) // a mesh part's shape comes from its model file
   }
 
   constructor(scene: Scene, script?: ScriptModule, opts: { physics?: PhysicsEngine; from?: Sim } = {}) {

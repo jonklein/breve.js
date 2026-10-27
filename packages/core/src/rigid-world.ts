@@ -438,6 +438,14 @@ function lowestPoint(p: PartDef, y: number, qx: number, qy: number, qz: number, 
       return y - (Math.abs(r0) * s[0] + Math.abs(ay) * s[1] + Math.abs(r2) * s[2]) / 2
     }
     case 'capsule': return y - (Math.abs(ay) * s[0]) / 2 - s[1]
+    case 'mesh': {
+      // the lowest vertex once the part is turned: the y row of the rotation matrix applied to each point
+      const r0 = 2 * (qx * qy + qw * qz), r2 = 2 * (qy * qz - qw * qx)
+      let low = Infinity
+      const pts = p.points ?? []
+      for (let i = 0; i + 2 < pts.length; i += 3) low = Math.min(low, r0 * pts[i] + ay * pts[i + 1] + r2 * pts[i + 2])
+      return y + (Number.isFinite(low) ? low : -s[1] / 2)
+    }
     default: return y - (Math.abs(ay) * s[0]) / 2 - s[1] * Math.sqrt(Math.max(0, 1 - ay * ay))
   }
 }

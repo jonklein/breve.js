@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { Sim, parseScene, registerPhysicsEngine, validateBody, type BodyDef } from '@breve/core'
+import { Sim, parseScene, registerAssetReader, registerPhysicsEngine, resolveMeshes, validateBody, type BodyDef } from '@breve/core'
 import { buildMjcf, loadMujoco } from '../src/index'
 
 registerPhysicsEngine('mujoco', loadMujoco)
@@ -58,4 +58,24 @@ test('the example four-legged creature runs on MuJoCo: no errors, finite, standi
     assert.ok(c.py[i] > 0.05 && c.py[i] < 3, `creature ${i} at height ${c.py[i]}`)
   }
   sim.dispose()
+})
+
+test('a mesh part becomes a mesh asset and a mesh geom, and the engine runs it', async () => {
+  const dir = new URL('../../../examples/creature-gltf/', import.meta.url)
+  const parsed = parseScene(readFileSync(new URL('scene.json', dir), 'utf8'))
+  assert.ok(parsed.ok, parsed.ok ? '' : parsed.errors.join('\n'))
+  if (!parsed.ok) return
+  const bytes = new Uint8Array(readFileSync(new URL('beetle.glb', dir)))
+  const scene = { ...parsed.scene, physics: { engine: 'mujoco' } }
+  registerAssetReader(async () => bytes)
+  const resolved = await resolveMeshes(scene, async () => bytes)
+  const r = validateBody(resolved.entities[0].body as never)
+  assert.ok(r.ok, r.ok ? '' : r.errors.join('\n'))
+  if (!r.ok) return
+  const m = buildMjcf(r.body, opts)
+  assert.match(m.xml, /<asset><mesh name="mesh0" vertex="/)
+  assert.match(m.xml, /<geom type="mesh" mesh="mesh0"/)
+  const sim = await Sim.create(scene, undefined) // reads the model through the registered reader
+  for (let t = 0; t < 30; t++) sim.step()
+  assert.equal(sim.takeErrors().length, 0)
 })

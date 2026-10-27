@@ -362,6 +362,13 @@ export class AgentWorld implements World {
     this.placements.set(row, { position: triple(at.position), velocity: triple(at.velocity) })
   }
 
+  moveTo(row: number, x: number, z: number): void {
+    if (row < 0 || row >= this.table.size || !Number.isFinite(x + z)) return
+    this.cols.px[row] = x
+    this.cols.pz[row] = z
+    this.moved++
+  }
+
   /** Carry out the `place` calls scripts made this tick. */
   private placeQueued(): void {
     const c = this.cols

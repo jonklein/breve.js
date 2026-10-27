@@ -14,6 +14,13 @@ export class Viewport {
   /** Called with the entity under a click, or null for a click on nothing. */
   onPick: (sel: { set: number; row: number } | null) => void = () => {}
 
+  /** Which entity sets can be dragged (free agents and creatures; a lattice or a network cannot). */
+  movable: (set: number) => boolean = () => false
+  /** Called as the person drags an entity across the ground: where to put it. */
+  onMoveEntity: (set: number, row: number, x: number, z: number) => void = () => {}
+  /** Called as the person drags a marker (a pole) across the ground, and once more with `done` when they let go. */
+  onMoveMarker: (index: number, x: number, z: number, done: boolean) => void = () => {}
+
   /** Called when the person zooms or pans a lattice that is drawn as a picture: which part of the grid to draw, and in how many pixels. */
   onFieldView: (set: number, window: [number, number, number, number], width: number, height: number) => void = () => {}
   /** The picture lattice on show (set number, grid size, cell width) and the part of it in view. */
@@ -43,6 +50,7 @@ export class Viewport {
       this.onPick(this.view.pick(ray))
     })
     this.listenForFieldView(canvas)
+    this.listenForDrag(canvas)
     new ResizeObserver(() => this.resize()).observe(container)
     this.resize()
     const loop = () => {
@@ -118,6 +126,73 @@ export class Viewport {
       this.moveWindow(x0 + (drag.cell.x - c.x), y0 + (drag.cell.y - c.y), x1 - x0, y1 - y0)
     })
     canvas.addEventListener('pointerup', () => { drag = null })
+  }
+
+  /**
+   * Grab a marker or an entity and drag it over the ground. The press is noticed before the orbit controls see it (so they stand down
+   * for that drag); a press on nothing, or a click without moving, behaves as before.
+   */
+  private listenForDrag(canvas: HTMLCanvasElement): void {
+    type Target = { marker: number } | { set: number; row: number }
+    let drag: { target: Target; plane: THREE.Plane; from: { x: number; y: number }; moved: boolean } | null = null
+    let want: { x: number; z: number } | null = null
+    let scheduled = false
+    const rayAt = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect()
+      const ray = new THREE.Raycaster()
+      ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1)), this.view.camera)
+      return ray
+    }
+    const emit = (done: boolean) => {
+      scheduled = false
+      if (!drag || !want) return
+      const { x, z } = want
+      if ('marker' in drag.target) this.onMoveMarker(drag.target.marker, x, z, done)
+      else this.onMoveEntity(drag.target.set, drag.target.row, x, z)
+    }
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || this.field) return
+      const ray = rayAt(e)
+      const marker = this.view.markerAt(ray)
+      const hit = this.view.pickHit(ray)
+      const entity = hit && this.movable(hit.set) ? hit : null
+      const near = marker && (!entity || marker.distance <= entity.distance) ? marker : entity
+      if (!near) return
+      const point = ray.ray.at(near.distance, new THREE.Vector3())
+      drag = { target: near === marker ? { marker: marker!.index } : { set: entity!.set, row: entity!.row }, plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -point.y), from: { x: e.clientX, y: e.clientY }, moved: false }
+      this.controls.enabled = false // the orbit controls look at this when they get the same press
+      canvas.setPointerCapture(e.pointerId)
+    }, true)
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drag) return
+      if (!drag.moved && Math.hypot(e.clientX - drag.from.x, e.clientY - drag.from.y) < 4) return
+      drag.moved = true
+      canvas.style.cursor = 'grabbing'
+      const at = rayAt(e).ray.intersectPlane(drag.plane, new THREE.Vector3())
+      if (!at) return
+      want = { x: at.x, z: at.z }
+      if (!scheduled) { scheduled = true; requestAnimationFrame(() => emit(false)) } // at most once a frame, however fast the pointer moves
+    })
+    const end = (e: PointerEvent) => {
+      if (!drag) return
+      if (drag.moved) emit(true)
+      drag = null
+      want = null
+      this.controls.enabled = true
+      canvas.style.cursor = ''
+      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId)
+    }
+    canvas.addEventListener('pointerup', end)
+    canvas.addEventListener('pointercancel', end)
+  }
+
+  /** Where on the page (client pixels) the top of marker `index` is drawn; for automated checks. */
+  markerScreen(index: number): { x: number; y: number } | null {
+    const p = this.view.markerPosition(index)
+    if (!p) return null
+    const r = this.renderer.domElement.getBoundingClientRect()
+    p.project(this.view.camera)
+    return { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height }
   }
 
   setWorld(w: WorldLook | undefined): void { this.view.setWorld(w) }

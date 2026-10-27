@@ -277,6 +277,8 @@ export interface World {
   snapshot?(): unknown
   restore?(s: unknown): void
   /** Release engine resources (physics worlds live in wasm memory). */
+  /** Put entity `row` at (x, z) now, keeping what else it is (a person dragging it). Not every kind of world can. */
+  moveTo?(row: number, x: number, z: number): void
   dispose?(): void
   /** Worlds whose state lives on a graphics card: bring the picture and totals that frames and metrics show up to date. */
   refresh?(): Promise<void>

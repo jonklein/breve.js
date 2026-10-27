@@ -2,7 +2,7 @@ import { Viewport, type WorldLook } from './viewport'
 import { resolveWorld } from '@breve/view'
 import { TileGrid } from './tiles'
 import { makeEditor, setParamInText, setPathInText, getPath } from './editors'
-import { parseScene, sceneSchema, setEntityKey } from '@breve/core'
+import { parseScene, sceneSchema, setAtPath, setEntityKey } from '@breve/core'
 import { ParamsPanel, MetricsPanel, ControlsPanel } from './panel'
 import {
   approveProject, clearDoc, createProject, deleteProject, fetchAbout, fetchExample, fingerprint, loadExamples, renameProject, sameDoc, saveDoc as storeDoc, savedDoc, saveParams, savedParams, userProjects,
@@ -103,12 +103,33 @@ async function main(): Promise<void> {
     send({ type: 'scene', scene: next })
   })
 
+  // `?debug` hands the automated UI checks the view, to find things to drag
+  if (new URLSearchParams(location.search).has('debug')) (window as unknown as { breveDebug: unknown }).breveDebug = { viewport }
+  let movable: boolean[] = [] // which entity sets a person may drag
+  viewport.movable = (set) => movable[set] === true
+  viewport.onMoveEntity = (set, row, x, z) => send({ type: 'move', set, row, x, z })
+  // dragging a pole edits the scene text where the position lives: in `data` when `world.markers` names a key, else in the list itself
+  viewport.onMoveMarker = (index, x, z, done) => {
+    let scene: { world?: { markers?: unknown } }
+    try { scene = JSON.parse(sceneEditor.getText()) } catch { return }
+    const ref = scene.world?.markers
+    const path = typeof ref === 'string' ? ['data', ref, index, 'at'] : ['world', 'markers', index, 'at']
+    const next = setAtPath(sceneEditor.getText(), path, [Math.round(x * 20) / 20, Math.round(z * 20) / 20])
+    if (next === null) return
+    loading = true
+    sceneEditor.setText(next)
+    loading = false
+    if (done) saveDoc(current, docNow())
+    showScene(next)
+    send({ type: 'scene', scene: next })
+  }
   const showScene = (text: string) => {
     try {
-      const scene = JSON.parse(text) as { params?: unknown; controls?: unknown; world?: WorldLook; data?: Record<string, unknown>; entities?: { controller?: string }[] }
+      const scene = JSON.parse(text) as { params?: unknown; controls?: unknown; world?: WorldLook; data?: Record<string, unknown>; entities?: { controller?: string; lattice?: unknown; network?: unknown }[] }
       controls.render(scene.controls, (path) => getPath(scene, path))
       params.render(scene.params)
       metrics.setGroups((scene as { charts?: { title?: string; metrics: string[] }[] }).charts)
+      movable = (scene.entities ?? []).map((e) => !e.lattice && !e.network)
       const look = resolveWorld(scene.world, scene.data)
       viewport.setWorld(look)
       tiles.setWorld(look)

@@ -354,6 +354,13 @@ export class Sim {
     }
   }
 
+  /** Put one entity at (x, z), as when a person drags it (free agents and creatures; a lattice cell or a network node has no place to move). */
+  moveEntity(set: number, row: number, x: number, z: number): void {
+    const world = this.worlds[set]
+    if (!world?.moveTo || row < 0 || row >= world.table.size) throw new Error('that entity cannot be moved')
+    world.moveTo(row, x, z)
+  }
+
   /** The names a set's `type` can take: every export of the script that is a controller. */
   controllerNames(): string[] {
     const isController = (v: unknown) => !!v && typeof v === 'object' && HOOKS.some((k) => typeof (v as Record<string, unknown>)[k] === 'function')

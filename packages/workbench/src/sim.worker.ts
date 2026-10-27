@@ -20,6 +20,7 @@ export type ToWorker =
   | { type: 'inspect'; set: number; row: number }
   | { type: 'uninspect' }
   /** Edit one value of one entity. */
+  | { type: 'move'; set: number; row: number; x: number; z: number }
   | { type: 'poke'; set: number; row: number; field: string; value: number | boolean | string; index?: number }
   /** Run the scene once per value of one param, side by side. */
   | { type: 'sweep'; runs: { name: string; params: Record<string, number> }[] }
@@ -396,6 +397,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'uninspect':
       selection = null
+      break
+    case 'move': // a person dragged an entity
+      try {
+        sim?.moveEntity(m.set, m.row, m.x, m.z)
+        lastPosted = -1
+      } catch { /* a sweep or a lattice has nothing to move */ }
       break
     case 'poke':
       try {

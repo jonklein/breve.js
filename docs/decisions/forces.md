@@ -17,3 +17,6 @@ Option 2. A creature's `act` may return `forces: { part: { force, torque } }`, a
 - Drag is explicit-integration: the cap keeps it stable, at the cost of understating very fast motion.
 - No waves, added mass or surface tension; buoyancy acts at the center unless `buoyancyHeight` lifts it.
 - MuJoCo velocities come from `cvel` (the binding's `mj_objectVelocity` does not fill its output array).
+
+## Dragging
+Pressing on an entity or a marker in the workbench starts a drag over a horizontal plane through the point grabbed; the orbit controls stand down for that press (they look at `controls.enabled` when they receive it) and a press that does not move is still a click. A marker drag rewrites its `at` in the scene text (in `data` when `world.markers` names a key, so the script follows live: scene changes reach the running sim without a reset) at most once a frame. An entity drag is a worker message `move` to `Sim.moveEntity` (`World.moveTo`): free agents get a new position; a creature is stood up again at the spot facing the same way, like a script's `place`, so its joints start over. Lattice cells and network nodes cannot be moved.

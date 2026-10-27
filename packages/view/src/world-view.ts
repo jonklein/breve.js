@@ -194,7 +194,7 @@ export class WorldView {
     }
     if (!Array.isArray(list) || !list.length) return
     const group = new THREE.Group()
-    for (const m of list as { at?: unknown; height?: unknown; color?: unknown }[]) {
+    for (const [index, m] of (list as { at?: unknown; height?: unknown; color?: unknown }[]).entries()) {
       if (!m || !Array.isArray(m.at) || typeof m.at[0] !== 'number' || typeof m.at[1] !== 'number') continue
       const h = typeof m.height === 'number' && m.height > 0 ? m.height : 2
       let color = new THREE.Color('#ff8a3d')
@@ -203,6 +203,7 @@ export class WorldView {
       pole.position.set(m.at[0], (h - 0.5) / 2, m.at[1]) // sunk a little, so it stands on bumpy ground
       const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshLambertMaterial({ color }))
       cap.position.set(m.at[0], h, m.at[1])
+      pole.userData.index = cap.userData.index = index
       group.add(pole, cap)
     }
     this.markers = group
@@ -405,11 +406,30 @@ export class WorldView {
 
   /** The entity under a ray, if any: which set (scene order) and which row. */
   pick(ray: THREE.Raycaster): { set: number; row: number } | null {
+    const hit = this.pickHit(ray)
+    return hit ? { set: hit.set, row: hit.row } : null
+  }
+
+  /** The nearest entity along a ray, and how far along it is. */
+  pickHit(ray: THREE.Raycaster): { set: number; row: number; distance: number } | null {
     const found: { set: number; row: number; distance: number }[] = []
     this.layers.forEach((l, set) => { const hit = l?.pick(ray); if (hit) found.push({ set, ...hit }) })
     if (this.isBodies) { const hit = this.rigid.pick(ray); if (hit) found.push({ set: 0, ...hit }) }
     found.sort((a, b) => a.distance - b.distance)
-    return found[0] ? { set: found[0].set, row: found[0].row } : null
+    return found[0] ?? null
+  }
+
+  /** Where marker number `index` of the scene's list stands (the top of its pole), or null. */
+  markerPosition(index: number): THREE.Vector3 | null {
+    const cap = this.markers?.children.find((c) => c.userData.index === index && (c as THREE.Mesh).geometry instanceof THREE.SphereGeometry)
+    return cap ? cap.position.clone() : null
+  }
+
+  /** The marker (its place in the list the scene gave) under a ray, for dragging it, and how far along the ray it is. */
+  markerAt(ray: THREE.Raycaster): { index: number; distance: number } | null {
+    if (!this.markers?.visible) return null
+    const hit = ray.intersectObjects(this.markers.children, false)[0]
+    return hit ? { index: hit.object.userData.index as number, distance: hit.distance } : null
   }
 
   /** Mark the agent being inspected (or none). */

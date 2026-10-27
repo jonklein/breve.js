@@ -192,6 +192,26 @@ await sim('braitenberg')
 await page.waitForTimeout(7000)
 check('the Braitenberg vehicles run', /creatures/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
 
+// dragging a light: the poles are drawn from `data.lights` (world.markers names it), so moving one edits that list and the project is saved
+await page.goto(`${base}/sim/?debug#braitenberg`)
+await page.waitForTimeout(6000)
+if (await page.locator('main.drawer-open').count()) { await page.click('#drawer-close'); await page.waitForTimeout(300) }
+// the About card covers the left of the view: take a pole clear of it
+const poles = await page.evaluate(() => [0, 1, 2].map((i) => window.breveDebug?.viewport.markerScreen(i) ?? null))
+const which = poles.findIndex((p) => p && p.x > 450 && p.y > 150 && p.y < 440)
+const pole = poles[which]
+if (!pole) check('a light can be dragged', false, `no pole in the clear: ${JSON.stringify(poles)}`)
+else {
+  await page.mouse.move(pole.x, pole.y); await page.mouse.down()
+  await page.mouse.move(pole.x + 60, pole.y + 25, { steps: 6 }); await page.mouse.up()
+  await page.waitForTimeout(400)
+  const saved = await page.evaluate(() => localStorage.getItem('breve:doc:braitenberg'))
+  const lights = saved ? JSON.parse(JSON.parse(saved).scene).data.lights : []
+  const was = [[-5.5, 4.5], [6.5, -3.5], [0, -8.5]][which]
+  check('a light can be dragged: its entry in data.lights moves', lights.length === 3 && (Math.abs(lights[which].at[0] - was[0]) > 0.3 || Math.abs(lights[which].at[1] - was[1]) > 0.3), JSON.stringify(lights[which]))
+  check('dragging a light does not stop the sim', (await page.locator('.problems li').count()) === 0)
+}
+
 // swimmers: forces and the water plane run with no problems
 await sim('swimmers')
 await page.waitForTimeout(7000)

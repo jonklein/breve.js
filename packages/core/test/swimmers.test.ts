@@ -20,10 +20,10 @@ const run = async (params: Record<string, number>, ticks = 900) => {
   assert.deepEqual(sim.takeErrors(), [])
   // net progress, not path length: a waggling head covers ground without going anywhere
   const moved = at().map((e, i) => Math.hypot(e[0] - start[i][0], e[1] - start[i][1])).reduce((a, b) => a + b, 0) / start.length
-  const m = { ...sim.metrics(), moved }
+  const m: Record<string, number> = { ...sim.metrics(), moved }
   const hash = sim.hash()
   sim.dispose()
-  return { ...m, hash }
+  return { ...m, hash } as Record<string, number> & { hash: string }
 }
 
 test('the bending wave swims the fish forward through water, and with no drag the same wave goes nowhere', async () => {

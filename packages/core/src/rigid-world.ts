@@ -360,6 +360,13 @@ export class RigidWorld implements World {
     this.places.set(row, { x: at.x, z: at.z, yaw: Number.isFinite(at.yaw) ? at.yaw! : 0 })
   }
 
+  /** Stand creature `row` at (x, z) facing the way it faced: its joints start over, as with `place`. */
+  moveTo(row: number, x: number, z: number): void {
+    if (row < 0 || row >= this.table.size) return
+    this.queuePlace(row, { x, z, yaw: this.handles[row].yaw })
+    this.placeQueued()
+  }
+
   /** Carry out the `place` calls scripts made this tick: a fresh body at the pose, on the ground there. Everything else about the creature stays. */
   private placeQueued(): void {
     for (const [i, at] of [...this.places].sort((a, b) => a[0] - b[0])) {

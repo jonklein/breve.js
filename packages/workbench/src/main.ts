@@ -4,9 +4,10 @@ import { makeEditor, setParamInText, setPathInText, getPath } from './editors'
 import { parseScene, sceneSchema, setEntityKey } from '@breve/core'
 import { ParamsPanel, MetricsPanel, ControlsPanel } from './panel'
 import {
-  approveProject, clearDoc, createProject, deleteProject, fetchExample, fingerprint, loadExamples, renameProject, sameDoc, saveDoc as storeDoc, savedDoc, saveParams, savedParams, userProjects,
+  approveProject, clearDoc, createProject, deleteProject, fetchAbout, fetchExample, fingerprint, loadExamples, renameProject, sameDoc, saveDoc as storeDoc, savedDoc, saveParams, savedParams, userProjects,
   type Doc, type ExampleInfo,
 } from './projects'
+import { AboutOverlay } from './about'
 import { ChatPanel } from './chat'
 import { DocsPanel } from './docs'
 import { InspectorPanel } from './inspector'
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
   const send = (m: ToWorker) => worker.postMessage(m)
 
   const viewport = new Viewport($('viewport'))
+  const about = new AboutOverlay($('viewport'))
   const metrics = new MetricsPanel($('metrics'))
 
   // ---- watching an experiment's runs side by side ----
@@ -318,6 +320,9 @@ async function main(): Promise<void> {
     const home = isExample(id) ? id : userProjects().find((p) => p.id === id)?.from
     unapproved = !!userProjects().find((p) => p.id === id)?.untrusted
     $('held').classList.toggle('hidden', !unapproved)
+    // a copy of an example keeps the original's description
+    const aboutOf = home && isExample(home) ? exampleById.get(home) : undefined
+    void fetchAbout(aboutOf ?? ({} as ExampleInfo)).then((md) => { if (current === id) about.show(home ?? id, aboutOf?.name ?? '', md) })
     const assets = `${location.origin}/${home && isExample(home) ? home + '/' : ''}`
     viewport.view.setAssetBase(assets)
     send({ type: 'init', scene: doc.scene, script: live(doc.script), base: assets, epoch: ++epoch })

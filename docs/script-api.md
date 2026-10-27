@@ -154,6 +154,10 @@ A node's `neighbors` are the nodes it is linked to. `act` works exactly as it do
 
 **Layouts** (display only). `force` is the d3-force-3d library run to rest: linked nodes pull together, others push apart, so clusters show. `circle` and `sphere` spread nodes evenly, `grid` fills a cube lattice, `random` scatters them through a ball, and `radial` puts the best-linked node in the middle with one ring per link of distance from it. `examples/layouts` has a button for each.
 
+### About: a description over the simulation
+
+An example can have a short Markdown file (`about.md` next to its `scene.json`, listed as `"about"` in `examples/index.json`). The workbench shows it as a card over the corner of the simulation that folds down to a button, and remembers whether each one was left open. Say what the model is, what the colors and sliders mean, and what to try; keep it under about 150 words. The Markdown supported is `###` headings, paragraphs, `-` lists, `**bold**`, `*italic*`, `` `code` `` and `[links](https://...)`, which open in a new tab. HTML is shown as plain text.
+
 ### Controls: buttons that change the scene
 
 ```jsonc

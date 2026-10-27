@@ -10,7 +10,8 @@
       "agents",
       "flocking"
     ],
-    "folder": "Flocks & swarms"
+    "folder": "Flocks & swarms",
+    "about": "about.md"
   },
   {
     "id": "neural",
@@ -23,7 +24,8 @@
       "neural network",
       "learning"
     ],
-    "folder": "Flocks & swarms"
+    "folder": "Flocks & swarms",
+    "about": "about.md"
   },
   {
     "id": "herding",
@@ -36,7 +38,8 @@
       "interactive",
       "keyboard"
     ],
-    "folder": "Flocks & swarms"
+    "folder": "Flocks & swarms",
+    "about": "about.md"
   },
   {
     "id": "life3d",
@@ -49,7 +52,8 @@
       "cellular automaton",
       "3d"
     ],
-    "folder": "Cells & patterns"
+    "folder": "Cells & patterns",
+    "about": "about.md"
   },
   {
     "id": "life2d",
@@ -62,7 +66,8 @@
       "cellular automaton",
       "fast"
     ],
-    "folder": "Cells & patterns"
+    "folder": "Cells & patterns",
+    "about": "about.md"
   },
   {
     "id": "epidemic-grid",
@@ -74,7 +79,8 @@
       "grid",
       "epidemic"
     ],
-    "folder": "Cells & patterns"
+    "folder": "Cells & patterns",
+    "about": "about.md"
   },
   {
     "id": "gray-scott",
@@ -87,7 +93,8 @@
       "pattern formation",
       "chemistry"
     ],
-    "folder": "Cells & patterns"
+    "folder": "Cells & patterns",
+    "about": "about.md"
   },
   {
     "id": "hypercycle",
@@ -100,7 +107,8 @@
       "evolution",
       "origin of life"
     ],
-    "folder": "Cells & patterns"
+    "folder": "Cells & patterns",
+    "about": "about.md"
   },
   {
     "id": "epidemic",
@@ -112,7 +120,8 @@
       "network",
       "epidemic"
     ],
-    "folder": "Networks & economies"
+    "folder": "Networks & economies",
+    "about": "about.md"
   },
   {
     "id": "market",
@@ -124,7 +133,8 @@
       "network",
       "economics"
     ],
-    "folder": "Networks & economies"
+    "folder": "Networks & economies",
+    "about": "about.md"
   },
   {
     "id": "layouts",
@@ -137,7 +147,8 @@
       "layout",
       "controls"
     ],
-    "folder": "Networks & economies"
+    "folder": "Networks & economies",
+    "about": "about.md"
   },
   {
     "id": "ants",
@@ -151,7 +162,8 @@
       "patches",
       "emergence"
     ],
-    "folder": "Ecology & foraging"
+    "folder": "Ecology & foraging",
+    "about": "about.md"
   },
   {
     "id": "creature",
@@ -165,7 +177,8 @@
       "bodies",
       "terrain"
     ],
-    "folder": "Creatures & robots"
+    "folder": "Creatures & robots",
+    "about": "about.md"
   },
   {
     "id": "urdf-bot",
@@ -177,7 +190,8 @@
       "physics",
       "import"
     ],
-    "folder": "Creatures & robots"
+    "folder": "Creatures & robots",
+    "about": "about.md"
   },
   {
     "id": "morphology",
@@ -190,7 +204,8 @@
       "physics",
       "search"
     ],
-    "folder": "Creatures & robots"
+    "folder": "Creatures & robots",
+    "about": "about.md"
   },
   {
     "id": "creature-gltf",
@@ -203,7 +218,8 @@
     ],
     "scene": "scene.json",
     "script": "creature.js",
-    "folder": "Creatures & robots"
+    "folder": "Creatures & robots",
+    "about": "about.md"
   },
   {
     "id": "evolved-creatures",
@@ -217,7 +233,8 @@
       "neural",
       "sub-simulations"
     ],
-    "folder": "Creatures & robots"
+    "folder": "Creatures & robots",
+    "about": "about.md"
   },
   {
     "id": "llm-wanderers",
@@ -229,7 +246,8 @@
       "agents",
       "language model"
     ],
-    "folder": "AI & language models"
+    "folder": "AI & language models",
+    "about": "about.md"
   },
   {
     "id": "vlm-scouts",
@@ -242,7 +260,8 @@
     ],
     "scene": "scene.json",
     "script": "scouts.js",
-    "folder": "AI & language models"
+    "folder": "AI & language models",
+    "about": "about.md"
   },
   {
     "id": "onnx-policy",
@@ -255,6 +274,7 @@
     ],
     "scene": "scene.json",
     "script": "policy.js",
-    "folder": "AI & language models"
+    "folder": "AI & language models",
+    "about": "about.md"
   }
 ]

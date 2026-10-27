@@ -7,6 +7,19 @@ export interface ExampleInfo {
   scene: string
   script: string
   experiment?: string
+  /** A short Markdown description shown over the simulation (`about.md` in the example's folder). */
+  about?: string
+}
+
+/** The example's description, or null when it has none. */
+export async function fetchAbout(e: ExampleInfo): Promise<string | null> {
+  if (!e.about) return null
+  try {
+    const r = await fetch(`/${e.id}/${e.about}`)
+    const text = await r.text()
+    // a dev server answers a missing file with the home page; that is not a description
+    return r.ok && !/^\s*<(!doctype|html)/i.test(text) ? text : null
+  } catch { return null }
 }
 
 export interface Doc {

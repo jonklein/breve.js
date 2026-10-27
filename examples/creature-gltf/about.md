@@ -1,0 +1,1 @@
+The walking creature with a nicer look: its torso is drawn from a [glTF model](https://en.wikipedia.org/wiki/GlTF) (`beetle.glb`) instead of a plain box. Physics still uses the box, so only the picture changes. The sliders are the same as in the *Creatures* example.

@@ -1,3 +1,17 @@
+.about { position: absolute; top: 10px; left: 22px; z-index: 5; width: min(380px, calc(100% - 44px)); max-height: calc(100% - 20px); display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 10px; background: rgba(14, 17, 22, 0.82); backdrop-filter: blur(6px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); font-size: 13px; line-height: 1.5; }
+.about.hidden { display: none; }
+.about-toggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.about-toggle::before { content: ''; flex: none; border: 4px solid transparent; border-top: 5px solid currentColor; border-bottom: none; transition: transform 0.15s ease; }
+.about.collapsed .about-toggle::before { transform: rotate(-90deg); }
+.about-body { overflow: auto; padding: 0 14px 12px; }
+.about.collapsed .about-body { display: none; }
+.about-body p, .about-body ul { margin: 0 0 8px; }
+.about-body ul { padding-left: 18px; }
+.about-body h4 { margin: 10px 0 4px; font-size: 13px; }
+.about-body a { color: var(--accent); }
+.about-body code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; padding: 0 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); }
+.embed .about { display: none; }
+
 #controls .control { padding: 6px 0 2px; }
 #controls label { display: block; font-size: 12px; opacity: 0.75; margin-bottom: 4px; }
 .choices { display: flex; flex-wrap: wrap; gap: 6px; }

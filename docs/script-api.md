@@ -141,7 +141,7 @@ Grid shape and seed only take effect when the simulation is reset. Params (rule 
     "topology": "smallworld",             // "smallworld" (default), "random", "scalefree", "ring", "complete", or "edges" with an explicit list
     "degree": 6,                          // average links per node
     "rewire": 0.08,                       // small worlds: share of links rewired at random
-    "layout": "force",                    // how nodes are placed for drawing: "force", "circle" or "sphere"
+    "layout": "force",                    // how nodes are placed for drawing: "force", "circle", "sphere", "grid", "random" or "radial"
     "radius": 24                          // size of the drawn layout
   },
   "controller": "contagion.js"
@@ -151,6 +151,18 @@ Grid shape and seed only take effect when the simulation is reset. Params (rule 
 Starting state is the script's `init` (a node at a time) or `initAll` (all at once: `initAll({ count }, p, ctx)` returns an array per field, so "exactly 3 random nodes start infected" is a few lines in the script), and the colors are `display` / `displayAll`, as for lattices.
 
 A node's `neighbors` are the nodes it is linked to. `act` works exactly as it does for lattice cells: it reads `self` and `neighbors` (`neighbors.status` is a list of numbers) and returns the node's **new state**, applied for everyone at once. That is why one script can run on a grid and on a graph (see `examples/epidemic` and `examples/epidemic-grid`). `self.degree` is the number of links. Positions come from the layout and are only for drawing.
+
+**Layouts** (display only). `force` is the d3-force-3d library run to rest: linked nodes pull together, others push apart, so clusters show. `circle` and `sphere` spread nodes evenly, `grid` fills a cube lattice, `random` scatters them through a ball, and `radial` puts the best-linked node in the middle with one ring per link of distance from it. `examples/layouts` has a button for each.
+
+### Controls: buttons that change the scene
+
+```jsonc
+"controls": [
+  { "label": "Layout", "set": "entities.0.network.layout", "options": ["force", "circle", "sphere"] }
+]
+```
+
+Each control becomes a row of buttons in the panel, one per option, with the current value pressed. A click writes that option into the field at `set` (a dotted path; array positions are numbers) and restarts the scene, so it works for anything the scene says. Sliders (`params`) are for numbers that apply live; controls are for choices.
 
 **Trading.** A node may also return `exchange: [{ with: neighbor, give: { goods: 1 }, get: { cash: 3 } }]`: give some of its own number fields to a linked node and take some of that node's. A trade is made whole or not at all: if either side could not pay (a field would drop below zero), nothing moves. Trades are made in an order shuffled from the seed, so nobody gets an edge from their position. See `examples/market`.
 

@@ -127,6 +127,19 @@
     "folder": "Networks & economies"
   },
   {
+    "id": "layouts",
+    "name": "Network layouts",
+    "description": "One network, drawn six ways. Press the buttons to change the layout and the kind of links.",
+    "scene": "scene.json",
+    "script": "layouts.js",
+    "tags": [
+      "network",
+      "layout",
+      "controls"
+    ],
+    "folder": "Networks & economies"
+  },
+  {
     "id": "ants",
     "name": "Ants",
     "description": "Foraging ants lay scent on a ground layer: two entity sets (agents and cells) in one world, trails form by themselves.",

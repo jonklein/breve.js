@@ -1,3 +1,10 @@
+#controls .control { padding: 6px 0 2px; }
+#controls label { display: block; font-size: 12px; opacity: 0.75; margin-bottom: 4px; }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.choices button { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
+.choices button:hover { border-color: #4a5a70; }
+.choices button[aria-pressed="true"] { background: #2a5da8; border-color: #5aa9ff; color: #fff; }
+
 :root {
   --bg: #0e1116;
   --panel: #151a21;

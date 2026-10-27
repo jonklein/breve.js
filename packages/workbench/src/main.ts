@@ -1,8 +1,8 @@
 import { Viewport, type WorldLook } from './viewport'
 import { TileGrid } from './tiles'
-import { makeEditor, setParamInText } from './editors'
+import { makeEditor, setParamInText, setPathInText, getPath } from './editors'
 import { parseScene, sceneSchema, setEntityKey } from '@breve/core'
-import { ParamsPanel, MetricsPanel } from './panel'
+import { ParamsPanel, MetricsPanel, ControlsPanel } from './panel'
 import {
   approveProject, clearDoc, createProject, deleteProject, fetchExample, fingerprint, loadExamples, renameProject, sameDoc, saveDoc as storeDoc, savedDoc, saveParams, savedParams, userProjects,
   type Doc, type ExampleInfo,
@@ -86,9 +86,21 @@ async function main(): Promise<void> {
     send({ type: 'scene', scene: next })
   })
 
+  const controls = new ControlsPanel($('controls'), (path, value) => {
+    const next = setPathInText(sceneEditor.getText(), path, value)
+    if (next === null) return
+    loading = true
+    sceneEditor.setText(next)
+    loading = false
+    saveDoc(current, docNow())
+    showScene(next)
+    send({ type: 'scene', scene: next })
+  })
+
   const showScene = (text: string) => {
     try {
-      const scene = JSON.parse(text) as { params?: unknown; world?: WorldLook; entities?: { controller?: string }[] }
+      const scene = JSON.parse(text) as { params?: unknown; controls?: unknown; world?: WorldLook; entities?: { controller?: string }[] }
+      controls.render(scene.controls, (path) => getPath(scene, path))
       params.render(scene.params)
       metrics.setGroups((scene as { charts?: { title?: string; metrics: string[] }[] }).charts)
       viewport.setWorld(scene.world)

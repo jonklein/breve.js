@@ -39,6 +39,42 @@ export function makeEditor(parent: HTMLElement, doc: string, lang: 'json' | 'js'
   }
 }
 
+/**
+ * Set the field at a dotted path (`entities.0.network.layout`) in scene.json text. A string that appears once as
+ * `"key": "old"` is swapped in place so the file keeps its formatting; anything else rewrites the file.
+ */
+export function setPathInText(text: string, path: string, value: string | number | boolean): string | null {
+  let doc: Record<string, unknown>
+  try { doc = JSON.parse(text) } catch { return null }
+  const keys = path.split('.')
+  let node = doc as unknown
+  for (const k of keys.slice(0, -1)) {
+    if (!node || typeof node !== 'object') return null
+    node = (node as Record<string, unknown>)[k]
+  }
+  const last = keys[keys.length - 1]
+  if (!node || typeof node !== 'object') return null
+  const holder = node as Record<string, unknown>
+  const old = holder[last]
+  if (old === value) return text
+  if (typeof old === 'string' && typeof value === 'string') {
+    const re = new RegExp(`("${last.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\s*:\\s*)${JSON.stringify(old).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g')
+    if ((text.match(re) ?? []).length === 1) return text.replace(re, (_m, pre) => pre + JSON.stringify(value))
+  }
+  holder[last] = value
+  return JSON.stringify(doc, null, 2) + '\n'
+}
+
+/** The value at a dotted path in a parsed scene (undefined when the path leads nowhere). */
+export function getPath(doc: unknown, path: string): unknown {
+  let node = doc
+  for (const k of path.split('.')) {
+    if (!node || typeof node !== 'object') return undefined
+    node = (node as Record<string, unknown>)[k]
+  }
+  return node
+}
+
 /** Set one param's value in scene.json text without reformatting the rest of the file. */
 export function setParamInText(text: string, name: string, value: number): string | null {
   const start = text.indexOf('"params"')

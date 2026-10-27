@@ -1,0 +1,20 @@
+{
+  "name": "layouts",
+  "seed": 3,
+  "clock": { "rate": 10 },
+  "world": { "frame": false, "preset": "night", "camera": { "distance": 2.2, "elevation": 20 }, "grid": false, "fog": false },
+  "controls": [
+    { "label": "Layout", "set": "entities.0.network.layout", "options": ["force", "circle", "sphere", "grid", "random", "radial"] },
+    { "label": "Links", "set": "entities.0.network.topology", "options": ["smallworld", "scalefree", "random", "ring"] }
+  ],
+  "params": {},
+  "entities": [
+    {
+      "name": "nodes",
+      "style": { "material": { "roughness": 0.4, "glow": 0.5 } },
+      "count": 120,
+      "controller": "layouts.js",
+      "network": { "topology": "scalefree", "degree": 4, "rewire": 0.1, "layout": "force", "radius": 24, "size": 1.3 }
+    }
+  ]
+}

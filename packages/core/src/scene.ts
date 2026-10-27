@@ -68,7 +68,7 @@ export interface NetworkDef {
   /** Explicit links as pairs of node numbers, for topology `edges`. */
   edges?: [number, number][]
   /** How to place nodes for drawing (default `force`). */
-  layout?: 'force' | 'circle' | 'sphere'
+  layout?: 'force' | 'circle' | 'sphere' | 'grid' | 'random' | 'radial'
   /** Size of the drawn layout in world units (default 20). */
   radius?: number
   /** How big nodes are drawn, as a multiple of the default. */
@@ -256,6 +256,18 @@ export interface Scene {
   metrics?: string[]
   /** Draw several metrics on one chart: `[{ "title": "SIR", "metrics": ["susceptible", "infected"] }]`. Metrics not listed in any chart get their own. */
   charts?: { title?: string; metrics: string[] }[]
+  /**
+   * Buttons in the control panel that pick a value for one field of this scene: `{ "label": "Layout", "set": "entities.0.network.layout",
+   * "options": ["force", "circle"] }`. Clicking one rewrites the field and restarts the scene, so it works for anything the scene says.
+   */
+  controls?: ControlDef[]
+}
+
+export interface ControlDef {
+  label?: string
+  /** Dotted path to the field, with array positions as numbers. */
+  set: string
+  options: (string | number | boolean)[]
 }
 
 export type Params = Record<string, number>
@@ -498,7 +510,7 @@ export const sceneSchema = {
               degree: { type: 'number', minimum: 0 },
               rewire: { type: 'number', minimum: 0, maximum: 1 },
               edges: { type: 'array', items: { type: 'array', items: { type: 'integer', minimum: 0 }, minItems: 2, maxItems: 2 } },
-              layout: { enum: ['force', 'circle', 'sphere'] },
+              layout: { enum: ['force', 'circle', 'sphere', 'grid', 'random', 'radial'] },
               radius: { type: 'number', exclusiveMinimum: 0 },
               size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
             },
@@ -538,6 +550,19 @@ export const sceneSchema = {
     },
     data: { type: 'object' },
     metrics: { type: 'array', items: { type: 'string' } },
+    controls: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['set', 'options'],
+        additionalProperties: false,
+        properties: {
+          label: { type: 'string' },
+          set: { type: 'string', pattern: '^[^.\\s]+(\\.[^.\\s]+)*$' },
+          options: { type: 'array', items: { type: ['string', 'number', 'boolean'] }, minItems: 2 },
+        },
+      },
+    },
     charts: { type: 'array', items: { type: 'object', required: ['metrics'], additionalProperties: false, properties: { title: { type: 'string' }, metrics: { type: 'array', items: { type: 'string' }, minItems: 1 } } } },
   },
 } as const

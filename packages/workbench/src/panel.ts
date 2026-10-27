@@ -79,7 +79,52 @@ export class ParamsPanel {
   }
 }
 
-const LINE_COLORS = ['#5aa9ff', '#ff6b6b', '#7bd88f', '#ffd24d', '#c792ea', '#ffa657']
+interface ControlView { label?: string; set: string; options: (string | number | boolean)[] }
+
+/** Rows of buttons from the scene's `controls`: one button per option, the current one pressed. */
+export class ControlsPanel {
+  private signature = ''
+  private rows = new Map<string, HTMLButtonElement[]>()
+
+  constructor(private root: HTMLElement, private onPick: (path: string, value: string | number | boolean) => void) {}
+
+  render(controls: unknown, current: (path: string) => unknown): void {
+    const list = Array.isArray(controls) ? (controls as ControlView[]).filter((c) => c && typeof c.set === 'string' && Array.isArray(c.options)) : []
+    const sig = JSON.stringify(list)
+    if (sig !== this.signature) {
+      this.signature = sig
+      this.rows.clear()
+      this.root.replaceChildren()
+      for (const c of list) {
+        const wrap = document.createElement('div')
+        wrap.className = 'control'
+        const label = document.createElement('label')
+        label.textContent = c.label ?? c.set.split('.').pop() ?? c.set
+        const group = document.createElement('div')
+        group.className = 'choices'
+        group.setAttribute('role', 'group')
+        group.setAttribute('aria-label', label.textContent)
+        const buttons = c.options.map((o) => {
+          const b = document.createElement('button')
+          b.type = 'button'
+          b.textContent = String(o)
+          b.addEventListener('click', () => this.onPick(c.set, o))
+          group.appendChild(b)
+          return b
+        })
+        this.rows.set(c.set, buttons)
+        wrap.append(label, group)
+        this.root.appendChild(wrap)
+      }
+    }
+    for (const c of list) {
+      const now = current(c.set)
+      this.rows.get(c.set)?.forEach((b, i) => b.setAttribute('aria-pressed', String(c.options[i] === now)))
+    }
+  }
+}
+
+const LINE_COLORS =['#5aa9ff', '#ff6b6b', '#7bd88f', '#ffd24d', '#c792ea', '#ffa657']
 
 interface Chart {
   title: string

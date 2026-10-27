@@ -15,14 +15,15 @@
   },
   {
     "id": "neural",
-    "name": "Neural agents",
-    "description": "Each agent has its own neural network brain, kept as per-agent state arrays: weights and a memory.",
+    "name": "Neural agents (evolving)",
+    "description": "Neural-network brains evolve to chase a jumping goal: a parent ranks each generation and breeds the best, like Evolved creatures.",
     "scene": "scene.json",
     "script": "brain.js",
     "tags": [
       "agents",
       "neural network",
-      "learning"
+      "evolution",
+      "sub-simulations"
     ],
     "folder": "Flocks & swarms",
     "about": "about.md"

@@ -380,7 +380,7 @@ Names listed in the scene's `"metrics"` must exist in the script's exported `met
 
 ## Examples
 
-Examples in `examples/` (`life2d` shows the whole-grid `actAll` rule, `neural` per-agent neural networks, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the script swings the legs with the stdlib's `Gait` and steers) and `evolved-creatures` (bodies and neural brains evolve together, a population of sub-sims run by a `parent`). They are the best guide to the expected style: short, named steps, comments that explain the idea.
+Examples in `examples/` (`life2d` shows the whole-grid `actAll` rule, `neural` per-agent neural networks that evolve toward a goal, `ants` and `herding` several sets in one world, `epidemic` and `market` networks): `boids` (free agents, three steering rules in about ten lines), `life3d` (a lattice with Life-style rules) and `creature` (four-legged physics walkers on bumpy terrain: the body is JSON in scene.json, the script swings the legs with the stdlib's `Gait` and steers) and `evolved-creatures` (bodies and neural brains evolve together, a population of sub-sims run by a `parent`). They are the best guide to the expected style: short, named steps, comments that explain the idea.
 
 ## experiment.json
 

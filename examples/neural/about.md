@@ -1,6 +1,9 @@
-Every agent has its own small [neural network](https://en.wikipedia.org/wiki/Artificial_neural_network) as a brain: it looks at its neighbors and decides how to steer. The weights are different for each agent and live in its state; there is no learning here, so this shows what random brains do and how the pieces fit together.
+Every walker has a small [neural network](https://en.wikipedia.org/wiki/Artificial_neural_network) for a brain. It sees where the glowing **goal** is, where its nearest neighbor is, and its own memory, and decides how to steer. Nobody tells a brain what the goal is for: at first they are random wanderers.
+
+Each tile is one brain shared by a team of walkers. After every generation a parent program scores each tile by how close its walkers stayed to the goal, keeps the best brains and breeds the rest with a little mutation (a [genetic algorithm](https://en.wikipedia.org/wiki/Neuroevolution)). Watch the status line: the average score climbs as crowds learn to chase the goal each time it jumps. Click a tile to watch one team alone.
 
 ### What to try
-- **how far they see** sets the neighbors a brain gets as input.
-- **how hard the brain can steer** scales its output; **maxSpeed** limits speed.
-- Open the script to see how a brain is built with `ctx.mlp`. The *Evolved creatures* example improves brains like these by breeding.
+- **mutation strength** is how much children differ; **best brains kept** sets how strong the selection is.
+- **ticks before the goal jumps** makes the task harder (short) or easier (long).
+- **brains per generation** and **walkers sharing each brain** trade search width against noise in the score.
+- **how far they see** and **how hard the brain can steer** change what the brains have to work with; **Reset** starts from new random brains.

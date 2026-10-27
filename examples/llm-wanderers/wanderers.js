@@ -29,9 +29,8 @@ export const Wanderer = {
 
   act({ self }, p, ctx) {
     const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size) // the world has walls: bounce off them
-    if (hit) self.place(hit)
-    if (!self.dx && !self.dz) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10) } // no advice yet: drift
-    return { steer: ctx.vec(self.dx, 0, self.dz).times(p.push) }
+    if (!self.dx && !self.dz) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10), place: hit } // no advice yet: drift
+    return { steer: ctx.vec(self.dx, 0, self.dz).times(p.push), place: hit }
   },
 }
 

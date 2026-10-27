@@ -35,8 +35,6 @@ export class Creature {
   get vz() { return this.c.vz[this.row] }
   get position(): Vec3 { return new Vec3(this.x, this.y, this.z) }
   get velocity(): Vec3 { return new Vec3(this.vx, this.vy, this.vz) }
-  /** Stand it on the ground at (x, z), facing `yaw` (radians; 0 faces +x), as a fresh body: poses and joint angles start over, its state is kept. Happens at the end of the tick. */
-  place(at: { x: number; z: number; yaw?: number }): void { this.world.queuePlace(this.row, at) }
   /** Horizontal speed. */
   get speed(): number { return Math.hypot(this.vx, this.vz) }
   /** The way the torso faces (its local x axis). */
@@ -248,7 +246,8 @@ export class RigidWorld implements World {
       const none = new this.GroupClass()
       for (let i = 0; i < n; i++) {
         try {
-          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number>; state?: Record<string, unknown> } | void
+          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number>; state?: Record<string, unknown>; place?: { x: number; z: number; yaw?: number } } | void
+          if (out?.place && typeof out.place === 'object') this.queuePlace(i, out.place) // stand it somewhere new at the end of the tick
           if (out && out.state && typeof out.state === 'object') writes.push({ row: i, state: out.state })
           if (out && out.joints) {
             for (const [name, v] of Object.entries(out.joints)) {

@@ -20,7 +20,7 @@ export class Bounds {
 
   /**
    * Where to put an entity that has gone past a wall, and the velocity it leaves with, bouncing off each wall it crossed; `null` while it
-   * is inside. Hand the result to `self.place(...)`: `const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size); if (hit) self.place(hit)`.
+   * is inside. Return the result as `place`: `const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)`, then `return { steer, place: hit }` (`null`, while inside, does nothing).
    */
   static bounce(position: VecLike, velocity: VecLike, size: number): { position: Vec3; velocity: Vec3 } | null {
     const p = toVec(position), v = toVec(velocity)

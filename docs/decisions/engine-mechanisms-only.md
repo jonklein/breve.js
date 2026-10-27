@@ -15,7 +15,7 @@ Removed from the core (no aliases; the parser says where each one went):
 - Agents: `fence`, `onLeave`, `self.outside`, `self.reset()`, and the world's soft and clamped bounds (`bounds.mode`). `bounds.size` stays as the drawn box and as `ctx.world.size`; keeping entities inside is the script's job with the stdlib's `Bounds` (`ctx.bounds.soft`, `ctx.bounds.bounce`).
 
 Added as mechanisms:
-- `self.place(...)` for creatures (`{ x, z, yaw }`, stands a fresh body on the ground there) and agents (`{ position, velocity }`); state is kept, the move happens at the end of the tick. Where to and why is the script's call.
+- `place`, returned from `act` (like `steer` and `state`; a value, not a call), for creatures (`{ x, z, yaw }`, stands a fresh body on the ground there) and agents (`{ position, velocity }`); state is kept, the move happens at the end of the tick. Where to and why is the script's call.
 - State for creatures: `init` returns it, `act` may return `state`, `self.name` reads it, and it shows up in `creatures` groups for metrics. Shared with agents through `state-columns.ts`.
 
 Added to the stdlib: `Gait` (`wave`, `targets`, `advance`), reached as `ctx.gait`. The creature examples keep their step cycle, flipped-over timer and distance walked in their own state.

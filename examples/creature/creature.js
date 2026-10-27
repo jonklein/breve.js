@@ -9,7 +9,7 @@
 //   turn      take longer strides on one side than the other
 //
 // A joint the script leaves out rests at 0. Everything else the world might do for a creature is done here too:
-// a creature that has been flipped over for 3 seconds, or has fallen off the edge, is stood up somewhere new with self.place().
+// a creature that has been flipped over for 3 seconds, or has fallen off the edge, is stood up somewhere new (act returns `place`).
 
 const SECOND = 60 // ticks
 
@@ -33,8 +33,7 @@ export default {
     let placed = null
     if (flippedFor > 3 * SECOND || self.y < -20) {
       const spot = () => (ctx.random() * 2 - 1) * p.radius
-      placed = { x: spot(), z: spot() }
-      self.place({ ...placed, yaw: ctx.random() * 2 * Math.PI })
+      placed = { x: spot(), z: spot(), yaw: ctx.random() * 2 * Math.PI }
     }
 
     // where do I want to go? an angle, 0 = +x, growing toward -z (the same as self.yaw)
@@ -54,6 +53,7 @@ export default {
 
     return {
       joints,
+      place: placed,
       state: {
         cycle: ctx.gait.advance(self.cycle, p.frequency, ctx.dt),
         flippedFor: placed ? 0 : flippedFor,

@@ -16,7 +16,6 @@ export const Ant = {
 
   act({ self, foods, nests }, p, ctx) {
     const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size) // the world has walls: bounce off them
-    if (hit) self.place(hit)
     const wobble = ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(p.wander)
 
     // heading home with food
@@ -24,15 +23,15 @@ export const Ant = {
       const home = nests.nearest()
       const toNest = home.position.minus(self.position)
       if (toNest.length() < home.reach) {
-        return { steer: wobble, state: { carrying: false, fresh: false, delivered: self.delivered + 1 } } // drop it off
+        return { steer: wobble, place: hit, state: { carrying: false, fresh: false, delivered: self.delivered + 1 } } // drop it off
       }
-      return { steer: toNest.normalized().times(p.pull).plus(wobble), state: { fresh: false }, add: { scent: p.laying } }
+      return { steer: toNest.normalized().times(p.pull).plus(wobble), place: hit, state: { fresh: false }, add: { scent: p.laying } }
     }
 
     // standing at food that is not used up: take a piece and turn around
     for (const food of foods) {
       if (food.amount > 0 && food.position.minus(self.position).length() < food.reach) {
-        return { steer: self.velocity.reversed(), state: { carrying: true, fresh: true } }
+        return { steer: self.velocity.reversed(), place: hit, state: { carrying: true, fresh: true } }
       }
     }
 
@@ -43,7 +42,7 @@ export const Ant = {
     const best = Math.max(...scents)
     const lean = best > 0.05 ? probes[scents.indexOf(best)].normalized().times(p.pull) : ctx.vec(0, 0, 0)
 
-    return { steer: lean.plus(wobble), state: { fresh: false } }
+    return { steer: lean.plus(wobble), place: hit, state: { fresh: false } }
   },
 
   // the ant's picture is tinted: its own color, or the food's color while it carries a piece

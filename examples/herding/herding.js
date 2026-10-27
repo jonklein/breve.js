@@ -24,8 +24,7 @@ function runFromDog({ dogs }, p) {
 export const Sheep = {
   act(obs, p, ctx) {
     const hit = ctx.bounds.bounce(obs.self.position, obs.self.velocity, ctx.world.size) // the world has walls: bounce off them
-    if (hit) obs.self.place(hit)
-    return ctx.blend(graze(obs, p, ctx), stickTogether(obs, p), runFromDog(obs, p))
+    return { ...ctx.blend(graze(obs, p, ctx), stickTogether(obs, p), runFromDog(obs, p)), place: hit }
   },
 }
 
@@ -35,7 +34,6 @@ export const Dog = {
 
   act({ self }, p, ctx) {
     const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size) // the world has walls: bounce off them
-    if (hit) self.place(hit)
     const key = (name) => (ctx.input.pressed(name) ? 1 : 0)
     const push = ctx.vec(
       key('d') + key('arrowright') - key('a') - key('arrowleft'),
@@ -43,7 +41,7 @@ export const Dog = {
       key('s') + key('arrowdown') - key('w') - key('arrowup'),
     )
     // brake when no key is held, so the dog stops instead of sliding
-    return { steer: push.normalized().times(60).minus(self.velocity.times(push.length() ? 0 : 6)) }
+    return { steer: push.normalized().times(60).minus(self.velocity.times(push.length() ? 0 : 6)), place: hit }
   },
 }
 

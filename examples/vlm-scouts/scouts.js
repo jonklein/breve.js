@@ -28,12 +28,11 @@ export const Scout = {
 
   act({ self }, p, ctx) {
     const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size) // the world has walls: bounce off them
-    if (hit) self.place(hit)
-    if (!self.turn && !self.go) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10) } // no answer yet: drift
+    if (!self.turn && !self.go) return { steer: ctx.vec(ctx.random() - 0.5, 0, ctx.random() - 0.5).times(10), place: hit } // no answer yet: drift
     // forward is where the scout is heading; right is a quarter turn clockwise seen from above
     const heading = self.velocity.length() > 0.1 ? self.velocity.normalized() : ctx.vec(1, 0, 0)
     const right = ctx.vec(-heading.z, 0, heading.x)
-    return { steer: heading.times(self.go * p.push).plus(right.times(self.turn * p.push)) }
+    return { steer: heading.times(self.go * p.push).plus(right.times(self.turn * p.push)), place: hit }
   },
 }
 

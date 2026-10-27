@@ -106,8 +106,6 @@ export class AgentWorld implements World {
     class Stateful extends Agent {
       /** This agent's id: what relations store (`ctx.relations.get('follows').add(self.id, other.id)`). */
       get id(): number { return table.idAt(this.row) }
-      /** Move it (a position, and optionally a velocity, as vectors or `[x, y, z]`), keeping its state. Happens at the end of the tick. */
-      place(at: { position?: Parameters<typeof toVec>[0]; velocity?: Parameters<typeof toVec>[0] }): void { world.queuePlace(this.row, at) }
       /** The cell of the first lattice layer under this agent, or null when it is outside the grid or there is no layer. */
       /** The cell at an offset from this agent (a vector), or null off the grid: `self.patchAt(heading.times(3))`. */
       patchAt(offset: Parameters<typeof toVec>[0]): unknown | null { const o = toVec(offset); return world.layer()?.patchAt(this.x + o.x, this.y + o.y, this.z + o.z) ?? null }
@@ -255,7 +253,8 @@ export class AgentWorld implements World {
             const obs: Record<string, unknown> = { self: this.handles[i], neighbors: ownVia ? this.linkedTo(i, ownVia, this) : this.neighborsOf(i, radius) }
             for (const o of others) obs[o.name] = o.via ? this.linkedTo(i, o.via, o.world) : o.world?.around(this.handles[i], o.radius) ?? new this.GroupClass(this.handles[i])
             this.attachCameras(obs, i, cameras)
-            const out = act(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown> } | void
+            const out = act(obs as { self: unknown; neighbors: unknown }, p, ctx) as { steer?: Parameters<typeof toVec>[0]; state?: Record<string, unknown>; add?: Record<string, unknown>; place?: { position?: Parameters<typeof toVec>[0]; velocity?: Parameters<typeof toVec>[0] } } | void
+            if (out?.place && typeof out.place === 'object') this.queuePlace(i, out.place) // a move to make at the end of the tick
             if (out && ((out.state && typeof out.state === 'object') || (out.add && typeof out.add === 'object'))) writes.push({ row: i, state: out.state ?? {}, add: out.add })
             if (out && out.steer) {
               const s = toVec(out.steer)

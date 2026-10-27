@@ -70,21 +70,20 @@ Agents live in continuous 3D space. Each tick every agent's `act` is called and 
 
 For full control, the script's `init` runs for each new entity: `init({ index, count }, p, ctx)` returns `{ position, velocity, ...state }`, for example `{ position: ctx.vec(index * 2, 0, 0), energy: 10 }` to line them up and give each some energy. `init` wins over `spawn`.
 
-**Keeping entities inside.** The engine has no walls: with `bounds.size` it only draws the box and tells scripts its size as `ctx.world.size`. Soft or hard walls are a script's choice, and the stdlib has both: `ctx.bounds.soft(self.position, ctx.world.size)` returns a gentle push back toward the middle (zero until an entity is near an edge) to add to the steering, and `ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)` returns where to put an entity that has crossed a wall and the velocity it bounces off with (or `null` while it is inside), which you hand to `self.place(...)`:
+**Keeping entities inside.** The engine has no walls: with `bounds.size` it only draws the box and tells scripts its size as `ctx.world.size`. Soft or hard walls are a script's choice, and the stdlib has both: `ctx.bounds.soft(self.position, ctx.world.size)` returns a gentle push back toward the middle (zero until an entity is near an edge) to add to the steering, and `ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)` returns where to put an entity that has crossed a wall and the velocity it bounces off with (or `null` while it is inside), which you return as `place`:
 
 ```js
 const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)
-if (hit) self.place(hit)
-return { steer: wander.plus(ctx.bounds.soft(self.position, ctx.world.size)) }
+return { steer: wander.plus(ctx.bounds.soft(self.position, ctx.world.size)), place: hit }
 ```
 
-**Moving an entity yourself.** The engine has no fence, no automatic reset and no notion of "left the world": those are the script's business. Check where an entity is in `act` and move it with `self.place({ position, velocity })` (either may be left out; its state is kept; it happens at the end of the tick), for example `if (Math.abs(self.x) > 30) self.place({ position: [0, 0, 0] })`. Reset its state the same way as any other change: return it from `act`.
+**Moving an entity yourself.** The engine has no fence, no automatic reset and no notion of "left the world": those are the script's business. Check where an entity is in `act` and move it by returning `place: { position, velocity }` from `act` (either may be left out; its state is kept; it happens at the end of the tick), for example `return { place: Math.abs(self.x) > 30 ? { position: [0, 0, 0] } : undefined }`. Like `steer` and `state`, it is a value `act` returns, not something it does; `undefined` or `null` means no move. Reset its state the same way: return it from `act`.
 
 ```js
 export default {
   act({ self }) {
-    if (self.energy <= 0) self.place({ position: [0, 0, 0] })
-    return { state: { energy: self.energy <= 0 ? 10 : self.energy - 1 } }
+    const empty = self.energy <= 0
+    return { place: empty ? { position: [0, 0, 0] } : undefined, state: { energy: empty ? 10 : self.energy - 1 } }
   },
 }
 ```
@@ -234,7 +233,7 @@ Articulated bodies simulated by a physics engine (Rapier) and walking on bumpy t
 - **Motor:** makes the hinge chase a target angle like a spring with damping: `stiffness` is torque per radian, `damping` torque per radian per second (defaults 100 and 8). Both may be `"$param"`. Too weak and the creature collapses; too strong and it gets jittery.
 - **Rhythm is the script's job.** The engine has no oscillator: a motor holds angle 0 until `act` returns a target for it. The stdlib's `Gait` makes the usual rhythm: `ctx.gait.targets({ 'FL.hip': { amplitude: 0.7, phase: 0 }, 'FR.hip': { amplitude: 0.7, phase: 0.5 } }, cycle)` gives `offset + amplitude * sin(2 pi * (cycle + phase - lag))` for each joint, and `ctx.gait.advance(cycle, frequency, ctx.dt)` moves the shared `cycle` (kept in the creature's own state, so changing the frequency never makes the legs jump). A trot is: diagonal legs in phase (front-left with hind-right) and the other diagonal half a cycle later, with each knee trailing its hip by a fraction of a cycle (`lag`, about 0.4 in the example; the gait is sensitive to it). See `examples/creature/creature.js`.
 - **Sensors:** declare what `act` can read. `pose` (always available), `joints` (`self.joints`: hinge angles by joint name), `touch` (`self.touch`: which parts touch the ground by name; default the parts nothing hangs off, or give `"parts": ["FL.lower"]`). Each joint with a `motor` is an actuator.
-- Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains and the script apply live. Nothing resets a creature on its own: check in `act` (`self.up.y`, `self.y`) and call `self.place(...)` (see below).
+- Edits to the terrain, physics block, seed, or the body's parts and joints respawn the creatures. `count`, params, motor gains and the script apply live. Nothing resets a creature on its own: check in `act` (`self.up.y`, `self.y`) and return `place` (see below).
 - Validation rejects unknown joint or part names, parts not connected to the root, duplicate names, sizes that do not fit the shape, a template or placeholder that does not exist, and unknown `"$param"` names.
 
 ## Look: the world, a set's style, textures and effects
@@ -335,7 +334,7 @@ Every answer is logged with the tick it took effect (`sim.decisionLog`), whateve
 
 `act` receives `self` (the creature) and `neighbors` (always an empty group for now). It may return `{ joints: { 'FL.hip': 0.3, ... }, state: { ... } }`: target angles in radians by joint name (clamped to the joint's `limits`; an unknown name is an error; a joint left out rests at 0), and new state, as for agents. A creature can have state: `init({ index, count }, p, ctx)` returns it (`{ cycle: 0, flippedFor: 0 }`) and `self.cycle` reads it.
 
-`self` has `x, y, z`, `vx, vy, vz`, `position`, `velocity` (vectors), `speed` (horizontal), `forward` (vector the torso faces), `up` (a vector: `up.y` is 1 standing, 0 on its side, -1 upside down), `yaw` (heading in radians: 0 faces +x and it grows toward -z, a counter-clockwise turn seen from above), `row` (a stable index), `joints` and `touch` (if the body declares those sensors), and its own state. `self.place({ x, z, yaw })` stands it on the ground there as a fresh body (its state is kept) at the end of the tick. Everything else a walker does is script: swinging the legs with `ctx.gait`, noticing it has been flipped over (count ticks of `self.up.y < 0.3` in state), noticing it fell off the edge (`self.y < -20`), and measuring how far it has walked (remember where it was last tick), as `examples/creature/creature.js` does. To steer, scale some of the targets, e.g. longer strides on the right turn the creature left:
+`self` has `x, y, z`, `vx, vy, vz`, `position`, `velocity` (vectors), `speed` (horizontal), `forward` (vector the torso faces), `up` (a vector: `up.y` is 1 standing, 0 on its side, -1 upside down), `yaw` (heading in radians: 0 faces +x and it grows toward -z, a counter-clockwise turn seen from above), `row` (a stable index), `joints` and `touch` (if the body declares those sensors), and its own state. `act` can return `place: { x, z, yaw }`, which stands it on the ground there as a fresh body (its state is kept) at the end of the tick. Everything else a walker does is script: swinging the legs with `ctx.gait`, noticing it has been flipped over (count ticks of `self.up.y < 0.3` in state), noticing it fell off the edge (`self.y < -20`), and measuring how far it has walked (remember where it was last tick), as `examples/creature/creature.js` does. To steer, scale some of the targets, e.g. longer strides on the right turn the creature left:
 
 ```js
 const joints = ctx.gait.targets(legs, self.cycle)

@@ -42,14 +42,14 @@ test('at and box together are rejected', () => {
   assert.equal(r.ok, false)
 })
 
-test('self.place() moves an agent (and gives it a new velocity) at the end of the tick, and keeps its state', () => {
+test('act returning `place` moves an agent (and gives it a new velocity) at the end of the tick, and keeps its state', () => {
   const sc = scene({ at: [0, 0, 0], velocity: [30, 0, 0] }, { motion: { maxSpeed: 40 } })
   sc.bounds = { size: 100 }
   const s = new Sim(sc, {
     default: {
       init: () => ({ sent: 0 }),
       // the script is the fence: past x = 2 it sends the agent back to the start, counting how often
-      act: ({ self }) => (self.x > 2 ? (self.place({ position: [0, 0, 0], velocity: [30, 0, 0] }), { state: { sent: self.sent + 1 } }) : {}),
+      act: ({ self }) => (self.x > 2 ? { place: { position: [0, 0, 0], velocity: [30, 0, 0] }, state: { sent: self.sent + 1 } } : {}),
     },
   })
   for (let i = 0; i < 30; i++) s.step()

@@ -619,10 +619,10 @@ export function parseScene(text: string): SceneResult {
 const REMOVED: Record<string, string> = {
   'set.state': "a set's state is what its script's init returns, for example `init() { return { alive: 0, age: 0 } }`",
   'set.fill': "set starting values in the script's init (or initAll), for example `init(self, p, ctx) { return { alive: ctx.random() < p.density ? 1 : 0 } }`",
-  'set.fence': "check where it is in the script's act and move it yourself, for example `if (self.y < -20) self.place({ x: 0, z: 0 })` (creatures) or `self.place({ position: [0, 0, 0] })` (agents)",
+  'set.fence': "check where it is in the script's act and move it yourself, for example `return { place: self.y < -20 ? { x: 0, z: 0 } : undefined }` (creatures) or `return { place: { position: [0, 0, 0] } }` (agents)",
   'set.oscillator': "swing the joints from the script (the stdlib's `Gait` helps), for example `return { joints: Gait.targets(legs, phase) }`",
   'joint.drive': "swing the joint from the script, for example `act({ self }, p, ctx) { return { joints: { hip: 0.5 * Math.sin(ctx.tick / 10) } } }`, or use the stdlib's `Gait`",
-  'bounds.mode': "keep entities inside yourself with the stdlib's Bounds: `ctx.bounds.soft(self.position, ctx.world.size)` added to the steering, or `ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)` handed to `self.place(...)`",
+  'bounds.mode': "keep entities inside yourself with the stdlib's Bounds: `ctx.bounds.soft(self.position, ctx.world.size)` added to the steering, or `ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)` returned as `place`",
   'look.show': "say what is drawn in the script's display, for example `display({ self }) { return { visible: self.alive } }`",
   'look.color': "say the color in the script's display, for example `display({ self }, p, ctx) { return { color: ctx.colors.gradient(['#ff0d0d', '#0dff0d'], self.age / 20) } }`",
   'look.colorMax': "scale the value yourself in the script's display (for example `self.age / 20`)",

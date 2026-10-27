@@ -49,7 +49,7 @@ test('a creature does not collide with its own parts (its joints would fight it)
   world.dispose()
 })
 
-test('nothing resets a creature on its own; a script can stand it somewhere new with self.place()', async () => {
+test('nothing resets a creature on its own; a script can stand it somewhere new by returning `place`', async () => {
   const { Sim: S } = await import('../src/index')
   const base = structuredClone(parsed.ok ? parsed.scene : (null as never))
   // limp legs: no muscle strength, so the creature slumps and never gets up on its own
@@ -72,15 +72,15 @@ test('nothing resets a creature on its own; a script can stand it somewhere new 
   // the script watches how long it has been flipped (state) and stands it up somewhere else, again and again
   const standsUp = { default: {
     init: () => ({ flipped: 0 }),
-    act: ({ self }: { self: { y: number; up: { y: number }; flipped: number; place(at: object): void } }, _p: unknown, ctx: { random(): number }) => {
+    act: ({ self }: { self: { y: number; up: { y: number }; flipped: number } }, _p: unknown, ctx: { random(): number }) => {
       const flipped = self.up.y < 0.3 || self.y < 0.4 ? self.flipped + 1 : 0 // flipped over, or collapsed low to the ground
-      if (flipped > 18) self.place({ x: (ctx.random() * 2 - 1) * 20, z: (ctx.random() * 2 - 1) * 20, yaw: ctx.random() * 6 })
-      return { state: { flipped: flipped > 18 ? 0 : flipped } }
+      const place = flipped > 18 ? { x: (ctx.random() * 2 - 1) * 20, z: (ctx.random() * 2 - 1) * 20, yaw: ctx.random() * 6 } : undefined
+      return { place, state: { flipped: flipped > 18 ? 0 : flipped } }
     },
   } }
   assert.ok((await jumps(standsUp)) >= 2, 'a script can stand it up again and again')
   // and it lands where it was told, on the ground, keeping its state
-  const sim = await S.create(structuredClone(base), { default: { init: () => ({ kept: 7 }), act: ({ self }: { self: { place(at: object): void } }, _p: unknown, ctx: { tick: number }) => { if (ctx.tick === 5) self.place({ x: 20, z: -15, yaw: 1 }) } } } as never)
+  const sim = await S.create(structuredClone(base), { default: { init: () => ({ kept: 7 }), act: (_o: unknown, _p: unknown, ctx: { tick: number }) => (ctx.tick === 5 ? { place: { x: 20, z: -15, yaw: 1 } } : {}) } } as never)
   for (let i = 0; i < 30; i++) sim.step()
   const c = sim.table.cols as Record<string, Float64Array>
   assert.ok(Math.hypot(c.px[0] - 20, c.pz[0] + 15) < 1.5 && c.py[0] > 0.05 && c.py[0] < 1.5, `at (${c.px[0].toFixed(1)}, ${c.py[0].toFixed(2)}, ${c.pz[0].toFixed(1)})`)

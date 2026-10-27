@@ -12,8 +12,7 @@ export default {
     const flippedFor = self.up.y < 0.3 ? self.flippedFor + 1 : 0
     let placed = null
     if (flippedFor > 180 || self.y < -20) {
-      placed = { x: (ctx.random() * 2 - 1) * 10, z: (ctx.random() * 2 - 1) * 10 }
-      self.place({ ...placed, yaw: ctx.random() * 2 * Math.PI })
+      placed = { x: (ctx.random() * 2 - 1) * 10, z: (ctx.random() * 2 - 1) * 10, yaw: ctx.random() * 2 * Math.PI }
     }
     const joints = {}
     for (const leg of Object.keys(PHASE)) {
@@ -24,6 +23,7 @@ export default {
     }
     return {
       joints,
+      place: placed,
       state: {
         flippedFor: placed ? 0 : flippedFor,
         started: true,

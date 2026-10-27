@@ -64,7 +64,7 @@ export const Goal = {
     return { position: goalAt(0, p.hop, ctx.world.size) }
   },
   act({ self }, p, ctx) {
-    if (ctx.tick > 0 && ctx.tick % p.hop === 0) self.place({ position: goalAt(ctx.tick, p.hop, ctx.world.size) })
+    if (ctx.tick > 0 && ctx.tick % p.hop === 0) return { place: { position: goalAt(ctx.tick, p.hop, ctx.world.size) } }
   },
 }
 

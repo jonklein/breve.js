@@ -1,0 +1,29 @@
+{
+  "name": "gray-scott",
+  "seed": 3,
+  "clock": { "rate": 24 },
+  "world": {
+    "preset": "studio",
+    "grid": false,
+    "frame": false,
+    "camera": { "distance": 1.45, "elevation": 62, "azimuth": 90 },
+    "sky": { "top": "#0b1020", "horizon": "#161c2e", "ground": "#0b1020" },
+    "light": { "sun": { "intensity": 1.8, "elevation": 60, "azimuth": 40 } },
+    "effects": { "bloom": { "strength": 0.25, "threshold": 0.8 }, "vignette": 0.25 }
+  },
+  "params": {
+    "feed": { "value": 0.037, "min": 0.01, "max": 0.1, "step": 0.0005, "label": "feed (how fast food is added)" },
+    "kill": { "value": 0.065, "min": 0.04, "max": 0.075, "step": 0.0002, "label": "kill (how fast v is removed)" },
+    "speed": { "value": 8, "min": 1, "max": 24, "step": 1, "label": "small steps per tick" },
+    "blobs": { "value": 14, "min": 1, "max": 80, "step": 1, "label": "starting blobs (after Reset)" }
+  },
+  "entities": [
+    {
+      "name": "cell",
+      "controller": "gray-scott.js",
+      "lattice": { "size": [128, 1, 128], "spacing": 1, "edges": "wrap", "thickness": 0.35 },
+      "style": { "material": { "roughness": 0.55, "glow": 0.25 } }
+    }
+  ],
+  "metrics": ["chemicalV"]
+}

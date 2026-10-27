@@ -223,7 +223,9 @@ async function main(): Promise<void> {
       }
       picker.appendChild(g)
     }
-    group('Examples', examples)
+    // examples are listed by folder, in the order the index first mentions each
+    const folders = [...new Set(examples.map((e) => e.folder ?? 'Examples'))]
+    for (const f of folders) group(f, examples.filter((e) => (e.folder ?? 'Examples') === f))
     group('My projects', userProjects())
     picker.value = current
     const mine = !isExample(current)

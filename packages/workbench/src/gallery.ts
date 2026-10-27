@@ -3,7 +3,7 @@ import { loadExamples, userProjects, type ExampleInfo } from './projects'
 
 mountNav(document.getElementById('site-nav')!, 'gallery')
 
-interface Card { id: string; title: string; description: string; tags: string[]; thumb?: string; example: boolean }
+interface Card { folder?: string; id: string; title: string; description: string; tags: string[]; thumb?: string; example: boolean }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> & { class?: string } = {}, ...kids: (Node | string)[]): HTMLElementTagNameMap[K] {
   const { class: cls, ...rest } = props
@@ -40,7 +40,7 @@ function card(c: Card): HTMLElement {
         copy)))
 }
 
-const toCard = (e: ExampleInfo): Card => ({ id: e.id, title: e.name, description: e.description, tags: e.tags ?? [], thumb: `/${e.id}/thumb.jpg`, example: true })
+const toCard = (e: ExampleInfo): Card => ({ id: e.id, title: e.name, description: e.description, tags: e.tags ?? [], folder: e.folder, thumb: `/${e.id}/thumb.jpg`, example: true })
 
 async function main(): Promise<void> {
   const cards = document.getElementById('cards')!
@@ -49,7 +49,13 @@ async function main(): Promise<void> {
   const tags = [...new Set(examples.flatMap((e) => e.tags))].sort()
   let active: string | null = null
   const render = () => {
-    cards.replaceChildren(...examples.filter((e) => !active || e.tags.includes(active)).map(card))
+    const shown = examples.filter((e) => !active || e.tags.includes(active))
+    // one section per folder, in the order the index lists them
+    const sections: Node[] = []
+    for (const f of [...new Set(shown.map((e) => e.folder ?? 'Examples'))]) {
+      sections.push(el('h2', { class: 'folder', textContent: f }), el('div', { class: 'cards' }, ...shown.filter((e) => (e.folder ?? 'Examples') === f).map(card)))
+    }
+    cards.replaceChildren(...sections)
     filters.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.tag ?? null) === active)))
   }
   for (const t of [null, ...tags]) {

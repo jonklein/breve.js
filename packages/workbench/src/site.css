@@ -64,3 +64,4 @@ footer.site-footer a { color: var(--muted); }
 .post-meta { font-size: 13px; margin: 0 0 14px; }
 .post-back { display: inline-block; margin: 28px 0 0; color: var(--accent); text-decoration: none; font-size: 14px; }
 .post.prose h1 { margin: 16px 0 4px; }
+h2.folder { margin: 28px 0 12px; font-size: 1.05rem; font-weight: 600; opacity: 0.85; }

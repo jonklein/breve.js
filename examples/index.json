@@ -9,44 +9,8 @@
     "tags": [
       "agents",
       "flocking"
-    ]
-  },
-  {
-    "id": "life3d",
-    "name": "3D Life",
-    "description": "Conway-style cellular automaton on a 3D grid.",
-    "scene": "scene.json",
-    "script": "life.js",
-    "tags": [
-      "grid",
-      "cellular automaton",
-      "3d"
-    ]
-  },
-  {
-    "id": "creature",
-    "name": "Creatures",
-    "description": "Four-legged walkers on bumpy Perlin terrain: a JSON body, joint motors and an oscillator.",
-    "scene": "scene.json",
-    "script": "creature.js",
-    "experiment": "experiment.json",
-    "tags": [
-      "physics",
-      "bodies",
-      "terrain"
-    ]
-  },
-  {
-    "id": "life2d",
-    "name": "2D Life (fast path)",
-    "description": "Conway's Life on a flat grid using whole-grid field operations instead of a per-cell rule.",
-    "scene": "scene.json",
-    "script": "life.js",
-    "tags": [
-      "grid",
-      "cellular automaton",
-      "fast"
-    ]
+    ],
+    "folder": "Flocks & swarms"
   },
   {
     "id": "neural",
@@ -58,7 +22,109 @@
       "agents",
       "neural network",
       "learning"
-    ]
+    ],
+    "folder": "Flocks & swarms"
+  },
+  {
+    "id": "herding",
+    "name": "Sheepdog (you drive)",
+    "description": "Drive the dog with W A S D and herd sheep. Two sets of agents, a cross-set sensor, ctx.blend, and keyboard input.",
+    "scene": "scene.json",
+    "script": "herding.js",
+    "tags": [
+      "agents",
+      "interactive",
+      "keyboard"
+    ],
+    "folder": "Flocks & swarms"
+  },
+  {
+    "id": "life3d",
+    "name": "3D Life",
+    "description": "Conway-style cellular automaton on a 3D grid.",
+    "scene": "scene.json",
+    "script": "life.js",
+    "tags": [
+      "grid",
+      "cellular automaton",
+      "3d"
+    ],
+    "folder": "Cells & patterns"
+  },
+  {
+    "id": "life2d",
+    "name": "2D Life (fast path)",
+    "description": "Conway's Life on a flat grid using whole-grid field operations instead of a per-cell rule.",
+    "scene": "scene.json",
+    "script": "life.js",
+    "tags": [
+      "grid",
+      "cellular automaton",
+      "fast"
+    ],
+    "folder": "Cells & patterns"
+  },
+  {
+    "id": "epidemic-grid",
+    "name": "Epidemic on a grid",
+    "description": "The very same contagion script, now running on a grid of cells.",
+    "scene": "scene.json",
+    "script": "../epidemic/contagion.js",
+    "tags": [
+      "grid",
+      "epidemic"
+    ],
+    "folder": "Cells & patterns"
+  },
+  {
+    "id": "gray-scott",
+    "name": "Reaction-diffusion (Gray-Scott)",
+    "description": "Two chemicals feed, eat and spread across a sheet and make spots, stripes and mazes. Two sliders, feed and kill, choose the pattern.",
+    "scene": "scene.json",
+    "script": "gray-scott.js",
+    "tags": [
+      "grid",
+      "pattern formation",
+      "chemistry"
+    ],
+    "folder": "Cells & patterns"
+  },
+  {
+    "id": "hypercycle",
+    "name": "Hypercycle",
+    "description": "Five molecules that each help the next copy itself survive together in chasing spiral waves, until parasites that take help without giving it break the ring.",
+    "scene": "scene.json",
+    "script": "hypercycle.js",
+    "tags": [
+      "grid",
+      "evolution",
+      "origin of life"
+    ],
+    "folder": "Cells & patterns"
+  },
+  {
+    "id": "epidemic",
+    "name": "Epidemic on a network",
+    "description": "S-I-R contagion across a small-world graph of people.",
+    "scene": "scene.json",
+    "script": "contagion.js",
+    "tags": [
+      "network",
+      "epidemic"
+    ],
+    "folder": "Networks & economies"
+  },
+  {
+    "id": "market",
+    "name": "Market on a network",
+    "description": "Traders with cash and goods buy from the cheapest neighbor; trades are atomic exchanges, prices adapt.",
+    "scene": "scene.json",
+    "script": "market.js",
+    "tags": [
+      "network",
+      "economics"
+    ],
+    "folder": "Networks & economies"
   },
   {
     "id": "ants",
@@ -71,52 +137,22 @@
       "agents",
       "patches",
       "emergence"
-    ]
+    ],
+    "folder": "Ecology & foraging"
   },
   {
-    "id": "herding",
-    "name": "Sheepdog (you drive)",
-    "description": "Drive the dog with W A S D and herd sheep. Two sets of agents, a cross-set sensor, ctx.blend, and keyboard input.",
+    "id": "creature",
+    "name": "Creatures",
+    "description": "Four-legged walkers on bumpy Perlin terrain: a JSON body, joint motors and an oscillator.",
     "scene": "scene.json",
-    "script": "herding.js",
+    "script": "creature.js",
+    "experiment": "experiment.json",
     "tags": [
-      "agents",
-      "interactive",
-      "keyboard"
-    ]
-  },
-  {
-    "id": "epidemic",
-    "name": "Epidemic on a network",
-    "description": "S-I-R contagion across a small-world graph of people.",
-    "scene": "scene.json",
-    "script": "contagion.js",
-    "tags": [
-      "network",
-      "epidemic"
-    ]
-  },
-  {
-    "id": "epidemic-grid",
-    "name": "Epidemic on a grid",
-    "description": "The very same contagion script, now running on a grid of cells.",
-    "scene": "scene.json",
-    "script": "../epidemic/contagion.js",
-    "tags": [
-      "grid",
-      "epidemic"
-    ]
-  },
-  {
-    "id": "market",
-    "name": "Market on a network",
-    "description": "Traders with cash and goods buy from the cheapest neighbor; trades are atomic exchanges, prices adapt.",
-    "scene": "scene.json",
-    "script": "market.js",
-    "tags": [
-      "network",
-      "economics"
-    ]
+      "physics",
+      "bodies",
+      "terrain"
+    ],
+    "folder": "Creatures & robots"
   },
   {
     "id": "urdf-bot",
@@ -127,18 +163,8 @@
     "tags": [
       "physics",
       "import"
-    ]
-  },
-  {
-    "id": "llm-wanderers",
-    "name": "Characters that ask a language model",
-    "description": "Each character's slow think() asks Claude where to go; answers are logged and replayable. Needs ANTHROPIC_API_KEY.",
-    "scene": "scene.json",
-    "script": "wanderers.js",
-    "tags": [
-      "agents",
-      "language model"
-    ]
+    ],
+    "folder": "Creatures & robots"
   },
   {
     "id": "morphology",
@@ -150,31 +176,8 @@
     "tags": [
       "physics",
       "search"
-    ]
-  },
-  {
-    "id": "vlm-scouts",
-    "name": "Scouts that look",
-    "description": "Each scout has a camera: a top-down picture of what is around it. Its think() shows the picture to a vision model and asks where to go; it is never told where the food is.",
-    "tags": [
-      "agents",
-      "vision",
-      "language model"
     ],
-    "scene": "scene.json",
-    "script": "scouts.js"
-  },
-  {
-    "id": "onnx-policy",
-    "name": "A trained network steers the crowd",
-    "description": "Walkers steered by an ONNX model, run as one batch per tick. Swap in your own network (a path, a URL or a Hugging Face file). Runs and replays without the model.",
-    "tags": [
-      "agents",
-      "neural network",
-      "learning"
-    ],
-    "scene": "scene.json",
-    "script": "policy.js"
+    "folder": "Creatures & robots"
   },
   {
     "id": "creature-gltf",
@@ -186,7 +189,8 @@
       "models"
     ],
     "scene": "scene.json",
-    "script": "creature.js"
+    "script": "creature.js",
+    "folder": "Creatures & robots"
   },
   {
     "id": "evolved-creatures",
@@ -199,6 +203,45 @@
       "physics",
       "neural",
       "sub-simulations"
-    ]
+    ],
+    "folder": "Creatures & robots"
+  },
+  {
+    "id": "llm-wanderers",
+    "name": "Characters that ask a language model",
+    "description": "Each character's slow think() asks Claude where to go; answers are logged and replayable. Needs ANTHROPIC_API_KEY.",
+    "scene": "scene.json",
+    "script": "wanderers.js",
+    "tags": [
+      "agents",
+      "language model"
+    ],
+    "folder": "AI & language models"
+  },
+  {
+    "id": "vlm-scouts",
+    "name": "Scouts that look",
+    "description": "Each scout has a camera: a top-down picture of what is around it. Its think() shows the picture to a vision model and asks where to go; it is never told where the food is.",
+    "tags": [
+      "agents",
+      "vision",
+      "language model"
+    ],
+    "scene": "scene.json",
+    "script": "scouts.js",
+    "folder": "AI & language models"
+  },
+  {
+    "id": "onnx-policy",
+    "name": "A trained network steers the crowd",
+    "description": "Walkers steered by an ONNX model, run as one batch per tick. Swap in your own network (a path, a URL or a Hugging Face file). Runs and replays without the model.",
+    "tags": [
+      "agents",
+      "neural network",
+      "learning"
+    ],
+    "scene": "scene.json",
+    "script": "policy.js",
+    "folder": "AI & language models"
   }
 ]

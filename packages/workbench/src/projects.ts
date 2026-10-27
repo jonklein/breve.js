@@ -3,6 +3,7 @@ export interface ExampleInfo {
   name: string
   description: string
   tags?: string[]
+  folder?: string
   scene: string
   script: string
   experiment?: string

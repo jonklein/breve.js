@@ -1,25 +1,27 @@
-# See https://fly.io/docs/reference/configuration/
-# Provision once with `fly apps create breve-js` (the name is global: pick another here and in the app create if it is taken).
+# fly.toml app configuration file generated for breve-js on 2026-10-27T22:41:25Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'breve-js'
-primary_region = 'iad'
+primary_region = 'ewr'
 
 [build]
 
 [http_service]
   internal_port = 8080
   force_https = true
-  # a static preview: let the machine sleep when idle (it wakes on the next request)
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
   processes = ['app']
 
   [[http_service.checks]]
-    method = 'GET'
-    path = '/'
     interval = '30s'
     timeout = '5s'
     grace_period = '10s'
+    method = 'GET'
+    path = '/'
 
 [[vm]]
   size = 'shared-cpu-1x'

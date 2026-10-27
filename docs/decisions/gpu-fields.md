@@ -74,12 +74,19 @@ Checked in this sandbox: headless Chromium with `--enable-unsafe-webgpu` gets a 
 - **No GPU means fallback**, never an error. The same graph runs on the CPU backend, so the name of the hook must not say "GPU".
 - **`ctx.hash` exists only inside compiled rules**, not for per-entity `act` (those keep `ctx.random()`). On the CPU fallback the interpreter implements the same hash, so results match.
 
-**Still open: the name of the third form** (`initX`, `actX`, `displayX`). Not `Kernel`, and not `Gpu` (it also runs on the CPU). Candidates:
+**Decided: the third form is a *formula*:** `initFormula`, `actFormula`, `displayFormula` (alongside `act` and `actAll`). Not `Kernel`, and not `Gpu` (it also runs on the CPU). The candidates considered:
 | name | reads as | note |
 |---|---|---|
-| `actFormula` / `initFormula` / `displayFormula` | a spreadsheet formula: you write the expression once, it is evaluated for every cell | the recommendation: friendly, honest (it really is an expression), and no one expects a loop in a formula |
+| `actFormula` / `initFormula` / `displayFormula` | a spreadsheet formula: you write the expression once, it is evaluated for every cell | **chosen**: friendly, honest (it really is an expression), and no one expects a loop in a formula |
 | `actProgram` | a small program handed to the engine | accurate but vague |
 | `actShader` / `displayShader` | graphics people know it | right for `display`, misleading for `act` |
 | `actRecipe` | a recipe the engine follows every tick | friendly, a little cute |
 
 **Decided by default (say if you disagree): snapshots and forks.** A GPU set's numbers live in graphics memory. Copying a running sim (fork) can be done *inside* the GPU (a buffer copy), so it stays instant and needs no change. What needs the numbers back in ordinary memory is saving a snapshot, a hash, inspecting a cell, or a metric, and a browser can only fetch those back asynchronously (it cannot stop and wait). So: those few calls get an awaitable form for GPU sets, and everything else stays as it is. Nothing the person writing a scene has to think about.
+
+## Progress
+
+- **Step 1 done: the graph, the tracer and the reference interpreter** (`packages/stdlib/src/formula.ts`, no GPU, no DOM). `trace(formula, fields, params)` runs a formula once on symbolic fields and returns a `Program` (JSON: nodes that only use earlier nodes, identical sub-expressions merged). `interpret(program, grid, input)` runs it on the CPU for every cell. `hash01` is the counter-based random (integer-only, so every backend can reproduce it bit for bit); formulas reach it as `k.hash('name')`, with `k.x`, `k.y`, `k.z`, `k.index` and `k.tick` for patterns. `validateProgram` describes a bad program in words (the program is data: it will cross to a worker and be shown in the workbench).
+- **Evidence:** `examples/life2d/life.js`, unchanged, traces as a formula, and the interpreter matches the engine's CPU path cell for cell for 30 ticks (`packages/core/test/formula.test.ts`). 60 random formulas (every arithmetic and neighbor operation, wrapped and bounded grids, Moore and von Neumann) match `Field` bit for bit (`packages/stdlib/test/formula.test.ts`).
+- **Mistakes the tracer catches** with a readable message: operators on expressions (`a + 1`), `map`/`zip` (a JavaScript function cannot be compiled), totals (`sum`), unknown field or parameter names, non-finite numbers. `if (a)` cannot be caught (an object is always truthy in JavaScript), so the docs will say to use `where`.
+- Not yet done: `initFormula`/`actFormula`/`displayFormula` as hooks, the WGSL generator, the GPU backend (steps 2 and 3).

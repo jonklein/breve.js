@@ -486,6 +486,358 @@ sum(): number
 average(): number
 ```
 
+## BinOp
+
+Formulas: a whole-set rule written once, as an expression.
+
+A formula is a function that runs ONCE. The fields it is given are not numbers but places in an expression, so what it
+returns is a program (a small graph of operations) that can be run for every cell, on the CPU or compiled for the GPU:
+
+  alive => { const crowd = alive.neighborSum(); return { alive: crowd.eq(3).or(alive.and(crowd.eq(2))) } }
+
+`trace` runs the function and records the graph. `interpret` runs a graph on the CPU, cell by cell and node by node: it is the
+reference every faster backend is checked against, so it favors being obviously right over being fast.
+
+The graph is plain JSON (`Program`), with each node using only earlier nodes. Values are 32-bit floats, as in `Field`.
+
+## NeighborOp
+
+## Node
+
+One step of a program. Operands are indexes of earlier nodes.
+
+## Program
+
+### `Program.nodes`
+
+```ts
+nodes: Node[]
+```
+
+### `Program.out`
+
+```ts
+out: Record<string, number>
+```
+
+Which node holds each result field.
+
+### `Program.fields`
+
+```ts
+fields: string[]
+```
+
+The state fields the program reads and the parameters it was given a name for.
+
+### `Program.params`
+
+```ts
+params: string[]
+```
+
+## Grid
+
+The shape of the grid a program runs on. The same program runs on any grid.
+
+### `Grid.size`
+
+```ts
+size: [number, number, number]
+```
+
+### `Grid.wrap`
+
+```ts
+wrap: boolean
+```
+
+### `Grid.neighborhood`
+
+```ts
+neighborhood?: 'moore' | 'von-neumann'
+```
+
+## saltOf
+
+A number for a name, so `k.hash('birth')` and `k.hash('death')` give different streams.
+
+## hash01
+
+A number in [0, 1) for this cell, tick, scene seed and salt. The same on every machine, in any evaluation order.
+
+## Expr
+
+A field inside a formula: the value of every cell, as an expression. It has the operations of `Field` that can be compiled
+(arithmetic, comparisons, `where`, `clamp`, the neighbor operations); the ones that take a JavaScript function cannot be.
+
+### `Expr.add`
+
+```ts
+add(o: number | Expr): Expr
+```
+
+@internal
+
+### `Expr.sub`
+
+```ts
+sub(o: number | Expr): Expr
+```
+
+### `Expr.mul`
+
+```ts
+mul(o: number | Expr): Expr
+```
+
+### `Expr.div`
+
+```ts
+div(o: number | Expr): Expr
+```
+
+### `Expr.min`
+
+```ts
+min(o: number | Expr): Expr
+```
+
+### `Expr.max`
+
+```ts
+max(o: number | Expr): Expr
+```
+
+### `Expr.eq`
+
+```ts
+eq(o: number | Expr): Expr
+```
+
+### `Expr.ne`
+
+```ts
+ne(o: number | Expr): Expr
+```
+
+### `Expr.lt`
+
+```ts
+lt(o: number | Expr): Expr
+```
+
+### `Expr.le`
+
+```ts
+le(o: number | Expr): Expr
+```
+
+### `Expr.gt`
+
+```ts
+gt(o: number | Expr): Expr
+```
+
+### `Expr.ge`
+
+```ts
+ge(o: number | Expr): Expr
+```
+
+### `Expr.and`
+
+```ts
+and(o: number | Expr): Expr
+```
+
+### `Expr.or`
+
+```ts
+or(o: number | Expr): Expr
+```
+
+### `Expr.not`
+
+```ts
+not(): Expr
+```
+
+### `Expr.where`
+
+```ts
+where(a: number | Expr, b: number | Expr): Expr
+```
+
+### `Expr.clamp`
+
+```ts
+clamp(lo: number, hi: number): Expr
+```
+
+### `Expr.neighborSum`
+
+```ts
+neighborSum(): Expr
+```
+
+### `Expr.neighborCount`
+
+```ts
+neighborCount(): Expr
+```
+
+How many neighbors each cell has (the same for every cell on a grid that wraps; fewer at the edge of one that does not).
+
+### `Expr.neighborAverage`
+
+```ts
+neighborAverage(): Expr
+```
+
+### `Expr.neighborMax`
+
+```ts
+neighborMax(): Expr
+```
+
+### `Expr.map`
+
+```ts
+map(): never
+```
+
+### `Expr.zip`
+
+```ts
+zip(): never
+```
+
+### `Expr.sum`
+
+```ts
+sum(): never
+```
+
+### `Expr.average`
+
+```ts
+average(): never
+```
+
+### `Expr.data`
+
+```ts
+get data(): never
+```
+
+### `Expr.valueOf`
+
+```ts
+valueOf(): never
+```
+
+### `Expr.toString`
+
+```ts
+toString(): string
+```
+
+## FormulaContext
+
+What a formula can ask for besides its fields and parameters.
+
+### `FormulaContext.hash`
+
+```ts
+hash(name?: string): Expr
+```
+
+A number in [0, 1) that is different for every cell and tick, and the same on every run and machine. `name` makes separate streams.
+
+### `FormulaContext.x`
+
+```ts
+x: Expr
+```
+
+Which column, row and layer the cell is in.
+
+### `FormulaContext.y`
+
+```ts
+y: Expr
+```
+
+### `FormulaContext.z`
+
+```ts
+z: Expr
+```
+
+### `FormulaContext.index`
+
+```ts
+index: Expr
+```
+
+The cell's number, in storage order.
+
+### `FormulaContext.tick`
+
+```ts
+tick: Expr
+```
+
+## Formula
+
+## trace
+
+Run a formula once and record what it computes. `fields` names the state fields it can read, `params` the parameters
+(these become values the program is given each tick, so a slider moves without anything being compiled again).
+
+## neighborOffsets
+
+The offsets of a cell's neighbors, in the order `LatticeWorld` visits them (sums of floats depend on the order).
+
+## RunInput
+
+### `RunInput.state`
+
+```ts
+state: Record<string, ArrayLike<number>>
+```
+
+Every state field the program reads, one value per cell.
+
+### `RunInput.params`
+
+```ts
+params?: Record<string, number>
+```
+
+### `RunInput.tick`
+
+```ts
+tick?: number
+```
+
+### `RunInput.seed`
+
+```ts
+seed?: number
+```
+
+The scene's seed, for `hash`.
+
+## interpret
+
+Run a program on the CPU for every cell and return its result fields. Each node is worked out over the whole grid before the next.
+
+## validateProgram
+
+Checks a program that came from somewhere else (a file, a worker). Returns readable problems, or none if it is well formed.
+
 ## GaitJoint
 
 One joint's rhythm: its target angle swings around `offset` by `amplitude` radians, `phase` of a cycle ahead and `lag` of a cycle behind.

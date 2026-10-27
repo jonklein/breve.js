@@ -248,7 +248,7 @@ function postGroup(): void {
     groupTick = first.tick
     const all = first.tick % 4 === 0 || first.rate < 30
     const tiles = [...group.sims].map(([name, s]) => ({ name, params: sweepRuns.get(name) ?? {}, metrics: all ? s.metrics() : null, frames: s.frames() }))
-    postMessage({ type: 'tiles', epoch, tick: first.tick, rate: first.rate, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
+    postMessage({ type: 'tiles', epoch, tick: population ? population.tick : first.tick, rate: first.rate, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
   }
   const runtime = [...new Set([...group.sims.values()].flatMap((s) => s.takeErrors()))]
   const problems = JSON.stringify([sceneErrors, scriptErrors, runtime])

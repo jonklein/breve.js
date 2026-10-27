@@ -518,6 +518,12 @@ async function main(): Promise<void> {
   $('step').addEventListener('click', () => send({ type: 'step' }))
   $('reset').addEventListener('click', () => { metrics.clear(); tiles.resetHistory(); send({ type: 'reset' }) })
 
+  // The run's time, in one place: `t = 120`, amber while you are looking at an earlier moment than the latest.
+  const showTime = (t: number, past: boolean) => {
+    $('timeline-label').textContent = `t = ${t}`
+    $('timeline-label').classList.toggle('past', past)
+  }
+
   // ---- timeline: drag back through the run; Play carries on from there ----
   const slider = $('timeline-slider') as HTMLInputElement
   let scrubbing = false
@@ -579,8 +585,8 @@ async function main(): Promise<void> {
       if (m.timeline) {
         slider.min = String(m.timeline.first); slider.max = String(m.timeline.last); slider.step = String(m.timeline.step)
         if (!scrubbing) slider.value = String(Math.min(m.tick, m.timeline.last))
-        $('timeline-label').textContent = `tick ${m.tick}${m.tick < m.timeline.last ? ' · earlier than the latest' : ''}`
       }
+      showTime(m.tick, !!m.timeline && m.tick < m.timeline.last)
       viewport.update(m.frames.map((f) => ({ ...f, rate: m.rate })))
       if (inspecting) { if (m.inspected) inspector.update(m.inspected); else stopInspecting() }
       if (m.metrics) metrics.push(m.metrics)
@@ -589,7 +595,7 @@ async function main(): Promise<void> {
         const tps = Math.max(0, ((m.tick - lastTick) * 1000) / (now - lastTime))
         lastTick = m.tick
         lastTime = now
-        $('stats').textContent = `tick ${m.tick} · ${m.frames.map((f) => `${f.count} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
+        $('stats').textContent = `${m.frames.map((f) => `${f.count} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
       }
     } else if (m.type === 'crumbs') {
       // a trail like "All runs › c04": every step but the last goes back to that level
@@ -606,12 +612,13 @@ async function main(): Promise<void> {
       $('sweepbar').classList.toggle('hidden', true)
     } else if (m.type === 'tiles') {
       if (sweeping) tiles.update(m.tiles, '')
+      showTime(m.tick, false)
       const now = performance.now()
       if (now - lastTime > 500) {
         const tps = Math.max(0, ((m.tick - lastTick) * 1000) / (now - lastTime))
         lastTick = m.tick
         lastTime = now
-        $('stats').textContent = `${m.status ? m.status + ' · ' : ''}tick ${m.tick} · ${m.tiles.length} runs · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick (all runs)`
+        $('stats').textContent = `${m.status ? m.status + ' · ' : ''}${m.tiles.length} runs · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick (all runs)`
       }
     } else if (m.type === 'metrics') {
       metrics.clear()

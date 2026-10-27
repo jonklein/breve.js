@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { buildTexture } from './textures'
+import { buildTexture, ownCopy } from './textures'
 import { antiTile } from './antitile'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
@@ -145,9 +145,9 @@ export class RigidView {
       const spec = typeof tex === 'string' ? { kind: tex } : tex
       const built = buildTexture(spec, { assetBase: this.assetBase, changed: () => this.buildTerrain(t) })
       tile = (typeof spec === 'object' && 'tile' in spec && (spec as { tile?: number }).tile) || 10
-      mat.map = built.map
-      if (built.normalMap) mat.normalMap = built.normalMap
-      for (const x of [built.map, built.normalMap]) x?.repeat.set(1, 1)
+      mat.map = ownCopy(built.map)
+      mat.normalMap = ownCopy(built.normalMap)
+      for (const x of [mat.map, mat.normalMap]) x?.repeat.set(1, 1)
       antiTile(mat)
     }
     this.groundLevel = t.heights.length ? Math.min(...t.heights) : 0

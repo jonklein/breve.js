@@ -21,6 +21,17 @@ function dataTexture(rgba: Uint8ClampedArray, size: number, srgb: boolean): THRE
 }
 
 /**
+ * A texture of your own to set `repeat` on. `buildTexture` hands out the same objects to everyone who asks for the same texture, so two
+ * surfaces (the terrain and the floor under it) that each set a repeat would fight over it, and whichever ran last would win.
+ */
+export function ownCopy(t: THREE.Texture | null): THREE.Texture | null {
+  if (!t) return null
+  const c = t.clone()
+  c.needsUpdate = true
+  return c
+}
+
+/**
  * Turn a texture setting (a name like "grass", or an object) into three.js textures: a color map and, when the
  * texture has relief, a normal map. Generated textures are made once per distinct setting and reused. An image
  * `url` shows a plain placeholder until it loads, and keeps it (with a console warning) if it cannot be loaded.

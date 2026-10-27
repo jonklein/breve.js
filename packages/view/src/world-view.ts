@@ -3,7 +3,7 @@ import type { RigidFrame } from '@breve/core'
 import { RigidView } from './rigid-view'
 import { AgentLayer, CellLayer, GraphLayer } from './layers'
 import { resolveLook, sunDirection, type LookInput, type ResolvedLook } from './look'
-import { buildTexture } from './textures'
+import { buildTexture, ownCopy } from './textures'
 import { SKY_FRAGMENT, SKY_VERTEX } from './sky'
 import { Effects, type Quality } from './effects'
 import { antiTile } from './antitile'
@@ -257,9 +257,9 @@ export class WorldView {
     if (want.texture) {
       const tex = buildTexture(want.texture, { assetBase: this.assetBase, changed: () => { this.floorKey = ''; this.applyFloor() } })
       const repeat = size / Math.max(0.1, want.texture.tile)
-      for (const t of [tex.map, tex.normalMap]) if (t) t.repeat.set(repeat, repeat)
-      mat.map = tex.map
-      if (tex.normalMap) mat.normalMap = tex.normalMap
+      mat.map = ownCopy(tex.map)
+      mat.normalMap = ownCopy(tex.normalMap)
+      for (const t of [mat.map, mat.normalMap]) t?.repeat.set(repeat, repeat)
       antiTile(mat)
     }
     this.floor = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat)

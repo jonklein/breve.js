@@ -1,5 +1,6 @@
 import { diffStats, lineDiff, renderDiff } from './diff'
 import type { Doc } from './projects'
+import { site } from './site-root'
 
 interface Proposal {
   summary: string
@@ -64,7 +65,7 @@ export class ChatPanel {
 
   async init(): Promise<void> {
     try {
-      const s = (await (await fetch('/api/status')).json()) as { llm: boolean; model: string }
+      const s = (await (await fetch(site('api/status'))).json()) as { llm: boolean; model: string }
       this.available = s.llm
       this.note.textContent = s.llm ? `Model: ${s.model}` : ''
     } catch {
@@ -110,7 +111,7 @@ export class ChatPanel {
     }, 500)
     try {
       const p = this.deps.project()
-      const r = await fetch('/api/chat', {
+      const r = await fetch(site('api/chat'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ history, request, project: { name: p.name, scene: p.scene, script: p.script } }),

@@ -1,4 +1,5 @@
 import { marked } from 'marked'
+import { site } from './site-root'
 
 interface Page { id: string; title: string }
 
@@ -27,7 +28,7 @@ export class DocsPanel {
     if (!this.loaded) {
       this.loaded = true
       try {
-        this.pages = (await (await fetch('/api/docs')).json()) as Page[]
+        this.pages = (await (await fetch(site('api/docs'))).json()) as Page[]
       } catch {
         this.body.textContent = 'The docs come from the local server. Start it with `npm run dev`.'
         this.loaded = false
@@ -57,7 +58,7 @@ export class DocsPanel {
     this.nav.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.id === id))
     let md = this.cache.get(id)
     if (md === undefined) {
-      const r = await fetch(`/api/docs/${id}`)
+      const r = await fetch(site(`api/docs/${id}`))
       md = r.ok ? await r.text() : `Could not load this page (${r.status}).`
       this.cache.set(id, md)
     }

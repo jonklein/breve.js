@@ -16,6 +16,7 @@ import { ExperimentPanel, defaultExperiment } from './experiment-panel'
 import { JsonTree } from './tree'
 import { experimentSchema, parseExperiment } from '@breve/experiment'
 import type { FromWorker, ToWorker } from './sim.worker'
+import { site } from './site-root'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
@@ -667,7 +668,7 @@ async function main(): Promise<void> {
   if (start.startsWith('s=') && (await openShared(start.slice(2)))) return
   if (fromGallery && (isExample(fromGallery) || userProjects().some((p) => p.id === fromGallery))) {
     // "Fork" in the gallery: open the project and copy it into one of your own
-    history.replaceState(null, '', '/sim/')
+    history.replaceState(null, '', site('sim/'))
     await open(fromGallery)
     $('fork').click()
     return

@@ -1,3 +1,4 @@
+import { site } from './site-root'
 export interface ExampleInfo {
   id: string
   name: string
@@ -15,7 +16,7 @@ export interface ExampleInfo {
 export async function fetchAbout(e: ExampleInfo): Promise<string | null> {
   if (!e.about) return null
   try {
-    const r = await fetch(`/${e.id}/${e.about}`)
+    const r = await fetch(site(`${e.id}/${e.about}`))
     const text = await r.text()
     // a dev server answers a missing file with the home page; that is not a description
     return r.ok && !/^\s*<(!doctype|html)/i.test(text) ? text : null
@@ -61,14 +62,14 @@ function write(key: string, value: unknown | null): void {
 }
 
 export async function loadExamples(): Promise<ExampleInfo[]> {
-  return (await fetch('/index.json')).json()
+  return (await fetch(site('index.json'))).json()
 }
 
 export async function fetchExample(e: ExampleInfo): Promise<Doc> {
   const [scene, script, experiment] = await Promise.all([
-    fetch(`/${e.id}/${e.scene}`).then((r) => r.text()),
-    fetch(`/${e.id}/${e.script}`).then((r) => r.text()),
-    e.experiment ? fetch(`/${e.id}/${e.experiment}`).then((r) => r.text()) : Promise.resolve(undefined),
+    fetch(site(`${e.id}/${e.scene}`)).then((r) => r.text()),
+    fetch(site(`${e.id}/${e.script}`)).then((r) => r.text()),
+    e.experiment ? fetch(site(`${e.id}/${e.experiment}`)).then((r) => r.text()) : Promise.resolve(undefined),
   ])
   return { scene, script, experiment }
 }

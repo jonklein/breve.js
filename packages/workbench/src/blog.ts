@@ -1,6 +1,7 @@
 import { marked } from 'marked'
 import { mountNav } from './site-nav'
 import posts from './posts.generated.json'
+import { site } from './site-root'
 
 // The blog is one page. `/blog/` lists the posts; `/blog/#/<slug>` shows one. Posts are the markdown files in blog/, turned into
 // posts.generated.json by `npm run blog`. They are written by the people who run the site, so their markdown is rendered as it is.
@@ -20,7 +21,7 @@ function list(): void {
   if (!visible.length) root.append(el('p', { textContent: 'Nothing here yet.', className: 'lede' }))
   for (const p of visible) {
     const card = el('article', { className: 'post-card' })
-    const link = el('a', { href: `/blog/${showDrafts ? '?drafts' : ''}#/${p.slug}`, textContent: p.title })
+    const link = el('a', { href: site(`blog/${showDrafts ? '?drafts' : ''}#/${p.slug}`), textContent: p.title })
     const h = el('h2'); h.append(link)
     card.append(h, el('p', { className: 'post-meta muted', textContent: day(p.date) + (p.draft ? ' · draft' : '') }), el('p', { textContent: p.summary }))
     root.append(card)
@@ -35,7 +36,7 @@ function show(slug: string): void {
   article.innerHTML = `<h1></h1><p class="post-meta muted"></p>${marked.parse(p.body, { async: false }) as string}`
   article.querySelector('h1')!.textContent = p.title
   article.querySelector('.post-meta')!.textContent = day(p.date) + (p.draft ? ' · draft' : '')
-  const back = el('a', { href: `/blog/${showDrafts ? '?drafts' : ''}`, textContent: '← All posts', className: 'post-back' })
+  const back = el('a', { href: site(`blog/${showDrafts ? '?drafts' : ''}`), textContent: '← All posts', className: 'post-back' })
   root.replaceChildren(back, article)
   window.scrollTo(0, 0)
 }

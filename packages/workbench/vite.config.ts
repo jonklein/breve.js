@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  base: './', // relative URLs, so the build works at a domain's root or in a subfolder (GitHub Pages)
   publicDir: '../../examples',
   server: { port: 5173, strictPort: true, proxy: { '/api': 'http://127.0.0.1:8787' } },
   worker: { format: 'es' },

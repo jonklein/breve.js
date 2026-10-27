@@ -1,4 +1,5 @@
 import { mountNav } from './site-nav'
+import { site } from './site-root'
 
 mountNav(document.getElementById('site-nav')!, 'explore')
 
@@ -17,7 +18,7 @@ for (const d of DEMOS) {
   card.innerHTML = `<div class="stage"><span>loading…</span></div><div class="info"><h3></h3><p></p><a>Open in the workbench →</a></div>`
   card.querySelector('h3')!.textContent = d.title
   card.querySelector('p')!.textContent = d.blurb
-  card.querySelector('a')!.setAttribute('href', `/sim/#${d.id}`)
+  card.querySelector('a')!.setAttribute('href', site(`sim/#${d.id}`))
   host.append(card)
   const stage = card.querySelector<HTMLElement>('.stage')!
   // nothing is fetched or started until the card is close to the screen; the embed then pauses itself when it leaves
@@ -33,8 +34,8 @@ async function start(d: Demo, stage: HTMLElement): Promise<void> {
   try {
     const [{ run }, scene, script] = await Promise.all([
       import('@breve/embed'),
-      fetch(d.scene).then((r) => r.json()),
-      fetch(d.script).then((r) => r.text()),
+      fetch(site(d.scene)).then((r) => r.json()),
+      fetch(site(d.script)).then((r) => r.text()),
     ])
     stage.replaceChildren()
     await run(stage, script, scene, { height: stage.clientHeight || 260 })

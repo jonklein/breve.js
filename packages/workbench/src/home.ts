@@ -1,7 +1,8 @@
 import { mountNav } from './site-nav'
+import { site } from './site-root'
 
 // Old links to the workbench pointed at the site root (`/?embed#boids`); keep them working.
-if (new URLSearchParams(location.search).has('embed') || location.hash.length > 1) location.replace('/sim/' + location.search + location.hash)
+if (new URLSearchParams(location.search).has('embed') || location.hash.length > 1) location.replace(site('sim/') + location.search + location.hash)
 
 mountNav(document.getElementById('site-nav')!, 'home')
 
@@ -16,8 +17,8 @@ async function start(): Promise<void> {
   try {
     const [{ run }, scene, script] = await Promise.all([
       import('@breve/embed'),
-      fetch(BACKDROP.scene).then((r) => r.json()),
-      fetch(BACKDROP.script).then((r) => r.text()),
+      fetch(site(BACKDROP.scene)).then((r) => r.json()),
+      fetch(site(BACKDROP.script)).then((r) => r.text()),
     ])
     const running = await run(host, script, scene, { height: window.innerHeight, zoom: 1.35, paused: reduced })
     let paused = reduced

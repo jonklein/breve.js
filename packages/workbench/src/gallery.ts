@@ -1,5 +1,6 @@
 import { mountNav } from './site-nav'
 import { loadExamples, userProjects, type ExampleInfo } from './projects'
+import { site } from './site-root'
 
 mountNav(document.getElementById('site-nav')!, 'gallery')
 
@@ -29,18 +30,18 @@ function card(c: Card): HTMLElement {
     setTimeout(() => { copy.textContent = 'Copy link' }, 1500)
   })
   return el('article', { class: 'card' },
-    el('a', { href: `/sim/#${c.id}`, class: 'thumb-link', ariaLabel: `Open ${c.title}` }, thumb),
+    el('a', { href: site(`sim/#${c.id}`), class: 'thumb-link', ariaLabel: `Open ${c.title}` }, thumb),
     el('div', { class: 'card-body' },
-      el('h3', {}, el('a', { href: `/sim/#${c.id}`, textContent: c.title })),
+      el('h3', {}, el('a', { href: site(`sim/#${c.id}`), textContent: c.title })),
       el('p', { textContent: c.description }),
       el('div', { class: 'tags' }, ...c.tags.map((t) => el('span', { class: 'tag', textContent: t }))),
       el('div', { class: 'actions' },
-        el('a', { class: 'button primary', href: `/sim/#${c.id}`, textContent: 'Open' }),
-        el('a', { class: 'button', href: `/sim/?fork=${encodeURIComponent(c.id)}`, textContent: 'Fork', title: 'Copy it into your own projects and open the copy' }),
+        el('a', { class: 'button primary', href: site(`sim/#${c.id}`), textContent: 'Open' }),
+        el('a', { class: 'button', href: site(`sim/?fork=${encodeURIComponent(c.id)}`), textContent: 'Fork', title: 'Copy it into your own projects and open the copy' }),
         copy)))
 }
 
-const toCard = (e: ExampleInfo): Card => ({ id: e.id, title: e.name, description: e.description, tags: e.tags ?? [], folder: e.folder, thumb: `/${e.id}/thumb.jpg`, example: true })
+const toCard = (e: ExampleInfo): Card => ({ id: e.id, title: e.name, description: e.description, tags: e.tags ?? [], folder: e.folder, thumb: site(`${e.id}/thumb.jpg`), example: true })
 
 async function main(): Promise<void> {
   const cards = document.getElementById('cards')!

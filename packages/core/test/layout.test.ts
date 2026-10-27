@@ -45,8 +45,8 @@ test('layouts: the example runs, and its controls point at real fields', async (
   const script = (await import(pathToFileURL(new URL('layouts.js', dir).pathname).href)) as ScriptModule
   for (const c of parsed.scene.controls ?? []) {
     let node: unknown = parsed.scene
-    for (const k of c.set.split('.')) node = (node as Record<string, unknown>)?.[k]
-    assert.ok(c.options.includes(node as string), `${c.set} starts at one of its options`)
+    for (const k of (c.set ?? '').split('.')) node = (node as Record<string, unknown>)?.[k]
+    assert.ok((c.options ?? []).includes(node as string), `${c.set} starts at one of its options`)
   }
   const sim = new Sim(parsed.scene, script)
   for (let t = 0; t < 3; t++) sim.step()

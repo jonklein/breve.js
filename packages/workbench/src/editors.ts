@@ -44,6 +44,8 @@ export function makeEditor(parent: HTMLElement, doc: string, lang: 'json' | 'js'
  * `"key": "old"` is swapped in place so the file keeps its formatting; anything else rewrites the file.
  */
 export function setPathInText(text: string, path: string, value: string | number | boolean): string | null {
+  const param = /^params\.([^.]+)(?:\.value)?$/.exec(path)
+  if (param && typeof value === 'number') { const done = setParamInText(text, param[1], value); if (done !== null) return done }
   let doc: Record<string, unknown>
   try { doc = JSON.parse(text) } catch { return null }
   const keys = path.split('.')
@@ -72,6 +74,8 @@ export function getPath(doc: unknown, path: string): unknown {
     if (!node || typeof node !== 'object') return undefined
     node = (node as Record<string, unknown>)[k]
   }
+  // a param may be written as a bare number or as { value }
+  if (node === undefined && /^params\.[^.]+\.value$/.test(path)) return getPath(doc, path.slice(0, -'.value'.length))
   return node
 }
 

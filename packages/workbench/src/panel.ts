@@ -79,50 +79,54 @@ export class ParamsPanel {
   }
 }
 
-interface ControlView { label?: string; set: string; options: (string | number | boolean)[] }
+type Pick = Record<string, string | number | boolean>
+interface ControlView { label?: string; set?: string; options?: (string | number | boolean)[]; presets?: { label: string; values: Pick }[] }
 
-/** Rows of buttons from the scene's `controls`: one button per option, the current one pressed. */
+/** Rows of buttons from the scene's `controls`: one button per option or preset, the ones that match the scene pressed. */
 export class ControlsPanel {
   private signature = ''
-  private rows = new Map<string, HTMLButtonElement[]>()
+  private rows: { buttons: HTMLButtonElement[]; picks: Pick[] }[] = []
 
-  constructor(private root: HTMLElement, private onPick: (path: string, value: string | number | boolean) => void) {}
+  constructor(private root: HTMLElement, private onPick: (values: Pick) => void) {}
 
   render(controls: unknown, current: (path: string) => unknown): void {
-    const list = Array.isArray(controls) ? (controls as ControlView[]).filter((c) => c && typeof c.set === 'string' && Array.isArray(c.options)) : []
+    const list = Array.isArray(controls) ? (controls as ControlView[]).filter((c) => c && (c.presets || (typeof c.set === 'string' && Array.isArray(c.options)))) : []
     const sig = JSON.stringify(list)
     if (sig !== this.signature) {
       this.signature = sig
-      this.rows.clear()
+      this.rows = []
       this.root.replaceChildren()
       for (const c of list) {
         const wrap = document.createElement('div')
         wrap.className = 'control'
         const label = document.createElement('label')
-        label.textContent = c.label ?? c.set.split('.').pop() ?? c.set
+        label.textContent = c.label ?? c.set?.split('.').pop() ?? ''
         const group = document.createElement('div')
         group.className = 'choices'
         group.setAttribute('role', 'group')
         group.setAttribute('aria-label', label.textContent)
-        const buttons = c.options.map((o) => {
+        const items = c.presets ? c.presets.map((q) => ({ text: q.label, pick: q.values })) : (c.options ?? []).map((o) => ({ text: String(o), pick: { [c.set as string]: o } as Pick }))
+        const buttons = items.map((it) => {
           const b = document.createElement('button')
           b.type = 'button'
-          b.textContent = String(o)
-          b.addEventListener('click', () => this.onPick(c.set, o))
+          b.textContent = it.text
+          b.addEventListener('click', () => this.onPick(it.pick))
           group.appendChild(b)
           return b
         })
-        this.rows.set(c.set, buttons)
+        this.rows.push({ buttons, picks: items.map((it) => it.pick) })
         wrap.append(label, group)
         this.root.appendChild(wrap)
       }
     }
-    for (const c of list) {
-      const now = current(c.set)
-      this.rows.get(c.set)?.forEach((b, i) => b.setAttribute('aria-pressed', String(c.options[i] === now)))
+    for (const row of this.rows) {
+      row.buttons.forEach((b, i) => b.setAttribute('aria-pressed', String(Object.entries(row.picks[i]).every(([path, v]) => close(current(path), v)))))
     }
   }
 }
+
+// a number a slider rounded is still "the same" as the preset that set it
+const close = (a: unknown, b: unknown): boolean => (typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) < 1e-9 : a === b)
 
 const LINE_COLORS =['#5aa9ff', '#ff6b6b', '#7bd88f', '#ffd24d', '#c792ea', '#ffa657']
 

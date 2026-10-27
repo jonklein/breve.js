@@ -86,8 +86,9 @@ async function main(): Promise<void> {
     send({ type: 'scene', scene: next })
   })
 
-  const controls = new ControlsPanel($('controls'), (path, value) => {
-    const next = setPathInText(sceneEditor.getText(), path, value)
+  const controls = new ControlsPanel($('controls'), (values) => {
+    let next: string | null = sceneEditor.getText()
+    for (const [path, value] of Object.entries(values)) next = next === null ? null : setPathInText(next, path, value)
     if (next === null) return
     loading = true
     sceneEditor.setText(next)

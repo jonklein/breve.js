@@ -2,17 +2,23 @@
 //
 // Two chemicals share a sheet. `u` is food that is fed in everywhere; `v` eats it, makes more of itself,
 // and is slowly removed. Both spread out, `u` faster than `v`. Where `v` gets a foothold it grows into
-// spots that split, stripes that wander, or labyrinths, depending on just two numbers:
+// spots that split, stripes that wander, or labyrinths, depending mostly on two numbers:
 //
 //   feed  how fast food is added          kill  how fast v is removed
 //
-// Try these (feed, kill):  spots that divide 0.037, 0.065 · stripes 0.078, 0.061 · coral 0.055, 0.062
-//                          waves 0.026, 0.051 · holes 0.039, 0.058 · solitons 0.030, 0.060
+// The preset buttons set (feed, kill) for the classic patterns. Then try the sliders: the spread rates
+// change how fine the pattern is, and the palette buttons change how it is colored.
 //
 // The whole sheet is updated at once with field arithmetic: `u.neighborAverage().sub(u)` is how much
 // each cell differs from its neighbors, which is all that "spreading out" needs.
-const DU = 1.0
-const DV = 0.5
+const PALETTES = {
+  ocean: ['#0b1230', '#17509c', '#2fb8bd', '#f6efc4'],
+  fire: ['#10040a', '#7a1250', '#e8452e', '#ffd25a', '#fff6d8'],
+  aurora: ['#07102b', '#2a2f8f', '#16b6a0', '#9be564', '#f4f06a'],
+  rainbow: ['#1b0b3a', '#3a3cc8', '#18c4c4', '#7be45a', '#ffd23f', '#ff5a5f'],
+  candy: ['#2b1055', '#c13fa8', '#ff7ab6', '#ffd1a8', '#fffbe8'],
+  mono: ['#0a0a0c', '#4a4f5c', '#aab0bd', '#ffffff'],
+}
 
 export default {
   // food everywhere, and a few random blobs of v to start things off
@@ -34,9 +40,10 @@ export default {
     return { u, v }
   },
 
-  // every cell is drawn, colored by how much v is there: deep blue, through teal, to cream
+  // every cell is drawn, colored along the chosen palette by how much v is there
   displayAll({ v }, p, ctx) {
-    return { visible: v.ge(-1), color: ctx.colors.rampField(['#0b1230', '#17509c', '#2fb8bd', '#f6efc4'], v.mul(3)) }
+    const stops = PALETTES[ctx.data?.palette] ?? PALETTES.ocean
+    return { visible: v.ge(-1), color: ctx.colors.rampField(stops, v.mul(p.brightness)) }
   },
 
   actAll({ u, v }, p) {
@@ -45,8 +52,8 @@ export default {
       const spreadU = u.neighborAverage().sub(u)
       const spreadV = v.neighborAverage().sub(v)
       const react = u.mul(v).mul(v) // u is eaten by v, and turned into more v
-      const nextU = u.add(spreadU.mul(DU)).sub(react).add(u.mul(-p.feed).add(p.feed))
-      const nextV = v.add(spreadV.mul(DV)).add(react).sub(v.mul(p.feed + p.kill))
+      const nextU = u.add(spreadU.mul(p.spreadU)).sub(react).add(u.mul(-p.feed).add(p.feed))
+      const nextV = v.add(spreadV.mul(p.spreadV)).add(react).sub(v.mul(p.feed + p.kill))
       u = nextU.clamp(0, 1)
       v = nextV.clamp(0, 1)
     }

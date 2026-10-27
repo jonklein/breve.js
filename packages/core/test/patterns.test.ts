@@ -30,20 +30,36 @@ test('gray-scott: a pattern grows from a few blobs, both chemicals stay between 
   assert.ok(dying.metrics().chemicalV < a.metrics().chemicalV, 'a bad feed and kill gives less pattern')
 })
 
-test('hypercycle: all five members coexist when they help each other, and parasites take over', async () => {
-  const { scene, script } = await load('hypercycle', 'hypercycle.js')
-  const run = async (params: Record<string, number>, ticks: number) => {
-    const s = new Sim(withParams(scene, params), script)
-    for (let t = 0; t < ticks; t++) s.step()
-    assert.equal(s.takeErrors().length, 0)
-    return { s, m: s.metrics() }
+test('gray-scott: every preset button and palette names real fields and a real palette', async () => {
+  const { scene } = await load('gray-scott', 'gray-scott.js')
+  const doc = scene as unknown as Record<string, unknown>
+  const at = (path: string) => path.split('.').reduce<unknown>((n, k) => (n as Record<string, unknown> | undefined)?.[k], doc)
+  for (const c of scene.controls ?? []) {
+    for (const pr of c.presets ?? []) for (const path of Object.keys(pr.values)) assert.notEqual(at(path), undefined, `${pr.label}: ${path}`)
+    if (c.set) assert.notEqual(at(c.set), undefined, c.set)
   }
-  const healthy = await run({}, 400)
-  for (const k of ['member1', 'member2', 'member3', 'member4', 'member5'] as const) assert.ok(healthy.m[k] > 300, `${k} holds ${healthy.m[k]} cells`)
-  assert.equal(healthy.m.parasites, 0)
-  const again = await run({}, 400)
-  assert.equal(again.s.hash(), healthy.s.hash(), 'repeatable')
-  const infected = await run({ parasites: 1.5 }, 500)
-  const members = infected.m.member1 + infected.m.member2 + infected.m.member3 + infected.m.member4 + infected.m.member5
-  assert.ok(infected.m.parasites > members, `parasites (${infected.m.parasites}) outnumber the ring (${members})`)
+})
+
+test('hypercycle: all five chemicals coexist as waves, the total stays 1 in every cell, and the run is repeatable', async () => {
+  const { scene, script } = await load('hypercycle', 'hypercycle.js')
+  const run = (ticks: number) => {
+    const s = new Sim(scene, script)
+    for (let t = 0; t < ticks; t++) s.step()
+    assert.equal(s.takeErrors().length, 0, s.takeErrors().join('\n'))
+    return s
+  }
+  const a = run(300)
+  assert.equal(a.hash(), run(300).hash(), 'repeatable')
+  const x = ['a', 'b', 'c', 'd', 'e'].map((k) => a.table.cols[k] as unknown as Float32Array)
+  const n = x[0].length
+  const wins = [0, 0, 0, 0, 0]
+  let worst = 0
+  for (let i = 0; i < n; i++) {
+    let sum = 0, best = 0
+    for (let k = 0; k < 5; k++) { sum += x[k][i]; if (x[k][i] > x[best][i]) best = k }
+    wins[best]++
+    worst = Math.max(worst, Math.abs(sum - 1))
+  }
+  assert.ok(worst < 0.02, `the chemicals in a cell add up to 1 (off by ${worst})`)
+  for (let k = 0; k < 5; k++) assert.ok(wins[k] > n * 0.05, `chemical ${k + 1} leads in ${wins[k]} of ${n} cells`)
 })

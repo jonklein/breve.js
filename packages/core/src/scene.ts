@@ -263,11 +263,21 @@ export interface Scene {
   controls?: ControlDef[]
 }
 
+export type ControlValue = string | number | boolean
+
+/** One button that sets several fields at once: `{ "label": "stripes", "values": { "params.feed.value": 0.078, "params.kill.value": 0.061 } }`. */
+export interface Preset {
+  label: string
+  values: Record<string, ControlValue>
+}
+
+/** Either `set` and `options` (a row of choices for one field) or `presets` (each button sets several fields). */
 export interface ControlDef {
   label?: string
   /** Dotted path to the field, with array positions as numbers. */
-  set: string
-  options: (string | number | boolean)[]
+  set?: string
+  options?: ControlValue[]
+  presets?: Preset[]
 }
 
 export type Params = Record<string, number>
@@ -554,13 +564,26 @@ export const sceneSchema = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['set', 'options'],
         additionalProperties: false,
         properties: {
           label: { type: 'string' },
           set: { type: 'string', pattern: '^[^.\\s]+(\\.[^.\\s]+)*$' },
           options: { type: 'array', items: { type: ['string', 'number', 'boolean'] }, minItems: 2 },
+          presets: {
+            type: 'array',
+            minItems: 2,
+            items: {
+              type: 'object',
+              required: ['label', 'values'],
+              additionalProperties: false,
+              properties: {
+                label: { type: 'string' },
+                values: { type: 'object', minProperties: 1, additionalProperties: { type: ['string', 'number', 'boolean'] } },
+              },
+            },
+          },
         },
+        oneOf: [{ required: ['set', 'options'], not: { required: ['presets'] } }, { required: ['presets'], not: { anyOf: [{ required: ['set'] }, { required: ['options'] }] } }],
       },
     },
     charts: { type: 'array', items: { type: 'object', required: ['metrics'], additionalProperties: false, properties: { title: { type: 'string' }, metrics: { type: 'array', items: { type: 'string' }, minItems: 1 } } } },

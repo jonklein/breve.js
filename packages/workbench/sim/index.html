@@ -16,14 +16,12 @@
       <button id="share" title="Copy a link that carries this scene and script">Share</button>
       <button id="delete" class="hidden" title="Delete this project">Delete</button>
       <span class="spacer"></span>
-      <button id="play" title="Play or pause">Pause</button>
-      <button id="step" title="Advance one tick">Step</button>
-      <button id="reset" title="Restart from the seed">Reset</button>
       <button id="sweep" title="Run many copies of this scene side by side, each with a different value of one param">Sweep</button>
       <span id="flags" class="flag hidden"></span>
       <span id="stats" class="muted mono"></span>
       <button id="restore" title="Discard your edits and reload the example">Restore example</button>
     </header>
+    <div id="toast" class="toast hidden" role="status"></div>
     <div id="held" class="held hidden" role="alert">
       <span><strong>This project came from a shared link.</strong> Its script is code, and it has not been run: the simulation is showing the scene only. Read the script, and run it only if you trust where the link came from.</span>
       <button id="held-run">Run the script</button>
@@ -81,10 +79,14 @@
           <input id="think-file" type="file" accept=".json,application/json" class="hidden" />
         </div>
         <div id="viewport"></div>
-        <div id="timeline" class="hidden">
-          <span class="muted">Timeline</span>
-          <input id="timeline-slider" type="range" min="0" max="0" step="10" value="0" aria-label="Scrub through the run" title="Drag back to look at an earlier moment. Press Play to carry on from there as a new run." />
-          <span id="timeline-label" class="muted mono"></span>
+        <div id="transport" class="transport">
+          <button id="play" class="icon-btn play" aria-label="Pause" title="Pause (space)"></button>
+          <button id="step" class="icon-btn" aria-label="Step one tick" title="Step one tick"></button>
+          <button id="reset" class="icon-btn" aria-label="Restart from the seed" title="Restart from the seed"></button>
+          <div id="timeline" class="timeline hidden">
+            <input id="timeline-slider" type="range" min="0" max="0" step="10" value="0" aria-label="Scrub through the run" title="Drag back to look at an earlier moment. Press play to carry on from there as a new run." />
+            <span id="timeline-label" class="muted mono"></span>
+          </div>
         </div>
         <div id="inspector" class="inspector hidden"></div>
         <div id="tiles" class="hidden"></div>

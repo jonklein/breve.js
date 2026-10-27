@@ -4,7 +4,7 @@ import { makeEditor, setParamInText } from './editors'
 import { parseScene, sceneSchema, setEntityKey } from '@breve/core'
 import { ParamsPanel, MetricsPanel } from './panel'
 import {
-  approveProject, clearDoc, createProject, deleteProject, fetchExample, loadExamples, renameProject, saveDoc, savedDoc, saveParams, savedParams, userProjects,
+  approveProject, clearDoc, createProject, deleteProject, fetchExample, fingerprint, loadExamples, renameProject, sameDoc, saveDoc as storeDoc, savedDoc, saveParams, savedParams, userProjects,
   type Doc, type ExampleInfo,
 } from './projects'
 import { ChatPanel } from './chat'
@@ -26,6 +26,12 @@ async function main(): Promise<void> {
   const isExample = (id: string) => exampleById.has(id)
 
   let epoch = 0
+  const toast = (text: string) => {
+    const t = $('toast')
+    t.textContent = text
+    t.classList.remove('hidden')
+    window.setTimeout(() => t.classList.add('hidden'), 9000)
+  }
   const worker = new Worker(new URL('./sim.worker.ts', import.meta.url), { type: 'module' })
   const send = (m: ToWorker) => worker.postMessage(m)
 
@@ -227,12 +233,43 @@ async function main(): Promise<void> {
     if (mine) nameBox.value = userProjects().find((p) => p.id === current)?.name ?? ''
   }
 
+  // What each example's own files were when this page opened them, so an edit can be told apart from "unchanged".
+  const originals = new Map<string, { doc: Doc; hash: string }>()
+  const original = async (id: string) => {
+    let o = originals.get(id)
+    if (!o) {
+      const doc = await fetchExample(exampleById.get(id) as ExampleInfo)
+      originals.set(id, (o = { doc, hash: fingerprint(doc) }))
+    }
+    return o
+  }
+  /**
+   * Remember the person's edits. An example that matches its original is not stored at all (so it follows the example when
+   * the example improves); an edited one is stored with a fingerprint of the original it was edited from.
+   */
+  const saveDoc = (id: string, doc: Doc): void => {
+    const o = originals.get(id)
+    if (!o) return storeDoc(id, doc)
+    if (sameDoc(doc, o.doc)) return clearDoc(id)
+    storeDoc(id, { ...doc, base: o.hash })
+  }
   const getDoc = async (id: string): Promise<Doc | null> => {
-    const saved = savedDoc(id)
-    if (saved) return saved
     const ex = exampleById.get(id)
-    if (!ex) return null
-    const doc = await fetchExample(ex as ExampleInfo)
+    if (!ex) return savedDoc(id)
+    const o = await original(id)
+    const saved = savedDoc(id)
+    if (saved && saved.base === o.hash) return saved
+    if (saved) {
+      // The example changed since this copy was made (or the copy predates the fingerprint). Running the old copy against the new
+      // engine is what used to leave a simulation stuck until "Restore example": show the current example, and keep the old edits as a project.
+      clearDoc(id)
+      if (!sameDoc(saved, o.doc)) {
+        const copy = createProject(`${ex.name} (your older copy)`, id, { scene: saved.scene, script: saved.script, experiment: saved.experiment })
+        toast(`“${ex.name}” has been updated, so it is showing the new version. Your earlier edits are saved as “${copy.name}”.`)
+      }
+    }
+    // an untouched example follows the example itself, with only the slider values the person set
+    const doc = { ...o.doc }
     for (const [name, value] of Object.entries(savedParams(id))) doc.scene = setParamInText(doc.scene, name, value) ?? doc.scene
     return doc
   }
@@ -420,11 +457,31 @@ async function main(): Promise<void> {
 
   if (new URLSearchParams(location.search).get('tab') === 'docs') document.querySelector<HTMLButtonElement>('[data-tab=docs]')!.click()
 
+  // ---- transport: play and pause are icons, next to step, reset and the timeline ----
+  const svg = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">${d}</svg>`
+  const ICONS = {
+    play: svg('<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>'),
+    pause: svg('<rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/>'),
+    step: svg('<path d="M6 5.5v13a1 1 0 0 0 1.5.86l8-6.5a1 1 0 0 0 0-1.72l-8-6.5A1 1 0 0 0 6 5.5z"/><rect x="17" y="5" width="2.6" height="14" rx="1.1"/>'),
+    reset: svg('<path d="M12 4.5a7.5 7.5 0 1 0 7.2 9.6 1 1 0 0 0-1.9-.6A5.5 5.5 0 1 1 12 6.5c1.2 0 2.3.4 3.2 1l-1.7 1.7a.6.6 0 0 0 .4 1H19a.6.6 0 0 0 .6-.6V4.4a.6.6 0 0 0-1-.4l-1.4 1.4A7.4 7.4 0 0 0 12 4.5z"/>'),
+  }
   let running = true
-  $('play').addEventListener('click', () => {
-    running = !running
-    $('play').textContent = running ? 'Pause' : 'Play'
-    send({ type: 'play', running })
+  const showRunning = () => {
+    const b = $('play')
+    b.innerHTML = running ? ICONS.pause : ICONS.play
+    b.setAttribute('aria-label', running ? 'Pause' : 'Play')
+    b.title = running ? 'Pause (space)' : 'Play (space)'
+  }
+  const setRunning = (r: boolean) => { running = r; showRunning(); send({ type: 'play', running }) }
+  $('step').innerHTML = ICONS.step
+  $('reset').innerHTML = ICONS.reset
+  showRunning()
+  $('play').addEventListener('click', () => setRunning(!running))
+  document.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' || e.metaKey || e.ctrlKey || e.altKey) return
+    if ((e.target as HTMLElement | null)?.closest('input, textarea, select, button, .cm-editor, [contenteditable], #viewport')) return
+    e.preventDefault()
+    setRunning(!running)
   })
   $('sweep').addEventListener('click', () => {
     document.querySelector<HTMLButtonElement>('[data-tab=experiment]')!.click()
@@ -441,9 +498,7 @@ async function main(): Promise<void> {
     if (pendingSeek === null) return
     send({ type: 'seek', tick: pendingSeek })
     pendingSeek = null
-    running = false
-    $('play').textContent = 'Play'
-    send({ type: 'play', running: false })
+    setRunning(false)
   }
   slider.addEventListener('pointerdown', () => { scrubbing = true })
   window.addEventListener('pointerup', () => { scrubbing = false })

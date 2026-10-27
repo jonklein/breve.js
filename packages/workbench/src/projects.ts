@@ -11,6 +11,8 @@ export interface ExampleInfo {
 export interface Doc {
   scene: string
   script: string
+  /** For a saved copy of an example: a fingerprint of the example's own files when the copy was made, so a later change to the example is noticed. */
+  base?: string
   /** An optional experiment.json: what to search over and how. */
   experiment?: string
 }
@@ -56,6 +58,17 @@ export async function fetchExample(e: ExampleInfo): Promise<Doc> {
   ])
   return { scene, script, experiment }
 }
+
+/** A short fingerprint of a doc's text (FNV-1a), to tell whether an example has changed since a saved copy was made. */
+export function fingerprint(d: Doc): string {
+  let h = 0x811c9dc5
+  for (const part of [d.scene, '\u0000', d.script, '\u0000', d.experiment ?? '']) {
+    for (let i = 0; i < part.length; i++) { h ^= part.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  }
+  return (h >>> 0).toString(16)
+}
+
+export const sameDoc = (a: Doc, b: Doc): boolean => a.scene === b.scene && a.script === b.script && (a.experiment ?? '') === (b.experiment ?? '')
 
 export const userProjects = (): UserProject[] => read<UserProject[]>(INDEX_KEY) ?? []
 export const savedDoc = (id: string): Doc | null => read<Doc>(docKey(id))

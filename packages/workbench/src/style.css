@@ -189,10 +189,23 @@ main.drawer-resizing #editors, main.drawer-resizing .drawer-handle { transition:
 .flag { color: #f5c26b; border: 1px solid #5c4a1f; border-radius: 6px; padding: 1px 8px; font-size: 12px; cursor: help; }
 .embed .flag { display: none !important; }
 
-#timeline { display: flex; align-items: center; gap: 10px; padding: 4px 12px; background: var(--panel); border-top: 1px solid var(--border); font-size: 12px; }
-#timeline input[type='range'] { flex: 1; min-width: 80px; padding: 0; }
-.embed #timeline { display: none !important; }
+
+
+
 
 .held { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 14px; background: #3a2e12; border-bottom: 1px solid #7a5c1a; color: #f5d98a; font-size: 13px; }
 .held span { flex: 1; min-width: 260px; }
 .embed .held { display: none !important; }
+
+/* the transport: play and pause as prominent icons beside step, reset and the timeline */
+.transport { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--panel); border-top: 1px solid var(--border); }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border-radius: 10px; color: var(--text); }
+.icon-btn:hover { background: rgba(255, 255, 255, 0.07); border-color: var(--muted); }
+.icon-btn.play { width: 46px; height: 46px; border-radius: 50%; background: var(--accent, #4f8cff); border-color: transparent; color: #fff; box-shadow: 0 2px 10px rgba(79, 140, 255, 0.35); }
+.icon-btn.play:hover { filter: brightness(1.12); background: var(--accent, #4f8cff); }
+.icon-btn.play svg { width: 26px; height: 26px; }
+.timeline { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 12px; }
+.timeline input[type='range'] { flex: 1; min-width: 80px; padding: 0; }
+.embed .transport { display: none !important; }
+
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 60; max-width: min(640px, 92vw); padding: 10px 16px; border-radius: 10px; background: rgba(20, 26, 38, 0.96); border: 1px solid var(--border); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45); font-size: 13px; line-height: 1.4; }

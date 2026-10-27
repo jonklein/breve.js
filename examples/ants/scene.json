@@ -3,6 +3,7 @@
   "seed": 5,
   "bounds": { "size": 20 },
   "world": { "frame": false,"preset": "day", "grid": false, "shadows": true, "floor": {"texture": "sand", "y": -0.1}, "camera": {"distance": 1.55, "elevation": 42}},
+  "data": { "colors": { "nest": "#4f86f7", "weakScent": "#2f5a3c", "strongScent": "#7be495", "food": "#ffd34a" } },
   "params": {
     "count": { "value": 70, "min": 5, "max": 300, "step": 5, "label": "ants" },
     "speed": { "value": 5, "min": 1, "max": 12, "step": 0.5 },

@@ -53,14 +53,16 @@ export const Ground = {
     return { food: FOOD.some((f) => inside(f, f[3])) ? 5 : 0, scent: 0, nest: inside(NEST, NEST_RADIUS), delivered: 0 }
   },
 
-  // What to draw: the nest blue, food gold, scent green (brighter when stronger); bare ground is not drawn.
+  // What to draw: the nest, food and scent (brighter when stronger); bare ground is not drawn. The colors are the scene's
+  // `data.colors`, so changing them is an edit to the scene, not to this script.
   //
   // This is the whole-set form: one call gets every cell's `scent`, `food` and `nest` as Fields, and the arithmetic below
   // works out a number from 0 to 1 for all of the cells at once (-1 means "do not draw"), with no loop in the script.
   displayAll({ scent, food, nest }, p, ctx) {
+    const c = ctx.data.colors
     const look = food.gt(0).where(1, scent.gt(0.05).where(scent.div(4).min(1).div(3).add(1 / 3), -1))
     const shown = nest.where(0, look)
-    return { visible: shown.ge(0), color: ctx.colors.gradientField(['#4f86f7', '#2f5a3c', '#7be495', '#ffd34a'], shown.max(0)) }
+    return { visible: shown.ge(0), color: ctx.colors.gradientField([c.nest, c.weakScent, c.strongScent, c.food], shown.max(0)) }
   },
 
   // The same picture as a per-cell `display`, which is easier to read: it is called once for each cell, and `self` holds that
@@ -68,15 +70,15 @@ export const Ground = {
   // or for small sets. To try it, comment out `displayAll` above and uncomment this; a set uses one or the other.
   //
   // display({ self }, p, ctx) {
-  //   if (self.nest) return { color: ctx.colors.gradient(STOPS, 0) }                     // the nest: blue
-  //   if (self.food > 0) return { color: ctx.colors.gradient(STOPS, 1) }                 // food: gold
+  //   const c = ctx.data.colors, stops = [c.nest, c.weakScent, c.strongScent, c.food]
+  //   if (self.nest) return { color: ctx.colors.gradient(stops, 0) }                  // the nest
+  //   if (self.food > 0) return { color: ctx.colors.gradient(stops, 1) }              // food
   //   if (self.scent > 0.05) {                                                        // scent: darker green to brighter green
   //     const strength = Math.min(self.scent / 4, 1)
-  //     return { color: ctx.colors.gradient(STOPS, strength / 3 + 1 / 3) }
+  //     return { color: ctx.colors.gradient(stops, strength / 3 + 1 / 3) }
   //   }
   //   return { visible: false }                                                       // bare ground is not drawn
   // },
-  // where STOPS = ['#4f86f7', '#2f5a3c', '#7be495', '#ffd34a'] (put it next to FOOD at the top of the ground section).
 
   actAll({ scent, food }, p) {
     // scent spreads into neighbors, then evaporates a little

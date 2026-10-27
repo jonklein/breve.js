@@ -48,7 +48,7 @@ export default {
   // every cell is drawn, colored along the chosen palette by how much v is there
   displayAll({ v }, p, ctx) {
     const stops = PALETTES[ctx.data?.palette] ?? PALETTES.ocean
-    return { visible: v.ge(-1), color: ctx.colors.rampField(stops, v.mul(p.brightness)) }
+    return { visible: v.ge(-1), color: ctx.colors.gradientField(stops, v.mul(p.brightness)) }
   },
 
   actAll({ u, v }, p) {

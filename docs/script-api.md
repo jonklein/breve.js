@@ -123,11 +123,11 @@ The cells' state, starting values and look come from the script: `init({ index, 
 export default {
   init(self, p, ctx) { return { alive: ctx.random() < p.density ? 1 : 0, age: 0 } },
   act({ self, neighbors }) { /* ... */ },
-  display({ self }, p, ctx) { return { visible: self.alive, color: ctx.colors.ramp(['#ff0d0d', '#0dff0d'], self.age / 20) } },
+  display({ self }, p, ctx) { return { visible: self.alive, color: ctx.colors.gradient(['#ff0d0d', '#0dff0d'], self.age / 20) } },
 }
 ```
 
-`visible` says whether it is drawn (everything is by default), `opacity` runs from 0 (see-through) to 1, `scale` multiplies its drawn size (1 is normal; a cell grows from its middle), and `color` is `'#rrggbb'`, `[r, g, b]` between 0 and 1, or a `ctx.colors` helper: `ctx.colors.ramp(stops, t)` (a color along a list of stops, `t` from 0 to 1), `ctx.colors.hsl(h, s, l)`, `ctx.colors.hex('#48f')`. For big grids use `displayAll({ alive, age }, p, ctx)`, which returns whole fields: `{ visible: alive, color: ctx.colors.rampField(stops, age.div(20)) }`. `display` only reads, so it cannot affect the run; it is called when a frame is drawn, not every tick. Cells, free agents and network nodes all use all four. `displayAll` returns `visible`, `opacity` and `scale` as fields too. The scene has no `show`, `color`, `colorMax`, `palette`, `fill` or `state` settings any more: the parser says where each one went.
+`visible` says whether it is drawn (everything is by default), `opacity` runs from 0 (see-through) to 1, `scale` multiplies its drawn size (1 is normal; a cell grows from its middle), and `color` is `'#rrggbb'`, `[r, g, b]` between 0 and 1, or a `ctx.colors` helper: `ctx.colors.gradient(stops, t)` (a color along a list of stops, `t` from 0 to 1), `ctx.colors.hsl(h, s, l)`, `ctx.colors.hex('#48f')`. For big grids use `displayAll({ alive, age }, p, ctx)`, which returns whole fields: `{ visible: alive, color: ctx.colors.gradientField(stops, age.div(20)) }`. `display` only reads, so it cannot affect the run; it is called when a frame is drawn, not every tick. Cells, free agents and network nodes all use all four. `displayAll` returns `visible`, `opacity` and `scale` as fields too. The scene has no `show`, `color`, `colorMax`, `palette`, `fill` or `state` settings any more: the parser says where each one went.
 
 Grid shape and seed only take effect when the simulation is reset. Params (rule numbers, etc.) apply live.
 

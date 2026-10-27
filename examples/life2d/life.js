@@ -15,7 +15,7 @@ export default {
 
   // the same look as the 3D version, for every cell at once
   displayAll({ alive, age }, p, ctx) {
-    return { visible: alive, color: ctx.colors.rampField(['#ff0d0d', '#0dff0d'], age.div(30)) }
+    return { visible: alive, color: ctx.colors.gradientField(['#ff0d0d', '#0dff0d'], age.div(30)) }
   },
 
   actAll({ alive, age }) {

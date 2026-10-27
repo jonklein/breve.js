@@ -60,7 +60,7 @@ export const Ground = {
   displayAll({ scent, food, nest }, p, ctx) {
     const look = food.gt(0).where(1, scent.gt(0.05).where(scent.div(4).min(1).div(3).add(1 / 3), -1))
     const shown = nest.where(0, look)
-    return { visible: shown.ge(0), color: ctx.colors.rampField(['#4f86f7', '#2f5a3c', '#7be495', '#ffd34a'], shown.max(0)) }
+    return { visible: shown.ge(0), color: ctx.colors.gradientField(['#4f86f7', '#2f5a3c', '#7be495', '#ffd34a'], shown.max(0)) }
   },
 
   // The same picture as a per-cell `display`, which is easier to read: it is called once for each cell, and `self` holds that
@@ -68,11 +68,11 @@ export const Ground = {
   // or for small sets. To try it, comment out `displayAll` above and uncomment this; a set uses one or the other.
   //
   // display({ self }, p, ctx) {
-  //   if (self.nest) return { color: ctx.colors.ramp(STOPS, 0) }                     // the nest: blue
-  //   if (self.food > 0) return { color: ctx.colors.ramp(STOPS, 1) }                 // food: gold
+  //   if (self.nest) return { color: ctx.colors.gradient(STOPS, 0) }                     // the nest: blue
+  //   if (self.food > 0) return { color: ctx.colors.gradient(STOPS, 1) }                 // food: gold
   //   if (self.scent > 0.05) {                                                        // scent: darker green to brighter green
   //     const strength = Math.min(self.scent / 4, 1)
-  //     return { color: ctx.colors.ramp(STOPS, strength / 3 + 1 / 3) }
+  //     return { color: ctx.colors.gradient(STOPS, strength / 3 + 1 / 3) }
   //   }
   //   return { visible: false }                                                       // bare ground is not drawn
   // },

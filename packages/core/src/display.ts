@@ -2,7 +2,7 @@ import { Colors, Field, type Rgb } from '@breve/stdlib'
 
 /**
  * What `display` returns for one entity. `visible` says whether to draw it, `color` is `'#4f86f7'`, `[r, g, b]` between 0 and 1,
- * or `ctx.colors.ramp(...)`, `opacity` runs from 0 (see-through) to 1, and `scale` multiplies its drawn size (1 is normal).
+ * or `ctx.colors.gradient(...)`, `opacity` runs from 0 (see-through) to 1, and `scale` multiplies its drawn size (1 is normal).
  */
 export interface Look {
   visible?: boolean | number
@@ -11,7 +11,7 @@ export interface Look {
   scale?: number
 }
 
-/** What `displayAll` returns for the whole set, as fields: `color` from `ctx.colors.rampField`, the rest one number per entity. */
+/** What `displayAll` returns for the whole set, as fields: `color` from `ctx.colors.gradientField`, the rest one number per entity. */
 export interface LookAll {
   visible?: Field | ArrayLike<number>
   color?: { r: Field | ArrayLike<number>; g: Field | ArrayLike<number>; b: Field | ArrayLike<number> }
@@ -93,7 +93,7 @@ export function looksOfAll(n: number, result: unknown, fail: (e: unknown) => voi
     }
     if (look?.color !== undefined) {
       const c = look.color
-      if (!c || c.r === undefined || c.g === undefined || c.b === undefined) throw new Error('displayAll: "color" must be a color per entity; make it with ctx.colors.rampField(stops, field)')
+      if (!c || c.r === undefined || c.g === undefined || c.b === undefined) throw new Error('displayAll: "color" must be a color per entity; make it with ctx.colors.gradientField(stops, field)')
       const r = column('color', c.r), g = column('color', c.g), b = column('color', c.b)
       out.rgb = new Uint8Array(n * 3)
       for (let i = 0; i < n; i++) { out.rgb[i * 3] = byte(r[i]); out.rgb[i * 3 + 1] = byte(g[i]); out.rgb[i * 3 + 2] = byte(b[i]) }

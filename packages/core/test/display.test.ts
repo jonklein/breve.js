@@ -16,7 +16,7 @@ test('display colors and hides cells; with no display every cell is drawn', () =
 
   const sim = new Sim(grid(), { default: {
     init, act: () => ({}),
-    display: ({ self }, _p, ctx) => ({ visible: self.alive, color: ctx.colors.ramp(['#000000', '#ffffff'], self.age / 3) }),
+    display: ({ self }, _p, ctx) => ({ visible: self.alive, color: ctx.colors.gradient(['#000000', '#ffffff'], self.age / 3) }),
   } })
   const { lattice } = sim.frames()[0]
   assert.equal(lattice!.show.filter((v) => v).length, 8, 'only live cells are drawn')
@@ -29,8 +29,8 @@ test('display colors and hides cells; with no display every cell is drawn', () =
 
 test('displayAll gives the same picture as display, from whole fields', () => {
   const stops = ['#102030', '#a0b0c0', '#ff8000']
-  const each = new Sim(grid(), { default: { init, act: () => ({}), display: ({ self }, _p, ctx) => ({ visible: self.alive, color: ctx.colors.ramp(stops, self.age / 3) }) } })
-  const all = new Sim(grid(), { default: { init, act: () => ({}), displayAll: ({ alive, age }, _p, ctx) => ({ visible: alive, color: ctx.colors.rampField(stops, age.div(3)) }) } })
+  const each = new Sim(grid(), { default: { init, act: () => ({}), display: ({ self }, _p, ctx) => ({ visible: self.alive, color: ctx.colors.gradient(stops, self.age / 3) }) } })
+  const all = new Sim(grid(), { default: { init, act: () => ({}), displayAll: ({ alive, age }, _p, ctx) => ({ visible: alive, color: ctx.colors.gradientField(stops, age.div(3)) }) } })
   const a = each.frames()[0].lattice!, b = all.frames()[0].lattice!
   assert.deepEqual(Array.from(b.show), Array.from(a.show))
   for (let i = 0; i < a.rgb!.length; i++) assert.ok(Math.abs(a.rgb![i] - b.rgb![i]) <= 1, `byte ${i}: ${a.rgb![i]} vs ${b.rgb![i]}`)
@@ -44,7 +44,7 @@ test('free agents and network nodes get colors from display', () => {
   assert.deepEqual(Array.from(c), [0, 0, 255, 255, 0, 0, 0, 0, 255])
 
   const net = parse({ seed: 1, params: {}, bounds: { size: 20 }, entities: [{ name: 'n', count: 4, network: { topology: 'ring', degree: 2 }, controller: 'x.js' }], metrics: [] })
-  const ns = new Sim(net, { default: { init: ({ index }) => ({ sick: index === 2 ? 1 : 0 }), act: () => ({}), displayAll: ({ sick }, _p, ctx) => ({ color: ctx.colors.rampField(['#00ff00', '#ff0000'], sick) }) } })
+  const ns = new Sim(net, { default: { init: ({ index }) => ({ sick: index === 2 ? 1 : 0 }), act: () => ({}), displayAll: ({ sick }, _p, ctx) => ({ color: ctx.colors.gradientField(['#00ff00', '#ff0000'], sick) }) } })
   const nc = ns.frames()[0].look!.rgb!
   assert.deepEqual(Array.from(nc.slice(6, 9)), [255, 0, 0])
   assert.deepEqual(Array.from(nc.slice(0, 3)), [0, 255, 0])

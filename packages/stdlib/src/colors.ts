@@ -21,8 +21,8 @@ export class Colors {
     return [f(0), f(8), f(4)]
   }
 
-  /** Where `t` (0 to 1) falls along a list of colors, blending between neighbors: `Colors.ramp(['#4f86f7', '#7be495'], age / 20)`. */
-  static ramp(stops: string[], t: number): Rgb {
+  /** Where `t` (0 to 1) falls along a list of colors, blending between neighbors: `Colors.gradient(['#4f86f7', '#7be495'], age / 20)`. */
+  static gradient(stops: string[], t: number): Rgb {
     if (!stops.length) return [1, 1, 1]
     const rgb = stops.map(Colors.hex)
     const x = Math.min(1, Math.max(0, Number.isFinite(t) ? t : 0)) * (rgb.length - 1)
@@ -32,8 +32,8 @@ export class Colors {
     return [rgb[i][0] + (rgb[i + 1][0] - rgb[i][0]) * k, rgb[i][1] + (rgb[i + 1][1] - rgb[i][1]) * k, rgb[i][2] + (rgb[i + 1][2] - rgb[i][2]) * k]
   }
 
-  /** `ramp` for a whole field at once: a color for every cell, for `displayAll`. */
-  static rampField(stops: string[], t: Field | ArrayLike<number>): { r: Float32Array; g: Float32Array; b: Float32Array } {
+  /** `gradient` for a whole field at once: a color for every cell, for `displayAll`. */
+  static gradientField(stops: string[], t: Field | ArrayLike<number>): { r: Float32Array; g: Float32Array; b: Float32Array } {
     const d = 'data' in t ? t.data : t
     const n = d.length
     const out = { r: new Float32Array(n), g: new Float32Array(n), b: new Float32Array(n) }

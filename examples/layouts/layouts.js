@@ -7,7 +7,7 @@ export default {
   },
 
   displayAll({ links }, p, ctx) {
-    return { color: ctx.colors.rampField(['#5b8cff', '#7bd88f', '#ffd24d', '#ff6b6b'], links.div(12).clamp(0, 1)) }
+    return { color: ctx.colors.gradientField(['#5b8cff', '#7bd88f', '#ffd24d', '#ff6b6b'], links.div(12).clamp(0, 1)) }
   },
 
   act({ neighbors }) {

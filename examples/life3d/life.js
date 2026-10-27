@@ -18,7 +18,7 @@ export default {
 
   // only live cells are drawn: young ones red, old ones green
   display({ self }, p, ctx) {
-    return { visible: self.alive, color: ctx.colors.ramp(['#ff0d0d', '#0dff0d'], self.age / 20) }
+    return { visible: self.alive, color: ctx.colors.gradient(['#ff0d0d', '#0dff0d'], self.age / 20) }
   },
 
   act({ self, neighbors }) {

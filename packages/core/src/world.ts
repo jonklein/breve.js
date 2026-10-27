@@ -44,7 +44,7 @@ export interface Ctx {
    * from many agents at once, if that matters.
    */
   readonly relations: Relations
-  /** Colors for `display`: `ctx.colors.ramp(['#4f86f7', '#7be495'], age / 20)`, `ctx.colors.hsl(h, s, l)`, `ctx.colors.hex('#48f')`, and `ctx.colors.rampField(stops, field)` for `displayAll`. */
+  /** Colors for `display`: `ctx.colors.gradient(['#4f86f7', '#7be495'], age / 20)`, `ctx.colors.hsl(h, s, l)`, `ctx.colors.hex('#48f')`, and `ctx.colors.gradientField(stops, field)` for `displayAll`. */
   readonly colors: typeof Colors
   /** Rhythmic joint targets for creatures: `ctx.gait.targets({ 'FL.hip': { amplitude: 0.7 } }, cycle)` and `ctx.gait.advance(cycle, frequency, ctx.dt)`. */
   readonly gait: typeof Gait
@@ -134,7 +134,7 @@ export interface Controller {
   act?(obs: { self: any; neighbors: any }, params: Params, ctx: Ctx): unknown
   /**
    * How one entity looks: `display({ self }, params, ctx)` returns `{ color, visible }`, for example
-   * `{ visible: self.alive, color: ctx.colors.ramp(['#4f86f7', '#7be495'], self.age / 20) }`. It only reads state, never changes
+   * `{ visible: self.alive, color: ctx.colors.gradient(['#4f86f7', '#7be495'], self.age / 20) }`. It only reads state, never changes
    * anything, so it cannot affect the simulation, forks or replays; it runs when a frame is drawn, not every tick. Free agents and
    * network nodes use `color` (a `visible` of false is only honored on lattice cells). Where it returns nothing, the scene's own
    * look settings apply.
@@ -143,7 +143,7 @@ export interface Controller {
   /**
    * The whole-set form of `display`, for big grids and networks: `displayAll(fields, params, ctx)` gets the state fields as `Field`s
    * (like `actAll`) and returns `{ visible, color }` made of fields, for example
-   * `{ visible: alive, color: ctx.colors.rampField(['#4f86f7', '#7be495'], age.div(20)) }`.
+   * `{ visible: alive, color: ctx.colors.gradientField(['#4f86f7', '#7be495'], age.div(20)) }`.
    */
   displayAll?(fields: any, params: Params, ctx: Ctx): unknown
 }

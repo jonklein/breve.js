@@ -50,7 +50,7 @@ test('initAll and displayAll work for free agents; the look reaches the frame', 
   const sim = new Sim(scene(5), {
     default: {
       initAll: ({ count }) => ({ hot: Float32Array.from({ length: count }, (_, i) => i % 2), position: { x: Float32Array.from({ length: count }, (_, i) => i), y: new Float32Array(count), z: new Float32Array(count) } }),
-      displayAll: ({ hot }, _p, ctx) => ({ visible: hot.add(0), color: ctx.colors.rampField(['#000000', '#ff0000'], hot), opacity: hot.mul(0.5).add(0.25), scale: hot.add(1) }),
+      displayAll: ({ hot }, _p, ctx) => ({ visible: hot.add(0), color: ctx.colors.gradientField(['#000000', '#ff0000'], hot), opacity: hot.mul(0.5).add(0.25), scale: hot.add(1) }),
     },
   })
   const c = sim.table.cols as Record<string, Float32Array>

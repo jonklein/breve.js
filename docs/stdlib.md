@@ -223,21 +223,21 @@ static hsl(h: number, s: number, l: number): Rgb
 
 Hue, saturation and lightness, each between 0 and 1 (hue goes around the color wheel).
 
-### `Colors.ramp`
+### `Colors.gradient`
 
 ```ts
-static ramp(stops: string[], t: number): Rgb
+static gradient(stops: string[], t: number): Rgb
 ```
 
-Where `t` (0 to 1) falls along a list of colors, blending between neighbors: `Colors.ramp(['#4f86f7', '#7be495'], age / 20)`.
+Where `t` (0 to 1) falls along a list of colors, blending between neighbors: `Colors.gradient(['#4f86f7', '#7be495'], age / 20)`.
 
-### `Colors.rampField`
+### `Colors.gradientField`
 
 ```ts
-static rampField(stops: string[], t: Field | ArrayLike<number>):
+static gradientField(stops: string[], t: Field | ArrayLike<number>):
 ```
 
-`ramp` for a whole field at once: a color for every cell, for `displayAll`.
+`gradient` for a whole field at once: a color for every cell, for `displayAll`.
 
 ## NeighborTable
 

@@ -615,9 +615,9 @@ const REMOVED: Record<string, string> = {
   'joint.drive': "swing the joint from the script, for example `act({ self }, p, ctx) { return { joints: { hip: 0.5 * Math.sin(ctx.tick / 10) } } }`, or use the stdlib's `Gait`",
   'bounds.mode': "keep entities inside yourself with the stdlib's Bounds: `ctx.bounds.soft(self.position, ctx.world.size)` added to the steering, or `ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)` handed to `self.place(...)`",
   'look.show': "say what is drawn in the script's display, for example `display({ self }) { return { visible: self.alive } }`",
-  'look.color': "say the color in the script's display, for example `display({ self }, p, ctx) { return { color: ctx.colors.ramp(['#ff0d0d', '#0dff0d'], self.age / 20) } }`",
+  'look.color': "say the color in the script's display, for example `display({ self }, p, ctx) { return { color: ctx.colors.gradient(['#ff0d0d', '#0dff0d'], self.age / 20) } }`",
   'look.colorMax': "scale the value yourself in the script's display (for example `self.age / 20`)",
-  'look.palette': "give the colors in the script's display (`ctx.colors.ramp(['#4f86f7', '#ffd34a'], t)`)",
+  'look.palette': "give the colors in the script's display (`ctx.colors.gradient(['#4f86f7', '#ffd34a'], t)`)",
 }
 
 export function validateScene(data: unknown): SceneResult {

@@ -22,7 +22,7 @@ export default {
 
   // color by asking price: cheap blue, middling yellow, dear red
   display({ self }, p, ctx) {
-    return { color: ctx.colors.ramp(['#4da3ff', '#ffd24d', '#ff5a4d'], self.ask / 40) }
+    return { color: ctx.colors.gradient(['#4da3ff', '#ffd24d', '#ff5a4d'], self.ask / 40) }
   },
 
   act({ self, neighbors }, p, ctx) {

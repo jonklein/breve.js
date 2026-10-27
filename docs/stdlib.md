@@ -486,6 +486,67 @@ sum(): number
 average(): number
 ```
 
+## WgslModule
+
+### `WgslModule.code`
+
+```ts
+code: string
+```
+
+### `WgslModule.layout`
+
+```ts
+layout: string[]
+```
+
+The state, as ONE storage buffer of f32 holding every field in `layout`, one after another (field `i` starts at `i * cells`).
+The shader reads buffer `src` (binding 1) and writes buffer `dst` (binding 2), which has the same layout: it computes the fields
+the program returns and copies the others through, so after a step `dst` is the whole new state and the two buffers swap roles.
+(One buffer each, because many fields as separate buffers run into the per-stage limit of 8 on most devices.)
+
+### `WgslModule.cells`
+
+```ts
+cells: number
+```
+
+### `WgslModule.outputs`
+
+```ts
+outputs: string[]
+```
+
+The fields the program computes (the rest of `layout` is copied through).
+
+### `WgslModule.uniform`
+
+```ts
+uniform:
+```
+
+The uniform buffer (binding 0): bytes 0-3 are the tick (u32), 4-7 the seed (u32), then at `paramsOffset` one f32 per parameter in the
+order of `params`. `size` is the buffer size to create.
+
+### `WgslModule.workgroupSize`
+
+```ts
+workgroupSize: [number, number, number]
+```
+
+### `WgslModule.dispatch`
+
+```ts
+dispatch: [number, number, number]
+```
+
+How many workgroups to dispatch in each direction.
+
+## toWgsl
+
+`fields` is the whole state of the set, in the order the buffer holds it (default: the fields the program reads, then any it
+returns that it did not read).
+
 ## BinOp
 
 Formulas: a whole-set rule written once, as an expression.

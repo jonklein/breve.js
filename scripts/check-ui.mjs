@@ -52,7 +52,7 @@ check('gallery Fork opens a copy', (await page.inputValue('#name')) === 'Boids c
 // tree editor: one edit changes one line of text; a bad value shows an inline error
 await sim('ants')
 const text = () => page.evaluate(() => window.breve.sceneEditor.getText())
-await page.waitForFunction(() => window.breve.sceneEditor.getText().length > 10, null, { timeout: 60000 }) // a slow machine can still be loading the scene
+await page.waitForFunction(() => window.breve?.sceneEditor?.getText().length > 10, null, { timeout: 60000 }) // a slow machine can still be loading the scene
 const before = await text()
 check('the editor is a drawer, closed until asked for', (await drawerShut()) && (await page.isVisible('#drawer-handle')))
 await openDrawer()

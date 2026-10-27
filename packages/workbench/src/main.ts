@@ -25,6 +25,7 @@ async function main(): Promise<void> {
   const exampleById = new Map(examples.map((e) => [e.id, e]))
   const isExample = (id: string) => exampleById.has(id)
 
+  let epoch = 0
   const worker = new Worker(new URL('./sim.worker.ts', import.meta.url), { type: 'module' })
   const send = (m: ToWorker) => worker.postMessage(m)
 
@@ -250,7 +251,7 @@ async function main(): Promise<void> {
     $('held').classList.toggle('hidden', !unapproved)
     const assets = `${location.origin}/${home && isExample(home) ? home + '/' : ''}`
     viewport.view.setAssetBase(assets)
-    send({ type: 'init', scene: doc.scene, script: live(doc.script), base: assets })
+    send({ type: 'init', scene: doc.scene, script: live(doc.script), base: assets, epoch: ++epoch })
   }
 
   picker.addEventListener('change', () => open(picker.value))
@@ -468,6 +469,8 @@ async function main(): Promise<void> {
   let lastTime = performance.now()
   worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     const m = ev.data
+    // frames still in flight from the project we just left must not draw into the new one
+    if ((m.type === 'frame' || m.type === 'tiles') && m.epoch !== epoch) return
     if (m.type === 'frame') {
       $('thinkbar').classList.toggle('hidden', !m.think.enabled || sweeping)
       if (m.think.enabled) {

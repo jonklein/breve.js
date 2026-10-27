@@ -119,6 +119,46 @@ export interface EntityDef {
   body?: BodyInput
 }
 
+/** The patterns a generated texture can be. */
+export const TEXTURE_KINDS = ['noise', 'fbm', 'checker', 'stripes', 'grid', 'dots', 'bricks', 'marble', 'grass', 'sand', 'water', 'url'] as const
+
+/**
+ * A surface texture, either picked by name (`"grass"`) or described: a generated `kind` (made from a few numbers, the same every time,
+ * and seamless when repeated) or an image from a `url`. Purely visual.
+ */
+export type TextureDef = (typeof TEXTURE_KINDS)[number] | {
+  kind?: (typeof TEXTURE_KINDS)[number]
+  /** Image to load, for kind `url` (relative paths start at the project's assets). */
+  url?: string
+  /** Colors the pattern blends between, dark to light or as the pattern calls for (two or more). */
+  colors?: string[]
+  /** How many pattern cells across one tile (default depends on the kind). */
+  scale?: number
+  /** Changes the pattern while keeping its style. */
+  seed?: number
+  /** Stronger or weaker differences between the colors, 0 to 2 (default 1). */
+  contrast?: number
+  /** How strongly the pattern bumps the surface, 0 to 4 (default 1; 0 turns bumps off). */
+  bump?: number
+  /** World units one repeat of the texture covers (default 10). */
+  tile?: number
+}
+
+/** A ground plane for scenes that have no terrain of their own. */
+export interface FloorDef {
+  /** Base color (shows through the texture). */
+  color?: string
+  texture?: TextureDef
+  /** Height of the floor in world units. Default: the bottom of the world box. */
+  y?: number
+  /** Edge length (default 12 times the world's size, so it reaches the haze). */
+  size?: number
+  /** 0 (mirror) to 1 (matte). Default 0.9. */
+  roughness?: number
+  /** 0 (plastic or earth) to 1 (metal). Default 0. */
+  metalness?: number
+}
+
 /** Look of the world. Purely visual: it never affects the simulation. Every field has a default. */
 export interface WorldDef {
   /**
@@ -127,7 +167,7 @@ export interface WorldDef {
    */
   preset?: 'day' | 'dusk' | 'night' | 'studio' | 'space' | 'plain'
   /** A solid color, or a gradient from `top` to `horizon`. */
-  sky?: string | { top: string; horizon: string }
+  sky?: string | { top: string; horizon: string; ground?: string }
   /**
    * Distance haze. `true` uses the preset's; `false` turns it off. Give `near` and `far` (distances from the camera) for linear fog,
    * or a `density` for exponential fog. `color` defaults to the horizon color of the sky.
@@ -145,6 +185,8 @@ export interface WorldDef {
   }
   /** How strongly shiny surfaces mirror the sky, 0 (not at all) to 2. `true` uses the preset's. */
   reflections?: boolean | number
+  /** A ground plane, for scenes without terrain: `{ "texture": "grass" }`, `{ "color": "#222", "y": -1 }`. `false` or leaving it out draws none. */
+  floor?: false | FloorDef
   /** A floor grid at the bottom of the bounds. */
   grid?: boolean
   /** Color of the bounds box. */
@@ -192,6 +234,26 @@ const numOrParam = {
 }
 
 const vec3 = { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 } as const
+
+const textureDef = {
+  anyOf: [
+    { enum: [...TEXTURE_KINDS] },
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { enum: [...TEXTURE_KINDS] },
+        url: { type: 'string', minLength: 1 },
+        colors: { type: 'array', items: { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$' }, minItems: 2, maxItems: 8 },
+        scale: { type: 'number', exclusiveMinimum: 0, maximum: 256 },
+        seed: { type: 'integer' },
+        contrast: { type: 'number', minimum: 0, maximum: 2 },
+        bump: { type: 'number', minimum: 0, maximum: 4 },
+        tile: { type: 'number', exclusiveMinimum: 0 },
+      },
+    },
+  ],
+} as const
 
 const color = { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$' }
 
@@ -266,10 +328,27 @@ export const sceneSchema = {
           },
         },
         reflections: { anyOf: [{ type: 'boolean' }, { type: 'number', minimum: 0, maximum: 2 }] },
+        floor: {
+          anyOf: [
+            { const: false },
+            {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                color,
+                texture: textureDef,
+                y: { type: 'number' },
+                size: { type: 'number', exclusiveMinimum: 0 },
+                roughness: { type: 'number', minimum: 0, maximum: 1 },
+                metalness: { type: 'number', minimum: 0, maximum: 1 },
+              },
+            },
+          ],
+        },
         sky: {
           anyOf: [
             color,
-            { type: 'object', required: ['top', 'horizon'], additionalProperties: false, properties: { top: color, horizon: color } },
+            { type: 'object', required: ['top', 'horizon'], additionalProperties: false, properties: { top: color, horizon: color, ground: color } },
           ],
         },
         grid: { type: 'boolean' },

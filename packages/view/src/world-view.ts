@@ -3,6 +3,7 @@ import type { RigidFrame } from '@breve/core'
 import { RigidView } from './rigid-view'
 import { AgentLayer, CellLayer, GraphLayer } from './layers'
 import { resolveLook, sunDirection, type LookInput, type ResolvedLook } from './look'
+import { buildTexture } from './textures'
 
 /** What the view needs from a simulation frame. */
 export interface WorldFrame {
@@ -41,7 +42,7 @@ export class WorldView {
   private box: THREE.LineSegments | null = null
   private boxSize = 0
   private sky: THREE.Mesh
-  private skyUniforms = { top: { value: new THREE.Color('#0b1226') }, horizon: { value: new THREE.Color('#2a4a7a') } }
+  private skyUniforms = { top: { value: new THREE.Color('#0b1226') }, horizon: { value: new THREE.Color('#2a4a7a') }, ground: { value: new THREE.Color('#122034') } }
   private grid: THREE.GridHelper | null = null
   private boundsColor = new THREE.Color('#3a4658')
   private fixedColor: THREE.Color | null = null
@@ -50,6 +51,9 @@ export class WorldView {
   private hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0)
   /** Catches shadows on scenes that have no ground of their own. */
   private catcher: THREE.Mesh
+  private floor: THREE.Mesh | null = null
+  private floorKey = ''
+  private assetBase = ''
   private shadowsOn = false
   private shadowSize = 0
   private isBodies = false
@@ -68,7 +72,7 @@ export class WorldView {
         side: THREE.BackSide,
         depthWrite: false,
         vertexShader: 'varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        fragmentShader: 'uniform vec3 top; uniform vec3 horizon; varying vec3 vDir; void main() { float t = vDir.y; vec3 c = t >= 0.0 ? mix(horizon, top, pow(t, 0.6)) : horizon * (1.0 - 0.55 * min(1.0, -t * 2.0)); gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}',
+        fragmentShader: 'uniform vec3 top; uniform vec3 horizon; uniform vec3 ground; varying vec3 vDir; void main() { float t = vDir.y; vec3 c = t >= 0.0 ? mix(horizon, top, pow(t, 0.6)) : mix(horizon, ground, smoothstep(0.0, 0.45, -t)); gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}',
       }),
     )
     this.sky.renderOrder = -1
@@ -136,6 +140,7 @@ export class WorldView {
     const l = (this.look = resolveLook(this.world, this.boxSize || 30))
     this.skyUniforms.top.value = new THREE.Color(l.sky.top)
     this.skyUniforms.horizon.value = new THREE.Color(l.sky.horizon)
+    this.skyUniforms.ground.value = new THREE.Color(l.sky.ground)
     this.boundsColor = new THREE.Color(l.boundsColor)
     if (this.box) (this.box.material as THREE.LineBasicMaterial).color.copy(this.boundsColor)
     this.rebuildGrid()
@@ -160,8 +165,40 @@ export class WorldView {
       this.sun.shadow.map?.dispose()
       this.sun.shadow.map = null
     }
+    this.applyFloor()
     this.applyShadows()
     this.applyEnvironment()
+  }
+
+  /** The ground plane, when the scene asks for one (and there is no terrain). It sits at the bottom of the world box unless `y` says otherwise. */
+  private applyFloor(): void {
+    const f = this.look.floor
+    const half = this.boxSize || 30
+    const want = f && !this.isBodies ? f : null
+    const key = JSON.stringify([want, half, this.assetBase])
+    if (key === this.floorKey) return
+    this.floorKey = key
+    if (this.floor) {
+      this.scene.remove(this.floor)
+      this.floor.geometry.dispose()
+      ;(this.floor.material as THREE.Material).dispose()
+      this.floor = null
+    }
+    if (!want) return
+    const size = want.size ?? half * 12
+    const mat = new THREE.MeshStandardMaterial({ color: want.color, roughness: want.roughness, metalness: want.metalness })
+    if (want.texture) {
+      const tex = buildTexture(want.texture, { assetBase: this.assetBase, changed: () => { this.floorKey = ''; this.applyFloor() } })
+      const repeat = size / Math.max(0.1, want.texture.tile)
+      for (const t of [tex.map, tex.normalMap]) if (t) t.repeat.set(repeat, repeat)
+      mat.map = tex.map
+      if (tex.normalMap) mat.normalMap = tex.normalMap
+    }
+    this.floor = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat)
+    this.floor.rotation.x = -Math.PI / 2
+    this.floor.position.y = want.y ?? -half
+    this.floor.receiveShadow = true
+    this.scene.add(this.floor)
   }
 
   /** Mirror the sky on shiny surfaces: the sky gradient and the sun, blurred into an environment map. */
@@ -177,7 +214,7 @@ export class WorldView {
     if (l.reflections <= 0) return
     const env = new THREE.Scene()
     const skyMat = new THREE.ShaderMaterial({
-      uniforms: { top: { value: new THREE.Color(l.sky.top) }, horizon: { value: new THREE.Color(l.sky.horizon) } },
+      uniforms: { top: { value: new THREE.Color(l.sky.top) }, horizon: { value: new THREE.Color(l.sky.horizon) }, ground: { value: new THREE.Color(l.sky.ground) } },
       side: THREE.BackSide,
       vertexShader: (this.sky.material as THREE.ShaderMaterial).vertexShader,
       fragmentShader: (this.sky.material as THREE.ShaderMaterial).fragmentShader,
@@ -197,7 +234,7 @@ export class WorldView {
   /** Shadows default on for physics scenes (there is a ground to catch them) and off elsewhere. */
   private applyShadows(): void {
     const on = this.look.shadows.enabled ?? this.isBodies
-    this.catcher.visible = on && !this.isBodies
+    this.catcher.visible = on && !this.isBodies && !this.floor // a floor catches shadows itself
     if (on === this.shadowsOn) return
     this.shadowsOn = on
     this.renderer.shadowMap.enabled = on
@@ -213,6 +250,9 @@ export class WorldView {
   /** Where relative model paths (a part's `visual.gltf`) start: a URL ending in `/`. */
   setAssetBase(base: string): void {
     this.rigid.assetBase = base
+    this.assetBase = base
+    this.floorKey = '' // a floor texture may now resolve somewhere else
+    this.applyFloor()
   }
 
   private aimSun(): void {
@@ -272,6 +312,7 @@ export class WorldView {
     const rigidFrame = frames.find((f) => f.kind === 'bodies')
     const bodies = !!rigidFrame
     this.isBodies = bodies
+    this.applyFloor()
     this.applyShadows()
     this.rigid.setVisible(bodies)
     if (this.box) this.box.visible = !bodies

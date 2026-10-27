@@ -2,7 +2,7 @@
   "name": "neural",
   "seed": 11,
   "bounds": { "size": 20 },
-  "world": { "preset": "night", "sky": { "top": "#10091f", "horizon": "#3b2a63" }, "fog": { "color": "#2a1f4a" }, "grid": true, "agentColor": "heading", "shadows": true },
+  "world": { "preset": "night", "sky": { "top": "#10091f", "horizon": "#3b2a63" }, "fog": { "color": "#2a1f4a" }, "grid": false, "agentColor": "heading", "shadows": true, "floor": { "texture": { "kind": "grid", "colors": ["#3b2a63", "#120a22"], "scale": 8, "tile": 15}, "roughness": 0.6}},
   "params": {
     "count": { "value": 100, "min": 10, "max": 400, "step": 10 },
     "radius": { "value": 8, "min": 2, "max": 16, "step": 0.5, "label": "how far they see" },

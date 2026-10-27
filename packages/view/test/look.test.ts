@@ -6,7 +6,9 @@ test('no world block gives the default look; a world block without a preset keep
   assert.equal(resolveLook(undefined).preset, 'dusk')
   const plain = resolveLook({ sky: { top: '#112233', horizon: '#445566' } })
   assert.equal(plain.preset, 'plain')
-  assert.deepEqual(plain.sky, { top: '#112233', horizon: '#445566' })
+  assert.equal(plain.sky.top, '#112233')
+  assert.equal(plain.sky.horizon, '#445566')
+  assert.match(plain.sky.ground, /^#[0-9a-f]{6}$/, 'a ground is made up when the scene gives none')
   assert.equal(plain.fog.kind, 'none')
   assert.equal(plain.toneMapping, 'none')
 })
@@ -32,7 +34,8 @@ test('fog: off, the preset, explicit distances, or density; colors default to th
   assert.equal(resolveLook({ preset: 'day', fog: false }).fog.kind, 'none')
   const on = resolveLook({ preset: 'studio', fog: true }, 10)
   assert.equal(on.fog.kind, 'linear')
-  assert.equal(on.fog.color, PRESETS.studio.sky.horizon)
+  assert.match(on.fog.color, /^#[0-9a-f]{6}$/)
+  assert.notEqual(on.fog.color, PRESETS.studio.sky.horizon, 'the haze sits between horizon and ground')
   assert.equal(on.fog.far, 70)
   const lin = resolveLook({ preset: 'plain', fog: { near: 5, far: 50, color: '#ffffff' } })
   assert.deepEqual([lin.fog.kind, lin.fog.near, lin.fog.far, lin.fog.color], ['linear', 5, 50, '#ffffff'])
@@ -66,4 +69,14 @@ test('sunDirection is a unit vector; azimuth 0 points along +x and elevation 90 
   assert.ok(Math.abs(up[1] - 1) < 1e-9)
   const any = sunDirection(200, 33)
   assert.ok(Math.abs(Math.hypot(...any) - 1) < 1e-9)
+})
+
+test('floor: none unless asked, with the texture normalized and size and height following the world by default', () => {
+  assert.equal(resolveLook({}).floor, null)
+  assert.equal(resolveLook({ floor: false }).floor, null)
+  const f = resolveLook({ floor: { texture: 'grass', y: -1, roughness: 0.5 } }).floor!
+  assert.equal(f.texture!.kind, 'grass')
+  assert.deepEqual([f.y, f.size, f.roughness, f.metalness], [-1, null, 0.5, 0])
+  const plain = resolveLook({ floor: {} }).floor!
+  assert.deepEqual([plain.texture, plain.y, plain.color], [null, null, '#ffffff'])
 })

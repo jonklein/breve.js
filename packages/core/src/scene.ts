@@ -129,6 +129,14 @@ export interface SetStyle {
   material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number }
   /** A fading line behind each agent: how many ticks long (up to 240), or `{ length, strength }` (strength scales brightness, default 1). */
   trail?: number | { length?: number; strength?: number }
+  /**
+   * Draw each agent as a flat picture instead of a shape: `{ "image": "ant.svg", "facing": "ground" }` (PNG, SVG, JPEG; a path next to the
+   * scene or a URL; see-through parts of the image stay see-through; draw it facing up). The entity's `size` is the picture's width in world
+   * units, and `color` tints it (white leaves it as drawn). `facing` is `ground` (the picture lies flat and turns to point the way the
+   * agent moves, as seen from above) or `camera` (the default: it always faces the viewer, and with `turn` is rotated on screen to point
+   * the way the agent moves).
+   */
+  sprite?: { image: string; facing?: 'camera' | 'ground'; turn?: boolean }
 }
 
 /** The patterns a generated texture can be. */
@@ -508,6 +516,7 @@ export const sceneSchema = {
                   opacity: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
                 },
               },
+              sprite: { type: 'object', required: ['image'], additionalProperties: false, properties: { image: { type: 'string', minLength: 1 }, facing: { enum: ['camera', 'ground'] }, turn: { type: 'boolean' } } },
               trail: { anyOf: [{ type: 'number', minimum: 0, maximum: 240 }, { type: 'object', additionalProperties: false, properties: { length: { type: 'number', minimum: 0, maximum: 240 }, strength: { type: 'number', minimum: 0, maximum: 4 } } }] },
             },
           },

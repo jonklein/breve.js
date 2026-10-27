@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 export interface SetStyleInput {
   shape?: string
+  sprite?: { image: string; facing?: 'camera' | 'ground'; turn?: boolean }
   trail?: number | { length?: number; strength?: number }
   material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number }
 }

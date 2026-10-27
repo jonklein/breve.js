@@ -45,6 +45,11 @@ export const Ant = {
 
     return { steer: lean.plus(wobble), state: { fresh: false } }
   },
+
+  // the ant's picture is tinted: its own color, or the food's color while it carries a piece
+  display({ self }, p, ctx) {
+    return { color: self.carrying ? ctx.data.colors.food : ctx.data.colors.ant }
+  },
 }
 
 // The nest: where it is and how wide, from the scene's `data.nest`. It never moves.
@@ -54,7 +59,7 @@ export const Nest = {
     return { position: nest.at, reach: nest.reach }
   },
   display({ self }, p, ctx) {
-    return { color: ctx.data.colors.nest, scale: self.reach * 2 }
+    return { color: ctx.data.colors.nest, scale: self.reach * 1.6 }
   },
 }
 
@@ -71,7 +76,7 @@ export const Food = {
   },
   display({ self }, p, ctx) {
     if (self.amount <= 0) return { visible: false }
-    return { color: ctx.data.colors.food, scale: self.reach * 2 * Math.sqrt(self.amount / self.full) }
+    return { color: ctx.data.colors.food, scale: self.reach * 1.1 * Math.sqrt(self.amount / self.full) }
   },
 }
 

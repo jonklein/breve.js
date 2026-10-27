@@ -106,6 +106,11 @@ test('the look settings (preset, fog, light, shadows, reflections, terrain shadi
   assert.match(withStyle({ shape: 'blob' }), /style\.shape/)
   assert.match(withStyle({ material: { roughness: 2 } }), /style\.material\.roughness/)
   assert.match(withStyle({ trail: 999 }), /style\.trail/)
+  assert.equal(withStyle({ sprite: { image: 'ant.svg', turn: true } }), '')
+  assert.equal(withStyle({ sprite: { image: 'ant.svg', facing: 'ground' } }), '')
+  assert.match(withStyle({ sprite: { image: 'ant.svg', facing: 'wall' } }), /sprite/)
+  assert.match(withStyle({ sprite: {} }), /sprite/)
+  assert.match(withStyle({ sprite: { image: 'a.png', size: 3 } }), /sprite/)
   const withWorld = (w: object) => { const r = parseScene(JSON.stringify({ ...scene, world: w })); return r.ok ? '' : r.errors.join('\n') }
   assert.equal(withWorld({ preset: 'night', effects: { bloom: { strength: 0.6 }, ao: true, vignette: 0.3 }, floor: { texture: { kind: 'grass', tile: 6 }, y: -1 }, camera: { distance: 2, elevation: 20 }, frame: false, sky: { top: '#000000', horizon: '#223344', stars: 1, clouds: 0.2 } }), '')
   assert.match(withWorld({ floor: { texture: 'lava' } }), /world\.floor/)

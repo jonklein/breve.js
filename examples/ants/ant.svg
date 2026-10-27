@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- An ant seen from above, head up. Drawn in light gray so the set's color tints it. -->
+  <g fill="none" stroke="#9a9a9a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- legs -->
+    <path d="M56 50 L34 40 L24 52"/><path d="M72 50 L94 40 L104 52"/>
+    <path d="M55 62 L30 66 L22 84"/><path d="M73 62 L98 66 L106 84"/>
+    <path d="M57 74 L38 92 L40 108"/><path d="M71 74 L90 92 L88 108"/>
+    <!-- antennae -->
+    <path d="M58 26 L50 12 L40 8"/><path d="M70 26 L78 12 L88 8"/>
+  </g>
+  <g fill="#e6e6e6" stroke="#8c8c8c" stroke-width="3">
+    <ellipse cx="64" cy="30" rx="13" ry="14"/>
+    <ellipse cx="64" cy="56" rx="11" ry="14"/>
+    <ellipse cx="64" cy="92" rx="17" ry="25"/>
+  </g>
+  <g fill="#8c8c8c"><circle cx="58" cy="26" r="2.6"/><circle cx="70" cy="26" r="2.6"/></g>
+</svg>

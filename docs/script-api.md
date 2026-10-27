@@ -273,9 +273,12 @@ Screen effects (ambient occlusion, bloom, grading) run in the main view only, an
 "style": {
   "shape": "capsule",          // cone (default for agents), sphere, cube, rounded, capsule, octahedron, tetrahedron, disc, cylinder
   "material": { "roughness": 0.5, "metalness": 0, "glow": 0.4, "opacity": 1 },   // glow: how much the color lights itself (above 1 blooms)
-  "trail": { "length": 12, "strength": 0.6 }   // a fading line behind each agent (ticks, up to 240)
+  "trail": { "length": 12, "strength": 0.6 },  // a fading line behind each agent (ticks, up to 240)
+  "sprite": { "image": "ant.svg", "facing": "ground" } // draw each agent as a flat picture (instead of `shape`)
 }
 ```
+
+A **sprite** is a flat picture (PNG, SVG or JPEG, relative to the project's files or a URL) drawn at each agent's position; draw it facing up. Its see-through parts stay see-through. The entity's `size` is the picture's width in world units, and the color (`color`, or the script's `display`) tints it, so a light gray picture can take any color and white leaves it as drawn. `facing` says how it is laid out: `"ground"` lies it flat and turns it to point the way the agent moves (as seen from above, for top-down worlds), and `"camera"` (the default) is a billboard that always faces the viewer whatever the angle, and with `"turn": true` is rotated on screen to point the way the agent moves. Pictures are not lit or shadowed. See `examples/ants`.
 
 Colors still come from `color`, `world.agentColor` or the script's `display`. Matte materials (roughness around 0.5 to 0.9, metalness 0) read best; shiny, metallic things mirror the sky strongly.
 

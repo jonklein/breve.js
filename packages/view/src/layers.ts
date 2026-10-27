@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { WorldFrame } from './world-view'
 import { alphaMaterial, blend, withAlpha } from './alpha'
 import { applyMaterial, shapeGeometry, type Fallback } from './style'
+import { groundSquare, loadSprite, spriteMaterial } from './sprite'
 import { Trails } from './trails'
 
 const MAX_INSTANCES = 5000
@@ -26,15 +27,22 @@ export class AgentLayer {
   private big = new THREE.Vector3(1, 1, 1)
   /** Highlighted row (the one being inspected), or -1. */
   selected = -1
+  /** Where a relative sprite image path starts (a URL ending in `/`). */
+  assetBase = ''
+  private lit: THREE.Material
+  private dir: THREE.InstancedBufferAttribute
+  private spriteMat: THREE.Material | null = null
   private trails: Trails | null = null
   private trailRgb = new Float32Array(0)
 
   constructor(private scene: THREE.Scene, shadowsOn = false) {
     const geo = new THREE.ConeGeometry(0.32, 1.3, 20, 1) // enough sides that the cone reads as round
     geo.rotateX(Math.PI / 2)
-    this.mesh = new THREE.InstancedMesh(geo, alphaMaterial(), MAX_INSTANCES)
+    this.lit = alphaMaterial()
+    this.mesh = new THREE.InstancedMesh(geo, this.lit, MAX_INSTANCES)
     this.mesh.castShadow = shadowsOn
     this.alpha = withAlpha(this.mesh, MAX_INSTANCES)
+    this.dir = new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES * 3), 3)
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES * 3), 3)
     this.mesh.frustumCulled = false
     this.mesh.count = 0
@@ -62,11 +70,26 @@ export class AgentLayer {
     if (key === this.styleKey) return
     this.styleKey = key
     const old = this.mesh.geometry
-    this.mesh.geometry = shapeGeometry(style?.shape, 'cone')
+    const sprite = style?.sprite
+    this.spriteMat?.dispose()
+    this.spriteMat = null
+    if (sprite) {
+      // a flat picture (facing the camera, or lying on the ground), drawn unlit
+      const flat = sprite.facing === 'ground'
+      this.mesh.geometry = flat ? groundSquare(0.08) : new THREE.PlaneGeometry(1, 1)
+      this.mesh.geometry.setAttribute('instanceDir', this.dir)
+      const m = spriteMaterial(flat ? 'ground' : 'camera', !!sprite.turn)
+      m.map = loadSprite(new URL(sprite.image, this.assetBase || (typeof location !== 'undefined' ? location.href : undefined)).href, () => { m.needsUpdate = true })
+      this.mesh.material = this.spriteMat = m
+      this.mesh.castShadow = false
+    } else {
+      this.mesh.geometry = shapeGeometry(style?.shape, 'cone')
+      this.mesh.material = this.lit
+    }
     this.mesh.geometry.setAttribute('instanceAlpha', this.alpha)
     old.dispose()
     this.mesh.boundingSphere = null
-    applyMaterial(this.mesh.material as THREE.MeshStandardMaterial, style)
+    if (!sprite) applyMaterial(this.lit as THREE.MeshStandardMaterial, style)
   }
 
   update(f: WorldFrame, fixed: THREE.Color | null): void {
@@ -92,6 +115,7 @@ export class AgentLayer {
       const size = look?.visible && !look.visible[i] ? 0 : sc * (look?.scale ? look.scale[i] : 1)
       this.m.compose(this.p, this.q, this.big.setScalar(this.selected === i ? 1.8 * size : size))
       this.mesh.setMatrixAt(i, this.m)
+      this.dir.setXYZ(i, this.d.x, this.d.y, this.d.z)
       const a = look?.alpha ? look.alpha[i] / 255 : 1
       if (a < 1) see = true
       this.alpha.setX(i, a)
@@ -105,6 +129,7 @@ export class AgentLayer {
     this.mesh.instanceMatrix.needsUpdate = true
     colors.needsUpdate = true
     this.alpha.needsUpdate = true
+    this.dir.needsUpdate = true
     blend(this.mesh.material as THREE.Material, see)
     this.updateTrails(f, n, colors)
   }
@@ -125,7 +150,8 @@ export class AgentLayer {
     this.trails?.dispose()
     this.scene.remove(this.mesh)
     this.mesh.geometry.dispose()
-    ;(this.mesh.material as THREE.Material).dispose()
+    this.lit.dispose()
+    this.spriteMat?.dispose()
     this.mesh.dispose()
   }
 }

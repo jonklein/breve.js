@@ -20,6 +20,7 @@
   },
   "data": {
     "colors": {
+      "ant": "#8a5a2b",
       "nest": "#4f86f7",
       "food": "#ffd34a",
       "weakScent": "#2f5a3c",
@@ -108,16 +109,14 @@
     {
       "name": "ants",
       "style": {
-        "shape": "capsule",
-        "material": {
-          "roughness": 0.4,
-          "metalness": 0.1
+        "sprite": {
+          "image": "ant.svg",
+          "facing": "ground"
         }
       },
       "type": "Ant",
       "controller": "ants.js",
       "count": "$count",
-      "color": "#f2d088",
       "spawn": {
         "at": [
           -12,
@@ -126,7 +125,7 @@
         ],
         "spread": 4
       },
-      "size": 1.1,
+      "size": 2.4,
       "motion": {
         "maxSpeed": "$speed",
         "minSpeed": 1.5,
@@ -155,7 +154,7 @@
       "count": 1,
       "size": 1,
       "style": {
-        "shape": "disc",
+        "shape": "sphere",
         "material": {
           "roughness": 0.6,
           "glow": 0.2

@@ -24,7 +24,7 @@ export interface WorldFrame {
   /** Per-set color for free agents. */
   color?: string
   scale?: number
-  style?: { shape?: string; trail?: number | { length?: number; strength?: number }; material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number } }
+  style?: { shape?: string; sprite?: { image: string; facing?: 'camera' | 'ground'; turn?: boolean }; trail?: number | { length?: number; strength?: number }; material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number } }
   rate?: number
 }
 
@@ -423,6 +423,7 @@ export class WorldView {
         layer = this.layers[i] = new want(this.scene)
         layer.setShadows(this.shadowsOn)
       }
+      if (layer instanceof AgentLayer) layer.assetBase = this.assetBase
       if (layer instanceof CellLayer) layer.set(f, this.fixedColor)
       else layer.update(f, this.fixedColor)
     })

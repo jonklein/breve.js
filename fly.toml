@@ -1,0 +1,26 @@
+# See https://fly.io/docs/reference/configuration/
+# Provision once with `fly apps create breve-js` (the name is global: pick another here and in the app create if it is taken).
+app = 'breve-js'
+primary_region = 'iad'
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # a static preview: let the machine sleep when idle (it wakes on the next request)
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [[http_service.checks]]
+    method = 'GET'
+    path = '/'
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'

@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      // A soft gate for the preview on GitHub Pages: a placeholder until the project is public, not security.
+      // A soft gate for the hosted preview (anywhere but a local machine): a placeholder until the project is public, not security.
       (function () {
         var k = 'breve.pass', pass = 'spiderland'
-        try { if (location.hostname.slice(-9) !== 'github.io' || localStorage.getItem(k) === pass) return } catch (e) { return }
+        try { if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || localStorage.getItem(k) === pass) return } catch (e) { return }
         document.open()
         document.write('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>breve</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1226;color:#d8e0ee;font:16px system-ui,sans-serif}form{display:grid;gap:12px;text-align:center}input,button{font:inherit;padding:8px 12px;border-radius:6px;border:1px solid #3a4658;background:#121928;color:inherit}button{cursor:pointer;background:#4da3ff;color:#06101f;border:0}</style><form><div>breve is in development.</div><input type="password" name="p" placeholder="password" autofocus autocomplete="off"><button>Enter</button></form><script>document.forms[0].onsubmit=function(e){e.preventDefault();if(this.p.value==="' + pass + '"){try{localStorage.setItem("' + k + '",this.p.value)}catch(x){}location.reload()}else{this.p.value="";this.p.placeholder="not quite"}}<\/script>')
         document.close()

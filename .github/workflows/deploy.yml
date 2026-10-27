@@ -1,0 +1,22 @@
+name: Deploy
+
+# Publishes the workbench to Fly when `main` changes. Needs the repository secret FLY_API_TOKEN
+# (see docs/deploy.md). Run it by hand from the Actions tab to redeploy without a new commit.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

@@ -185,7 +185,11 @@ export class WorldView {
   }
 
   /** Slide the camera and its target along with `to`, so the orbit angle and distance the viewer chose are kept. */
-  private follow(to: THREE.Vector3): void {
+  private follow(to: THREE.Vector3, size: number): void {
+    // a body the physics engine has flung far away (or a pose that is not a number) must not drag the camera across the world
+    if (![to.x, to.y, to.z].every(Number.isFinite)) return
+    const reach = Math.max(size, 1) / 2
+    to.set(Math.max(-reach, Math.min(reach, to.x)), Math.max(0, Math.min(reach, to.y)), Math.max(-reach, Math.min(reach, to.z)))
     const d = to.clone().sub(this.controls.target).multiplyScalar(this.followed ? 0.12 : 1)
     this.followed = true
     this.controls.target.add(d)
@@ -403,7 +407,7 @@ export class WorldView {
       if (rigidFrame.rigid) {
         this.rigid.update(rigidFrame.rigid, rigidFrame.size)
         const p = rigidFrame.rigid.poses
-        if (this.followWanted && p.length >= 3) this.follow(new THREE.Vector3(p[0], p[1], p[2]))
+        if (this.followWanted && p.length >= 3) this.follow(new THREE.Vector3(p[0], p[1], p[2]), rigidFrame.size)
       }
       if (this.markers) this.markers.visible = true
       this.fitShadow(rigidFrame.size)

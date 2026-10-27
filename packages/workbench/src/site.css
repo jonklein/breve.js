@@ -65,3 +65,21 @@ footer.site-footer a { color: var(--muted); }
 .post-back { display: inline-block; margin: 28px 0 0; color: var(--accent); text-decoration: none; font-size: 14px; }
 .post.prose h1 { margin: 16px 0 4px; }
 h2.folder { margin: 28px 0 12px; font-size: 1.05rem; font-weight: 600; opacity: 0.85; }
+
+/* code blocks and tables in long-form pages (the guide, the blog) */
+.prose pre { background: rgba(255, 255, 255, 0.05); padding: 12px 14px; border-radius: 8px; overflow-x: auto; line-height: 1.45; }
+.prose pre code { background: none; padding: 0; font-size: 13px; }
+.prose table { border-collapse: collapse; margin: 16px 0; }
+.prose th, .prose td { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+/* the guide: chapters beside the page, one column on a phone */
+.guide-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+.guide-toc { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 2px; padding-top: 32px; }
+.guide-toc h2 { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.guide-toc a { color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 14px; }
+.guide-toc a:hover { color: var(--text); }
+.guide-toc a[aria-current="page"] { color: var(--text); background: rgba(255, 255, 255, 0.07); }
+.guide-pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); }
+.guide-pager a { color: var(--accent); text-decoration: none; }
+.guide-pager .next { margin-left: auto; }
+@media (max-width: 760px) { .guide-layout { grid-template-columns: 1fr; gap: 0; } .guide-toc { position: static; flex-direction: row; flex-wrap: wrap; padding-top: 16px; } .guide-toc h2 { width: 100%; } }

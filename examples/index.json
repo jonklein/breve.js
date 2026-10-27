@@ -1,5 +1,18 @@
 [
   {
+    "id": "hello",
+    "name": "Hello: random walkers",
+    "description": "The smallest simulation: sixty walkers that wander at random. Start here.",
+    "scene": "scene.json",
+    "script": "hello.js",
+    "tags": [
+      "agents",
+      "start here"
+    ],
+    "folder": "Start here",
+    "about": "about.md"
+  },
+  {
     "id": "boids",
     "name": "Boids",
     "description": "Flocking birds in 3D: cohesion, alignment, separation.",

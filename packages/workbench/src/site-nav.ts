@@ -1,11 +1,12 @@
 import { site } from './site-root'
-export type Page = 'home' | 'explore' | 'sim' | 'gallery' | 'blog' | 'docs' | 'about'
+export type Page = 'home' | 'explore' | 'sim' | 'gallery' | 'blog' | 'guide' | 'docs' | 'about'
 
 export const SOURCE_URL = 'https://github.com/jonklein/breve.js'
 
 const LINKS: { page: Page; href: string; label: string }[] = [
   { page: 'home', href: site(''), label: 'Home' },
   { page: 'explore', href: site('explore/'), label: 'Explore' },
+  { page: 'guide', href: site('guide/'), label: 'Start here' },
   { page: 'sim', href: site('sim/'), label: 'Simulations' },
   { page: 'gallery', href: site('gallery/'), label: 'Gallery' },
   { page: 'blog', href: site('blog/'), label: 'Blog' },

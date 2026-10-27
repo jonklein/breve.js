@@ -167,6 +167,18 @@ await page.click('.post-card a')
 await page.waitForTimeout(500)
 check('a post renders its markdown', (await page.locator('article.post h1').count()) === 1 && (await page.locator('article.post h2').count()) >= 2)
 
+// the getting-started guide: chapters listed, a chapter's link goes to the next, and its first example runs
+await page.goto(`${base}/guide/`)
+await page.waitForSelector('.guide-toc a')
+check('the guide lists its chapters', (await page.locator('.guide-toc a').count()) >= 5, `${await page.locator('.guide-toc a').count()} chapters`)
+await page.locator('.guide-pager a.next').click()
+await page.waitForTimeout(300)
+check('the guide moves to the next chapter', /Change something/.test(await page.textContent('h1')), await page.textContent('h1'))
+await sim('hello')
+await page.waitForTimeout(3000)
+check('the Hello example runs and charts its metric', /agents/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, await page.textContent('#stats'))
+await page.goto(`${base}/about/`) // a hash change alone would not reload the workbench: leave it before opening the next example
+
 // formulas: a lattice written as formulas runs (on the processor here: this browser has no WebGPU), and one too big for that says why
 await sim('life2d-formula')
 await page.waitForTimeout(3000)

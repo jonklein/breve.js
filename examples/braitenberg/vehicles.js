@@ -10,7 +10,7 @@
 //   wiring   `data.kinds[...].weights[motor][eye]` says how much each eye pushes each motor (negative slows it); `bias` is each motor's resting drive
 //   motors   the wheels are told how fast to turn, and the physics does the rest
 //
-// The lights are in the scene's `data.lights` (and drawn by `world.markers`; move one in both).
+// The lights are in the scene's `data.lights`; `world.markers` names that list, so the poles you see are the lights the carts sense.
 const WHEEL = 0.16 // wheel radius, metres
 const EYE = { ahead: 0.28, apart: 0.15 } // where the eyes sit on the chassis: this far forward, this far to each side
 const KD_OVER_KP = 6 / 20 // the motors are springs with damping; aiming this far ahead of the wheel's angle makes them hold a speed (damping / stiffness)

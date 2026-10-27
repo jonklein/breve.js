@@ -66,6 +66,8 @@ export type SensorDef =
   | { type: 'joints' }
   | { type: 'pose' }
   | { type: 'touch'; parts?: string[] }
+  /** Every part's pose, velocity and shape, as `self.parts.<name>`: what forces that depend on motion (drag, lift) need to read. */
+  | { type: 'parts' }
 
 export interface BodyDef {
   /** The first part is the root (the torso). Every other part hangs off it through exactly one joint. */
@@ -208,7 +210,7 @@ export const bodySchema = {
         required: ['type'],
         additionalProperties: false,
         properties: {
-          type: { enum: ['joints', 'pose', 'touch'] },
+          type: { enum: ['joints', 'pose', 'touch', 'parts'] },
           parts: { type: 'array', items: { type: 'string' } },
         },
       },

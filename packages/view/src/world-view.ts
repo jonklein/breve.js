@@ -46,6 +46,7 @@ export class WorldView {
   private layers: (AgentLayer | CellLayer | FieldLayer | GraphLayer | null)[] = []
   private rigid: RigidView
   private markers: THREE.Group | null = null
+  private water: THREE.Mesh | null = null
   private followWanted = false
   private followed = false
   private box: THREE.LineSegments | null = null
@@ -159,7 +160,29 @@ export class WorldView {
     this.followWanted = w?.follow === true
     this.followed = false
     this.buildMarkers(w?.markers)
+    this.buildWater(w?.water)
     this.applyLook()
+  }
+
+  /** A translucent surface at the water's level, seen from above and from below. Anything malformed draws none. */
+  private buildWater(def: unknown): void {
+    if (this.water) {
+      this.scene.remove(this.water)
+      this.water.geometry.dispose()
+      ;(this.water.material as THREE.Material).dispose()
+      this.water = null
+    }
+    const w = def as { level?: unknown; color?: unknown; opacity?: unknown } | null | undefined
+    if (!w || typeof w !== 'object' || typeof w.level !== 'number' || !Number.isFinite(w.level)) return
+    let color = new THREE.Color('#2f7fb8')
+    try { if (typeof w.color === 'string') color = new THREE.Color(w.color) } catch { /* keep the default */ }
+    const opacity = typeof w.opacity === 'number' ? Math.min(1, Math.max(0, w.opacity)) : 0.45
+    const mat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity, roughness: 0.15, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false })
+    this.water = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), mat)
+    this.water.rotation.x = -Math.PI / 2
+    this.water.position.y = w.level
+    this.water.renderOrder = 2
+    this.scene.add(this.water)
   }
 
   /** Poles at fixed spots on the ground, for judging distance. Anything malformed is skipped. */
@@ -412,10 +435,12 @@ export class WorldView {
         if (this.followWanted && p.length >= 3) this.follow(new THREE.Vector3(p[0], p[1], p[2]), rigidFrame.size)
       }
       if (this.markers) this.markers.visible = true
+      if (this.water) this.water.visible = true
       this.fitShadow(rigidFrame.size)
       return
     }
     if (this.markers) this.markers.visible = false
+    if (this.water) this.water.visible = false
     this.setBounds(Math.max(...frames.map((f) => f.size)))
     frames.forEach((f, i) => {
       const want = f.kind === 'lattice' ? CellLayer : f.kind === 'field' ? FieldLayer : f.kind === 'graph' ? GraphLayer : AgentLayer

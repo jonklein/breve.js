@@ -20,6 +20,7 @@ export interface LookInput {
   agentColor?: unknown
   shadows?: unknown
   markers?: unknown
+  water?: unknown
   follow?: unknown
 }
 
@@ -258,4 +259,15 @@ function resolveFloor(f: unknown): ResolvedLook['floor'] {
 export function sunDirection(azimuthDeg: number, elevationDeg: number): [number, number, number] {
   const az = (azimuthDeg * Math.PI) / 180, el = (elevationDeg * Math.PI) / 180
   return [Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az)]
+}
+
+/**
+ * Replace the parts of a scene's `world` that name a key of its `data` (`"markers": "lights"`, `"water": "pond"`) with what is
+ * stored there, so the view draws the same list the script reads. Anything that does not resolve is dropped.
+ */
+export function resolveWorld<W extends LookInput>(world: W | undefined, data: Record<string, unknown> | undefined): W | undefined {
+  if (!world) return world
+  const out: LookInput = { ...world }
+  for (const key of ['markers', 'water'] as const) if (typeof out[key] === 'string') out[key] = data?.[out[key] as string]
+  return out as W
 }

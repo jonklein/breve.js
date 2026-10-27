@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Sim, parseScene, type ScriptModule } from '@breve/core'
-import { WorldView, type WorldFrame, type WorldLook } from '@breve/view'
+import { WorldView, resolveWorld, type WorldFrame, type WorldLook } from '@breve/view'
 
 export interface EmbedOptions {
   /** Height in pixels when the container has none of its own (default 420). */
@@ -72,7 +72,7 @@ export async function run(target: string | HTMLElement, code: string, config: un
   const view = new WorldView(renderer, camera, controls)
   if (options.assetBase) view.setAssetBase(options.assetBase)
   view.quality = 'high'
-  view.setWorld(scene.world as WorldLook | undefined)
+  view.setWorld(resolveWorld(scene.world as WorldLook | undefined, scene.data as Record<string, unknown> | undefined))
 
   const resize = () => {
     const w = host.clientWidth, h = host.clientHeight

@@ -129,3 +129,14 @@ test('world markers and follow validate', async () => {
     assert.match(r.ok ? '' : r.errors.join('\n'), /world\.markers/)
   }
 })
+
+test('world markers and water may name a key of data, and say what is missing when they do not', async () => {
+  const { scene } = await load()
+  const data = { lights: [{ at: [1, 2] }], pond: { level: 2 } }
+  assert.ok(parseScene(JSON.stringify({ ...scene, data, world: { markers: 'lights', water: 'pond' } })).ok)
+  assert.ok(parseScene(JSON.stringify({ ...scene, world: { water: { level: 1.5, color: '#2f7fb8', opacity: 0.4 } } })).ok)
+  const r = parseScene(JSON.stringify({ ...scene, data, world: { water: 'lake' } }))
+  assert.equal(r.ok, false)
+  assert.match(r.ok ? '' : r.errors.join('\n'), /world\.water: "lake" is not a key of the scene's "data" \(it has: lights, pond\)/)
+  assert.equal(parseScene(JSON.stringify({ ...scene, world: { water: { opacity: 0.5 } } })).ok, false)
+})

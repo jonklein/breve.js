@@ -1,7 +1,7 @@
 import type { Picture } from './image'
 import type { ModelHandle } from './inference'
 import type { Relations } from './relations'
-import type { Bounds, Colors, Gait, Mlp } from '@breve/stdlib'
+import type { Bounds, Colors, Fluid, Gait, Mlp } from '@breve/stdlib'
 import type { Look } from './display'
 import type { Rng } from './rng'
 import type { EntityDef, Params, Scene, StateField } from './scene'
@@ -48,6 +48,8 @@ export interface Ctx {
   readonly colors: typeof Colors
   /** Rhythmic joint targets for creatures: `ctx.gait.targets({ 'FL.hip': { amplitude: 0.7 } }, cycle)` and `ctx.gait.advance(cycle, frequency, ctx.dt)`. */
   readonly gait: typeof Gait
+  /** Buoyancy and drag for creatures in water and air: `return { forces: ctx.fluid.forces(self.parts, { level: 0 }) }`. The engine has no fluid; this works out the push one would give each part. */
+  readonly fluid: typeof Fluid
   /** Keeping entities inside the world, for scripts that want it: `ctx.bounds.soft(self.position, ctx.world.size)` and `ctx.bounds.bounce(...)`. */
   readonly bounds: typeof Bounds
   /** The world's size: `size` is the half-width of the box around the origin (the scene's `bounds.size`). */

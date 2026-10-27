@@ -1,4 +1,5 @@
 import { Viewport, type WorldLook } from './viewport'
+import { resolveWorld } from '@breve/view'
 import { TileGrid } from './tiles'
 import { makeEditor, setParamInText, setPathInText, getPath } from './editors'
 import { parseScene, sceneSchema, setEntityKey } from '@breve/core'
@@ -104,12 +105,13 @@ async function main(): Promise<void> {
 
   const showScene = (text: string) => {
     try {
-      const scene = JSON.parse(text) as { params?: unknown; controls?: unknown; world?: WorldLook; entities?: { controller?: string }[] }
+      const scene = JSON.parse(text) as { params?: unknown; controls?: unknown; world?: WorldLook; data?: Record<string, unknown>; entities?: { controller?: string }[] }
       controls.render(scene.controls, (path) => getPath(scene, path))
       params.render(scene.params)
       metrics.setGroups((scene as { charts?: { title?: string; metrics: string[] }[] }).charts)
-      viewport.setWorld(scene.world)
-      tiles.setWorld(scene.world)
+      const look = resolveWorld(scene.world, scene.data)
+      viewport.setWorld(look)
+      tiles.setWorld(look)
       $('script-tab').textContent = scene.entities?.[0]?.controller ?? 'script.js'
     } catch { /* keep the last good sliders and look */ }
   }

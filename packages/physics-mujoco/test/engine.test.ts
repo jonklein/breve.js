@@ -97,3 +97,17 @@ test('asking for an engine nobody registered says which ones exist', async () =>
   sc.physics = { engine: 'havok' }
   await assert.rejects(Sim.create(sc, quiet), /no engine called "havok" is registered \(available: rapier, mujoco\)/)
 })
+
+test('both engines push a part by force / mass and report its velocity', async () => {
+  const box: BodyDef = { parts: [{ name: 'box', shape: 'box', size: [1, 1, 1], mass: 2, position: [0, 30, 0] }], sensors: [{ type: 'parts' }] }
+  const speeds: Record<string, number> = {}
+  for (const engine of ENGINES) {
+    let vx = 0
+    const sim = await Sim.create(sceneWith(engine, box, { terrain: { size: 24, resolution: 24, amplitude: 0 } }), { default: { act: ({ self }) => { vx = self.parts.box.velocity.x; return { forces: { box: { force: [10, 0, 0] } } } } } } as ScriptModule)
+    run(sim, 60)
+    assert.equal(sim.takeErrors().length, 0)
+    speeds[engine] = vx
+    sim.dispose()
+  }
+  for (const engine of ENGINES) assert.ok(Math.abs(speeds[engine] - 5) < 0.4, `${engine}: vx ${speeds[engine]}`)
+})

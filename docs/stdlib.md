@@ -486,6 +486,170 @@ sum(): number
 average(): number
 ```
 
+## FluidPart
+
+What `Fluid.forces` needs to know about a part: the fields of an entry of a creature's `self.parts`.
+
+### `FluidPart.shape`
+
+```ts
+shape: string
+```
+
+`box`, `sphere`, `capsule` or `cylinder`.
+
+### `FluidPart.size`
+
+```ts
+size: number[]
+```
+
+The shape's own measurements: box `[w, h, d]`, sphere `[r]`, capsule and cylinder `[length, r]`.
+
+### `FluidPart.mass`
+
+```ts
+mass: number
+```
+
+Kilograms. Used only to keep drag from over-correcting in one step.
+
+### `FluidPart.position`
+
+```ts
+position:
+```
+
+### `FluidPart.rotation`
+
+```ts
+rotation:
+```
+
+How the shape is turned in the world.
+
+### `FluidPart.velocity`
+
+```ts
+velocity:
+```
+
+Linear velocity of the part's center, and its angular velocity, in the world frame.
+
+### `FluidPart.angularVelocity`
+
+```ts
+angularVelocity:
+```
+
+## FluidMedium
+
+The water and the air around a creature. Every field is optional.
+
+### `FluidMedium.level`
+
+```ts
+level?: number
+```
+
+Height of the water surface (world y). Default 0. Use `-Infinity` for no water, `Infinity` for everything under it.
+
+### `FluidMedium.density`
+
+```ts
+density?: number
+```
+
+Kilograms per cubic meter of water. Default 1000.
+
+### `FluidMedium.airDensity`
+
+```ts
+airDensity?: number
+```
+
+Kilograms per cubic meter of the air above the surface. Default 1.2.
+
+### `FluidMedium.gravity`
+
+```ts
+gravity?: number
+```
+
+Meters per second squared, the pull that buoyancy answers. Default 9.81, the engine's own.
+
+### `FluidMedium.drag`
+
+```ts
+drag?: number
+```
+
+How strongly a shape resists moving through the fluid, as a multiplier on the default coefficient of 1. 0 turns drag off. Default 1.
+
+### `FluidMedium.angularDrag`
+
+```ts
+angularDrag?: number
+```
+
+The same for spinning. Default 1.
+
+### `FluidMedium.current`
+
+```ts
+current?: VecLike | ((p:
+```
+
+The velocity of the water itself (a current), as a vector or a function of position. Default still water. Air is taken to be still.
+
+### `FluidMedium.buoyancyHeight`
+
+```ts
+buoyancyHeight?: number
+```
+
+Meters above a part's center, along the part's own up (local y), where its lift acts. A positive number makes a creature right itself like a boat with its weight low; 0 (the default) lifts at the center, so it never rights itself.
+
+### `FluidMedium.dt`
+
+```ts
+dt?: number
+```
+
+Seconds per tick; drag is capped so a step can slow a part to rest but never reverse it. Default 1/60.
+
+## FluidPush
+
+The force and torque on one part, in the world frame, ready to return from `act` as `{ forces }`.
+
+## Fluid
+
+Buoyancy and drag for creatures in water and air. The engine has no fluid; this works out the push a fluid would give each
+part, and a script returns it from `act` as `forces` (the push lasts one tick, so ask again every tick):
+`return { joints, forces: Fluid.forces(self.parts, { level: 0 }) }`.
+
+A part below `level` floats with a force of `density * gravity * volume`, scaled by how much of it is under (judged from its
+height in the world, so a tilted box is handled); with a mass of `density * volume` it hangs in the water, lighter floats, denser sinks.
+Moving through the fluid costs a force against the motion, quadratic in speed and different along each of the part's own axes
+(a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim). Fluid above the surface
+is air with its own, thin, density. Simplified on purpose: no waves, no added mass, buoyancy acts at the center of the part.
+
+### `Fluid.forces`
+
+```ts
+static forces(parts: Record<string, FluidPart>, medium: FluidMedium =
+```
+
+The push on every part, by part name: `{ torso: { force, torque }, tail: { ... } }`.
+
+### `Fluid.push`
+
+```ts
+static push(p: FluidPart, medium: FluidMedium =
+```
+
+The push on one part.
+
 ## RunArgs
 
 What a program is given for one run.

@@ -5,4 +5,4 @@ The carts here are real physics: a chassis on four wheels (the two on each side 
 ### What to try
 - Watch the four charts: each is how far that kind of cart is from its nearest light.
 - Open the editor and find `data.kinds`: each wiring is a 2×2 table (`weights`) of how much each eye pushes each side's wheels, and a resting drive (`bias`). Change a sign and the character changes.
-- Move a light by editing `data.lights` **and** the matching `world.markers` entry (one is what the carts sense, the other is what you see).
+- Move a light by editing its `at` in `data.lights`: the carts sense that list and `world.markers` draws it, so both follow.

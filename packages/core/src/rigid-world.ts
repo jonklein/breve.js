@@ -1,3 +1,4 @@
+import { quatFromEuler } from './rot'
 import { buildBody, MOTOR_DEFAULTS, type BodyDef, type PartDef } from './body'
 import { initResult } from './init-shape'
 import { defineGroupGetters, defineStateGetters, writeState } from './state-columns'
@@ -5,7 +6,7 @@ import { resolve, type StateField } from './scene'
 import { spawnPosition } from './spawn'
 import { Table, type ColumnType, type TableSnapshot } from './store'
 import { Terrain } from './terrain'
-import { Nums, Vec3, Vecs } from '@breve/stdlib'
+import { Nums, Vec3, Vecs, toVec } from '@breve/stdlib'
 import type { Articulation, PhysicsEngine, PhysicsWorld } from './physics/types'
 import type { RigidFrame } from './rigid-frame'
 import { type FrameData, type Host, type MetricInput, type World } from './world'
@@ -22,6 +23,29 @@ const DT = 1 / 60
 const MAX_CREATURES = 200
 const DEFAULT_PHYSICS = { gravity: 9.81, substeps: 4 }
 const TOUCH_MARGIN = 0.04
+
+/** One part of a creature as a script sees it, with a `parts` sensor: where it is, how it is turned, how fast it moves, and what it is made of. */
+export interface PartState {
+  name: string
+  shape: string
+  /** The shape's own measurements (box `[w, h, d]`, sphere `[r]`, capsule and cylinder `[length, r]`), before it is turned. */
+  size: number[]
+  mass: number
+  /** Where its center is. */
+  position: Vec3
+  /** How the shape is turned in the world (the body's turn, then the part's own `rotation`): its local x, y and z axes are this quaternion's columns. */
+  rotation: { x: number; y: number; z: number; w: number }
+  /** Linear velocity of its center, and its angular velocity, both in the world frame. */
+  velocity: Vec3
+  angularVelocity: Vec3
+}
+
+const qmul = (a: number[], b: number[]): number[] => [
+  a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+  a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+  a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+  a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
+]
 
 /** Readable view of one creature. Only valid for the duration of an act() call. */
 export class Creature {
@@ -54,6 +78,8 @@ export class Creature {
   }
   /** Joint angles by name, if the body declares a `joints` sensor. */
   get joints(): Record<string, number> { return this.world.jointAngles(this.row) }
+  /** Every part by name (pose, velocity, shape, mass), if the body declares a `parts` sensor. */
+  get parts(): Record<string, PartState> { return this.world.partStates(this.row) }
   /** Which feet touch the ground by name, if the body declares a `touch` sensor. */
   get touch(): Record<string, boolean> { return this.world.touching(this.row) }
   private quat() {
@@ -92,6 +118,12 @@ export class RigidWorld implements World {
   private joints: JointRuntime[] = []
   private jointIndex = new Map<string, number>()
   private poses = new Float32Array(0)
+  /** 6 numbers per part per creature (linear then angular velocity), read after each step when the body declares a `parts` sensor. */
+  private partVel = new Float32Array(0)
+  /** 6 numbers per part per creature: the push a script asked for this tick (force then torque), and whether each creature was pushed last tick (so it can be cleared). */
+  private forces = new Float32Array(0)
+  private pushed: boolean[] = []
+  private partRot: number[][] = []
   private angles = new Float32Array(0)
   /** What the script asked each motor to do this tick, `jointCount` numbers per creature (0 unless it said). */
   private targets = new Float32Array(0)
@@ -185,6 +217,9 @@ export class RigidWorld implements World {
     while (this.handles.length < this.table.size) this.handles.push(new this.CreatureClass(this, this.handles.length))
     const J = this.joints.length, parts = this.body.parts.length, n = this.table.size
     if (this.poses.length !== n * parts * 7) this.poses = new Float32Array(n * parts * 7)
+    if (this.partVel.length !== n * parts * 6) this.partVel = new Float32Array(n * parts * 6)
+    if (this.forces.length !== n * parts * 6) { this.forces = new Float32Array(n * parts * 6); this.pushed = [] }
+    this.partRot = this.body.parts.map((p) => (p.rotation ? quatFromEuler(p.rotation) : [0, 0, 0, 1]))
     if (this.angles.length !== n * J) {
       this.angles = new Float32Array(n * J)
       this.targets = new Float32Array(n * J)
@@ -236,6 +271,7 @@ export class RigidWorld implements World {
       maxTorque[j] = resolve(bj[j].motor?.maxTorque, p, Infinity)
       maxStep[j] = resolve(bj[j].motor?.maxSpeed, p, Infinity) * DT
     }
+    this.forces.fill(0) // a push lasts one tick: a script that wants it again asks again
     // act: a script sets motor targets by joint name; any it leaves out go to the joint's rest angle (0)
     for (let j = 0; j < J; j++) { const rest = this.clampToLimits(j, 0); for (let i = 0; i < n; i++) this.targets[i * J + j] = rest }
     const writes: { row: number; state: Record<string, unknown> }[] = []
@@ -246,7 +282,8 @@ export class RigidWorld implements World {
       const none = new this.GroupClass()
       for (let i = 0; i < n; i++) {
         try {
-          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number>; state?: Record<string, unknown>; place?: { x: number; z: number; yaw?: number } } | void
+          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number>; state?: Record<string, unknown>; place?: { x: number; z: number; yaw?: number }; forces?: Record<string, { force?: unknown; torque?: unknown }> } | void
+          if (out?.forces && typeof out.forces === 'object') this.collectForces(i, out.forces)
           if (out?.place && typeof out.place === 'object') this.queuePlace(i, out.place) // stand it somewhere new at the end of the tick
           if (out && out.state && typeof out.state === 'object') writes.push({ row: i, state: out.state })
           if (out && out.joints) {
@@ -276,6 +313,15 @@ export class RigidWorld implements World {
       this.arts[i].setMotors(t, kp, kd, maxTorque)
     }
 
+    // pushes from the script (drag, buoyancy, wind): every creature's whole set, cleared again when it stops asking
+    const P = body.parts.length
+    for (let i = 0; i < n; i++) {
+      const slice = this.forces.subarray(i * P * 6, (i + 1) * P * 6)
+      const any = slice.some((v) => v !== 0)
+      if (any || this.pushed[i]) this.arts[i].applyForces(slice)
+      this.pushed[i] = any
+    }
+
     // physics
     const sub = Math.max(1, Math.round(scene.physics?.substeps ?? DEFAULT_PHYSICS.substeps))
     for (let s = 0; s < sub; s++) this.physics.step(DT / sub)
@@ -303,6 +349,7 @@ export class RigidWorld implements World {
       c.qx[i] = this.poses[o + 3]; c.qy[i] = this.poses[o + 4]; c.qz[i] = this.poses[o + 5]; c.qw[i] = this.poses[o + 6]
       this.arts[i].readRootVelocity(v, 0)
       c.vx[i] = v[0]; c.vy[i] = v[1]; c.vz[i] = v[2]
+      if (this.declares('parts')) this.arts[i].readVelocities(this.partVel, i * P * 6)
     }
   }
 
@@ -351,7 +398,45 @@ export class RigidWorld implements World {
 
   // ---- sensors, read by Creature handles ----
 
-  private declares(type: 'joints' | 'touch'): boolean {
+  /** Take a script's `forces` for one creature: `{ tail: { force: [fx, fy, fz], torque: [tx, ty, tz] } }`, in the world frame, acting at the part's center. Forces on the same part add up. */
+  private collectForces(row: number, forces: Record<string, { force?: unknown; torque?: unknown }>): void {
+    const P = this.body.parts.length
+    for (const [name, push] of Object.entries(forces)) {
+      const k = this.body.parts.findIndex((p) => p.name === name)
+      if (k < 0) throw new Error(`forces: the body has no part called "${name}" (it has: ${this.body.parts.map((p) => p.name).join(', ')})`)
+      const o = (row * P + k) * 6
+      const take = (v: unknown, at: number) => {
+        if (v === undefined || v === null) return
+        const t = toVec(v as Parameters<typeof toVec>[0])
+        if (![t.x, t.y, t.z].every(Number.isFinite)) throw new Error(`forces: the ${at === 0 ? 'force' : 'torque'} on "${name}" must be three finite numbers`)
+        this.forces[o + at] += t.x; this.forces[o + at + 1] += t.y; this.forces[o + at + 2] += t.z
+      }
+      take(push.force, 0)
+      take(push.torque, 3)
+    }
+  }
+
+  /** Every part of one creature by name, for a body with a `parts` sensor. */
+  partStates(row: number): Record<string, PartState> {
+    const out: Record<string, PartState> = {}
+    if (!this.declares('parts')) return out
+    const P = this.body.parts.length
+    this.body.parts.forEach((part, k) => {
+      const o = (row * P + k) * 7, w = (row * P + k) * 6
+      const q = this.poses.subarray(o + 3, o + 7)
+      const [x, y, z, qw] = qmul([q[0], q[1], q[2], q[3]], this.partRot[k] ?? [0, 0, 0, 1])
+      out[part.name] = {
+        name: part.name, shape: part.shape, size: part.size, mass: part.mass,
+        position: new Vec3(this.poses[o], this.poses[o + 1], this.poses[o + 2]),
+        rotation: { x, y, z, w: qw },
+        velocity: new Vec3(this.partVel[w], this.partVel[w + 1], this.partVel[w + 2]),
+        angularVelocity: new Vec3(this.partVel[w + 3], this.partVel[w + 4], this.partVel[w + 5]),
+      }
+    })
+    return out
+  }
+
+  private declares(type: 'joints' | 'touch' | 'parts'): boolean {
     return !!this.body.sensors?.some((s) => s.type === type)
   }
 

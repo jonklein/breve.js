@@ -208,6 +208,24 @@ class RapierArticulation implements Articulation {
     out[offset] = v.x; out[offset + 1] = v.y; out[offset + 2] = v.z
   }
 
+  readVelocities(out: Float32Array | number[], offset: number): void {
+    for (let i = 0; i < this.bodies.length; i++) {
+      const v = this.bodies[i].linvel(), w = this.bodies[i].angvel(), o = offset + i * 6
+      out[o] = v.x; out[o + 1] = v.y; out[o + 2] = v.z
+      out[o + 3] = w.x; out[o + 4] = w.y; out[o + 5] = w.z
+    }
+  }
+
+  applyForces(f: ArrayLike<number>): void {
+    for (let i = 0; i < this.bodies.length; i++) {
+      const rb = this.bodies[i], o = i * 6
+      rb.resetForces(false)
+      rb.resetTorques(false)
+      if (f[o] || f[o + 1] || f[o + 2]) rb.addForce({ x: f[o], y: f[o + 1], z: f[o + 2] }, true)
+      if (f[o + 3] || f[o + 4] || f[o + 5]) rb.addTorque({ x: f[o + 3], y: f[o + 4], z: f[o + 5] }, true)
+    }
+  }
+
   readAngles(out: Float32Array | number[], offset: number): void {
     for (let i = 0; i < this.joints.length; i++) {
       const j = this.joints[i]

@@ -125,6 +125,28 @@ class MujocoArticulation implements Articulation {
     out[offset] = v[this.rootVel]; out[offset + 1] = v[this.rootVel + 1]; out[offset + 2] = v[this.rootVel + 2]
   }
 
+  readVelocities(out: Float32Array | number[], offset: number): void {
+    // cvel is [angular, linear] about the body's subtree center of mass; the linear part is moved to the body's own center
+    const cvel = this.data.cvel, sub = this.data.subtree_com, com = this.data.xipos
+    for (let i = 0; i < this.bodyIds.length; i++) {
+      const b = this.bodyIds[i], w0 = cvel[b * 6], w1 = cvel[b * 6 + 1], w2 = cvel[b * 6 + 2]
+      const rx = com[b * 3] - sub[b * 3], ry = com[b * 3 + 1] - sub[b * 3 + 1], rz = com[b * 3 + 2] - sub[b * 3 + 2]
+      const o = offset + i * 6
+      out[o] = cvel[b * 6 + 3] + w1 * rz - w2 * ry
+      out[o + 1] = cvel[b * 6 + 4] + w2 * rx - w0 * rz
+      out[o + 2] = cvel[b * 6 + 5] + w0 * ry - w1 * rx
+      out[o + 3] = w0; out[o + 4] = w1; out[o + 5] = w2
+    }
+  }
+
+  applyForces(f: ArrayLike<number>): void {
+    const x = this.data.xfrc_applied // read afresh: the wasm heap can move
+    for (let i = 0; i < this.bodyIds.length; i++) {
+      const b = this.bodyIds[i] * 6, o = i * 6
+      for (let k = 0; k < 6; k++) x[b + k] = f[o + k]
+    }
+  }
+
   readAngles(out: Float32Array | number[], offset: number): void {
     const q = this.data.qpos
     for (let i = 0; i < this.qposAdr.length; i++) out[offset + i] = this.qposAdr[i] < 0 ? 0 : q[this.qposAdr[i]]

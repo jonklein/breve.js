@@ -270,6 +270,20 @@
     "about": "about.md"
   },
   {
+    "id": "swimmers",
+    "name": "Swimmers",
+    "description": "Fish that swim by bending, in water the script makes from buoyancy and drag. The engine only pushes; the water is a few lines of stdlib.",
+    "scene": "scene.json",
+    "script": "swimmer.js",
+    "tags": [
+      "physics",
+      "water",
+      "forces"
+    ],
+    "folder": "Creatures & robots",
+    "about": "about.md"
+  },
+  {
     "id": "urdf-bot",
     "name": "Robot from a URDF",
     "description": "A four-legged robot converted from a URDF file (robot.urdf) and walked by a script.",

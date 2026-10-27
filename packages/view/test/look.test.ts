@@ -107,3 +107,12 @@ test('sky effects: preset defaults, overridden from the sky block', () => {
   const s = resolveLook({ preset: 'day', sky: { top: '#123456', horizon: '#abcdef', clouds: 0, sun: false } }).skyFx
   assert.deepEqual([s.clouds, s.sun], [0, false])
 })
+
+test('world references to data are replaced by what is stored there, and dropped when missing', async () => {
+  const { resolveWorld } = await import('../src/look')
+  const data = { lights: [{ at: [1, 2] }], pond: { level: 3 } }
+  assert.deepEqual(resolveWorld({ markers: 'lights', water: 'pond', follow: true }, data), { markers: data.lights, water: data.pond, follow: true })
+  assert.equal(resolveWorld({ markers: 'nope' }, data)?.markers, undefined)
+  assert.deepEqual(resolveWorld({ markers: [{ at: [0, 0] }] }, undefined), { markers: [{ at: [0, 0] }] })
+  assert.equal(resolveWorld(undefined, data), undefined)
+})

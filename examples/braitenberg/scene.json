@@ -3,32 +3,7 @@
   "seed": 4,
   "world": {
     "preset": "dusk",
-    "markers": [
-      {
-        "at": [
-          -5.5,
-          4.5
-        ],
-        "height": 1.9,
-        "color": "#ffd25a"
-      },
-      {
-        "at": [
-          6.5,
-          -3.5
-        ],
-        "height": 1.9,
-        "color": "#ffd25a"
-      },
-      {
-        "at": [
-          0,
-          -8.5
-        ],
-        "height": 1.9,
-        "color": "#ffd25a"
-      }
-    ]
+    "markers": "lights"
   },
   "terrain": {
     "size": 30,
@@ -45,21 +20,27 @@
           -5.5,
           4.5
         ],
-        "power": 1
+        "power": 1,
+        "height": 1.9,
+        "color": "#ffd25a"
       },
       {
         "at": [
           6.5,
           -3.5
         ],
-        "power": 1
+        "power": 1,
+        "height": 1.9,
+        "color": "#ffd25a"
       },
       {
         "at": [
           0,
           -8.5
         ],
-        "power": 1
+        "power": 1,
+        "height": 1.9,
+        "color": "#ffd25a"
       }
     ],
     "kinds": [

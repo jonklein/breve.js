@@ -1,0 +1,19 @@
+# Forces from scripts, and water
+
+## Context
+We wanted water creatures. The physics engines have gravity and contacts but no fluid, and the rule is that the engine provides mechanisms and behaviors live in scripts or the standard library.
+
+## Options
+1. Build water into the physics adapter (a `medium` setting on the world).
+2. Give scripts a general way to push parts, and write water as a stdlib function.
+
+## Decision
+Option 2. A creature's `act` may return `forces: { part: { force, torque } }`, applied at the part's center of mass before the substeps and lasting one tick (`Articulation.applyForces`; Rapier and MuJoCo both implement it). A new `parts` sensor gives every part's pose, velocity, shape, size and mass (`Articulation.readVelocities`). The stdlib `Fluid` turns those into buoyancy (by how much of a part is under a level) and anisotropic quadratic drag with a cap so one tick cannot reverse a part. Wind, thrust or magnets use the same door.
+
+`world.water` (and `world.markers`) are drawn only. Either may be a string naming a `data` key, so the script and the picture read one source (and dragging a pole or the surface edits one place); the scene check says which keys exist if a name is wrong.
+
+## Consequences
+- Forces are part of the sim state's inputs, so determinism and fork work as for joint targets (the pushes are recomputed from state each tick, and the last pushes are not stored beyond it).
+- Drag is explicit-integration: the cap keeps it stable, at the cost of understating very fast motion.
+- No waves, added mass or surface tension; buoyancy acts at the center unless `buoyancyHeight` lifts it.
+- MuJoCo velocities come from `cvel` (the binding's `mj_objectVelocity` does not fill its output array).

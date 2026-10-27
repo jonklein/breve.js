@@ -237,8 +237,10 @@ export interface WorldDef {
   agentColor?: 'heading' | string
   /** Cast shadows: `true`/`false`, or settings: `softness` (blur, 0 to 4), `resolution` (shadow map size) and `bias`. On by default for physics scenes with terrain, off otherwise. */
   shadows?: boolean | { softness?: number; resolution?: 512 | 1024 | 2048 | 4096; bias?: number }
-  /** Poles standing on the ground at fixed spots, so you can see how far things have gone. Drawn only: nothing collides with them. */
-  markers?: { /** Where, on the ground: [x, z]. */ at: [number, number]; /** Pole height in world units. Default 2. */ height?: number; color?: string }[]
+  /** Poles standing on the ground at fixed spots, so you can see how far things have gone. Drawn only: nothing collides with them. Instead of the list, a string names a key of the scene's `data` that holds it (`"markers": "lights"`), so the script and the picture read one list and dragging a pole edits it. */
+  markers?: string | { /** Where, on the ground: [x, z]. */ at: [number, number]; /** Pole height in world units. Default 2. */ height?: number; color?: string }[]
+  /** A water surface at height `level`, drawn translucent so creatures show through. Drawn only: use the stdlib's `Fluid` in the script for what water does to bodies. Instead of the object, a string names a key of the scene's `data` that holds it, so one place says where the water is for both the picture and the script. */
+  water?: string | { level: number; color?: string; opacity?: number }
   /** Physics scenes: the camera follows the first body of the first creature, keeping whatever angle and distance you orbit to. Default false. */
   follow?: boolean
 }
@@ -448,11 +450,22 @@ export const sceneSchema = {
           ],
         },
         markers: {
-          type: 'array',
-          items: {
-            type: 'object', required: ['at'], additionalProperties: false,
-            properties: { at: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, height: { type: 'number', exclusiveMinimum: 0 }, color },
-          },
+          anyOf: [
+            { type: 'string', minLength: 1 },
+            {
+              type: 'array',
+              items: {
+                type: 'object', required: ['at'], additionalProperties: false,
+                properties: { at: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, height: { type: 'number', exclusiveMinimum: 0 }, color },
+              },
+            },
+          ],
+        },
+        water: {
+          anyOf: [
+            { type: 'string', minLength: 1 },
+            { type: 'object', required: ['level'], additionalProperties: false, properties: { level: { type: 'number' }, color, opacity: { type: 'number', minimum: 0, maximum: 1 } } },
+          ],
         },
         follow: { type: 'boolean' },
       },
@@ -660,6 +673,10 @@ export function validateScene(data: unknown): SceneResult {
   const names = new Set(Object.keys(scene.params))
   const check = (v: NumOrParam | undefined, where: string) => {
     if (typeof v === 'string' && !names.has(v.slice(1))) errors.push(`${where}: unknown param "${v}"`)
+  }
+  for (const key of ['markers', 'water'] as const) {
+    const ref = scene.world?.[key]
+    if (typeof ref === 'string' && !(scene.data && ref in scene.data)) errors.push(`world.${key}: "${ref}" is not a key of the scene's "data"${scene.data ? ` (it has: ${Object.keys(scene.data).join(', ')})` : ' (the scene has no "data")'}`)
   }
   scene.charts?.forEach((c, i) => c.metrics.forEach((m) => { if (!(scene.metrics ?? []).includes(m)) errors.push(`charts.${i}.metrics: "${m}" is not one of the scene's metrics`) }))
   const seen = new Set<string>()

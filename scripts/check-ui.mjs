@@ -192,6 +192,11 @@ await sim('braitenberg')
 await page.waitForTimeout(7000)
 check('the Braitenberg vehicles run', /creatures/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
 
+// swimmers: forces and the water plane run with no problems
+await sim('swimmers')
+await page.waitForTimeout(7000)
+check('the swimmers run', /creatures/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
+
 // particle life: the dots run with no problems
 await sim('particle-life')
 await page.waitForTimeout(3500)

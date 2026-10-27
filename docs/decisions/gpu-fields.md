@@ -67,10 +67,19 @@ Checked in this sandbox: headless Chromium with `--enable-unsafe-webgpu` gets a 
 5. **Bit-packed Life kernel** and multi-step fusion; record numbers in `docs/perf.md` next to the CPU table (about 80 ms a tick at 1000² today).
 6. **Then** generalize: gray-scott (a float stencil with a Laplacian) as the second example, `shift(dx, dy)` and a weighted stencil as general neighbor ops, and agents on the GPU only if the first part lands well (neighbor search is a different problem).
 
-## Decisions needed
+## Decisions
 
-1. **Hook name.** The naming rule is `x` / `xAll`. This one is a different kind of thing (called once, returns a program). Options: `kernel` (the thing it is), `actKernel`, or `compileAll`. Recommendation: `kernel`, with `step` and `look` inside it.
-2. **Async snapshot.** Make `snapshot`/`fork`/`hash` able to await a GPU flush (a small, contained change to `Sim`), or make GPU sets "not forkable" for now. Recommendation: async flush, since forking a running sim is a core promise.
-3. **Pure randomness.** Add `ctx.hash` for everyone (also fixes the audit finding in `functional-audit.md`), or only inside kernels. Recommendation: for everyone.
-4. **Dependency.** WebGPU is a browser API, so none is needed, plus a headless-browser test using the Playwright we already have. A WGSL validator (naga via a tiny wasm package) would be nice for fast unit tests but is optional.
-5. **Scope of "GPU only".** Do we want a scene to be able to *require* the GPU (error without it), or fall back to the CPU backend with a notice? Recommendation: fall back, since the CPU backend runs the same graph.
+**Decided (by you):**
+- **The hook follows the `x` / `xAll` pattern**, with a third form for compiled rules, and works for every hook that has a whole-set form: `init`, `act`, `display` (and `think` where it makes sense). One script can mix them: an `initX` that fills the grid with a hash-based random, an `actX` for the rule, a `displayX` for colour.
+- **No GPU means fallback**, never an error. The same graph runs on the CPU backend, so the name of the hook must not say "GPU".
+- **`ctx.hash` exists only inside compiled rules**, not for per-entity `act` (those keep `ctx.random()`). On the CPU fallback the interpreter implements the same hash, so results match.
+
+**Still open: the name of the third form** (`initX`, `actX`, `displayX`). Not `Kernel`, and not `Gpu` (it also runs on the CPU). Candidates:
+| name | reads as | note |
+|---|---|---|
+| `actFormula` / `initFormula` / `displayFormula` | a spreadsheet formula: you write the expression once, it is evaluated for every cell | the recommendation: friendly, honest (it really is an expression), and no one expects a loop in a formula |
+| `actProgram` | a small program handed to the engine | accurate but vague |
+| `actShader` / `displayShader` | graphics people know it | right for `display`, misleading for `act` |
+| `actRecipe` | a recipe the engine follows every tick | friendly, a little cute |
+
+**Decided by default (say if you disagree): snapshots and forks.** A GPU set's numbers live in graphics memory. Copying a running sim (fork) can be done *inside* the GPU (a buffer copy), so it stays instant and needs no change. What needs the numbers back in ordinary memory is saving a snapshot, a hash, inspecting a cell, or a metric, and a browser can only fetch those back asynchronously (it cannot stop and wait). So: those few calls get an awaitable form for GPU sets, and everything else stays as it is. Nothing the person writing a scene has to think about.

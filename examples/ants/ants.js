@@ -86,14 +86,17 @@ export const Ground = {
     return { scent: 0 }
   },
 
-  // What to draw: scent, brighter when stronger; bare ground is not drawn. The colors are the scene's `data.colors`,
-  // so changing them is an edit to the scene, not to this script.
+  // What to draw: the scent, more opaque where it is stronger, so bare ground simply shows through. The color is the scene's
+  // `data.colors.scent`, so changing it is an edit to the scene, not to this script.
   //
-  // This is the whole-set form: one call gets every cell's `scent` as a Field, and the arithmetic below works out a
-  // number from 0 to 1 for all of the cells at once, with no loop in the script.
+  // This is the whole-set form: one call gets every cell's `scent` as a Field, and the arithmetic below works out an opacity
+  // (0 to 1) for all of the cells at once, with no loop in the script.
   displayAll({ scent }, p, ctx) {
-    const c = ctx.data.colors
-    return { visible: scent.gt(0.05), color: ctx.colors.gradientField([c.weakScent, c.strongScent], scent.div(4).min(1)) }
+    const c = ctx.colors.hex(ctx.data.colors.scent)
+    const n = scent.length
+    const color = { r: new Float32Array(n).fill(c[0]), g: new Float32Array(n).fill(c[1]), b: new Float32Array(n).fill(c[2]) }
+    // cells with next to no scent are not drawn at all, so their faint edges do not add up to a ghostly grid over the ground
+    return { visible: scent.gt(0.02), color, opacity: scent.div(4).min(1) }
   },
 
   // The same picture as a per-cell `display`, which is easier to read: it is called once for each cell, and `self` holds that
@@ -101,9 +104,8 @@ export const Ground = {
   // or for small sets. To try it, comment out `displayAll` above and uncomment this; a set uses one or the other.
   //
   // display({ self }, p, ctx) {
-  //   if (self.scent <= 0.05) return { visible: false }                              // bare ground is not drawn
-  //   const c = ctx.data.colors
-  //   return { color: ctx.colors.gradient([c.weakScent, c.strongScent], Math.min(self.scent / 4, 1)) }
+  //   if (self.scent <= 0.02) return { visible: false }
+  //   return { color: ctx.data.colors.scent, opacity: Math.min(self.scent / 4, 1) }
   // },
 
   actAll({ scent }, p) {

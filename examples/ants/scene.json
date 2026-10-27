@@ -23,8 +23,7 @@
       "ant": "#8a5a2b",
       "nest": "#4f86f7",
       "food": "#ffd34a",
-      "weakScent": "#2f5a3c",
-      "strongScent": "#7be495"
+      "scent": "#7be495"
     },
     "nest": {
       "at": [

@@ -1,8 +1,8 @@
 {
   "name": "creature-gltf",
   "seed": 11,
-  "world": { "preset": "day" },
-  "terrain": { "size": 80, "resolution": 64, "amplitude": 0.6, "frequency": 0.07, "color": "#4f7a46" },
+  "world": { "preset": "day", "floor": { "texture": { "kind": "grass", "tile": 7 }, "roughness": 0.95 } },
+  "terrain": {"size": 80, "resolution": 64, "amplitude": 0.6, "frequency": 0.07, "texture": {"kind": "grass", "tile": 7}, "shading": "smooth"},
   "params": {
     "count": { "value": 12, "min": 1, "max": 60, "step": 1, "label": "creatures" },
     "frequency": { "value": 3, "min": 0.5, "max": 4, "step": 0.1, "label": "step rate (Hz)" },

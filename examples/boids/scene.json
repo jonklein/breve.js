@@ -2,7 +2,7 @@
   "name": "boids",
   "seed": 7,
   "bounds": { "size": 30 },
-  "world": { "preset": "dusk", "grid": false, "agentColor": "heading", "shadows": true, "floor": { "texture": { "kind": "grid", "colors": ["#5a4670","#1b1328"], "scale": 6, "tile": 30}, "roughness": 0.6}},
+  "world": { "frame": false, "preset": "dusk", "grid": false, "agentColor": "heading", "shadows": true, "camera": {"distance": 2.3, "elevation": 13}, "floor": { "texture": { "kind": "grid", "colors": ["#5a4670","#1b1328"], "scale": 6, "tile": 30}, "roughness": 0.6}},
   "params": {
     "count": { "value": 300, "min": 10, "max": 1500, "step": 10 },
     "radius": { "value": 7, "min": 1, "max": 15, "step": 0.5, "label": "neighbor radius" },
@@ -16,7 +16,7 @@
   },
   "entities": [
     {
-      "name": "boid", "style": {"shape": "cone", "material": {"roughness": 0.3, "metalness": 0.35, "glow": 0.25}},
+      "name": "boid", "style": {"shape": "cone", "material": {"roughness": 0.55, "metalness": 0, "glow": 0.12}},
       "count": "$count",
       "controller": "flock.js",
       "sensors": [{ "type": "neighbors", "radius": "$radius" }],

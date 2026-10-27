@@ -17,7 +17,8 @@ export interface TerrainMesh {
   /** `heights[ix * (n + 1) + iz]`, see Terrain. */
   heights: Float32Array
   color?: string
-  texture?: 'static' | 'grid' | 'none'
+  texture?: 'static' | 'grid' | 'none' | string | { kind?: string; url?: string; colors?: string[]; scale?: number; seed?: number; contrast?: number; bump?: number; tile?: number }
+  palette?: { low?: string; mid?: string; high?: string; steep?: string }
   shading?: 'smooth' | 'flat'
 }
 

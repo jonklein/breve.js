@@ -30,8 +30,8 @@ export function shapeGeometry(shape: string | undefined, fallback: Fallback): TH
 /** Apply a set's `material` settings to its material. `glow` and `opacity` live in uniforms the alpha material reads. */
 export function applyMaterial(mat: THREE.MeshStandardMaterial, style: SetStyleInput | undefined): void {
   const m = style?.material ?? {}
-  mat.roughness = m.roughness ?? 0.55
-  mat.metalness = m.metalness ?? 0.05
+  mat.roughness = m.roughness ?? 0.7
+  mat.metalness = m.metalness ?? 0
   const u = mat.userData as { glow?: { value: number }; baseAlpha?: { value: number } }
   if (u.glow) u.glow.value = m.glow ?? 0
   if (u.baseAlpha) u.baseAlpha.value = m.opacity ?? 1

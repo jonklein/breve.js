@@ -15,10 +15,15 @@ export interface TerrainDef {
   /** Surface color (visual only). */
   color?: string
   /** Ground texture (visual only): fine speckle (default), a one-meter grid for judging motion, or plain. */
-  texture?: 'static' | 'grid' | 'none'
+  texture?: 'static' | 'grid' | 'none' | TerrainTexture
+  /** Tints by height and slope, multiplied with the texture: `low` (valleys), `mid`, `high` (peaks) and `steep` (cliffs). Leave a color white to let the texture show. */
+  palette?: { low?: string; mid?: string; high?: string; steep?: string }
   /** Surface shading (visual only): `smooth` (default) blends neighboring slopes; `flat` shows each facet. */
   shading?: 'smooth' | 'flat'
 }
+
+/** A generated or loaded texture by name or description (see TextureDef in the scene). */
+export type TerrainTexture = string | { kind?: string; url?: string; colors?: string[]; scale?: number; seed?: number; contrast?: number; bump?: number; tile?: number }
 
 export const TERRAIN_DEFAULTS = { size: 60, resolution: 48, amplitude: 1, frequency: 0.07, octaves: 3 }
 
@@ -28,7 +33,8 @@ export class Terrain {
   readonly n: number
   readonly heights: Float32Array
   readonly color: string | undefined
-  readonly texture: 'static' | 'grid' | 'none'
+  readonly texture: 'static' | 'grid' | 'none' | TerrainTexture
+  readonly palette: TerrainDef['palette']
   readonly shading: 'smooth' | 'flat'
 
   constructor(def: TerrainDef | undefined, seed: number) {
@@ -37,6 +43,7 @@ export class Terrain {
     this.n = Math.max(2, Math.min(256, Math.round(d.resolution)))
     this.color = def?.color
     this.texture = def?.texture ?? 'static'
+    this.palette = def?.palette
     this.shading = def?.shading ?? 'smooth'
     const noise = new Perlin2(seed)
     const m = this.n + 1

@@ -2,7 +2,7 @@
   "name": "neural",
   "seed": 11,
   "bounds": { "size": 20 },
-  "world": { "preset": "night", "sky": { "top": "#10091f", "horizon": "#3b2a63" }, "fog": { "color": "#2a1f4a" }, "grid": false, "agentColor": "heading", "shadows": true, "floor": { "texture": { "kind": "grid", "colors": ["#4a3a80","#150d2b"], "scale": 6, "tile": 30}, "roughness": 0.6}},
+  "world": { "frame": false, "preset": "night", "sky": { "top": "#10091f", "horizon": "#3b2a63" }, "fog": { "color": "#2a1f4a" }, "grid": false, "agentColor": "heading", "shadows": true, "floor": { "texture": { "kind": "grid", "colors": ["#4a3a80","#150d2b"], "scale": 6, "tile": 30}, "roughness": 0.6}},
   "params": {
     "count": { "value": 100, "min": 10, "max": 400, "step": 10 },
     "radius": { "value": 8, "min": 2, "max": 16, "step": 0.5, "label": "how far they see" },
@@ -11,7 +11,7 @@
   },
   "entities": [
     {
-      "name": "thinker", "style": {"shape": "octahedron", "material": {"roughness": 0.2, "metalness": 0.5, "glow": 0.35}},
+      "name": "thinker", "style": {"shape": "octahedron", "material": {"roughness": 0.45, "metalness": 0.1, "glow": 0.25}},
       "count": "$count",
       "controller": "brain.js",
       "sensors": [{ "type": "neighbors", "radius": "$radius" }],

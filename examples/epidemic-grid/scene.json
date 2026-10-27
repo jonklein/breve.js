@@ -9,7 +9,7 @@
   },
   "entities": [
     {
-      "name": "people", "style": {"shape": "sphere", "material": {"roughness": 0.3, "glow": 0.7}},
+      "name": "people", "style": {"shape": "sphere", "material": {"roughness": 0.4, "glow": 0.45}},
       "controller": "../epidemic/contagion.js",
       "lattice": { "size": [30, 1, 30], "spacing": 1, "edges": "wrap", "thickness": 0.3 }
     }

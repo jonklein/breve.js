@@ -8,7 +8,7 @@
   },
   "entities": [
     {
-      "name": "cell", "style": {"material": {"roughness": 0.25, "metalness": 0.2, "glow": 0.4}},
+      "name": "cell", "style": {"material": {"roughness": 0.5, "metalness": 0, "glow": 0.35}},
       "lattice": { "size": [20, 20, 20], "spacing": 1.2, "edges": "wrap" },
       "controller": "life.js"
     }

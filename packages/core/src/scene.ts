@@ -177,7 +177,7 @@ export interface WorldDef {
    */
   preset?: 'day' | 'dusk' | 'night' | 'studio' | 'space' | 'plain'
   /** A solid color, or a gradient from `top` to `horizon`. */
-  sky?: string | { top: string; horizon: string; ground?: string }
+  sky?: string | { top: string; horizon: string; ground?: string; /** 0 to 1: how many stars. */ stars?: number; /** 0 to 1: how much cloud. */ clouds?: number; /** Draw a sun disc and glow where the light comes from (default: on for day and dusk). */ sun?: boolean }
   /**
    * Distance haze. `true` uses the preset's; `false` turns it off. Give `near` and `far` (distances from the camera) for linear fog,
    * or a `density` for exponential fog. `color` defaults to the horizon color of the sky.
@@ -195,6 +195,17 @@ export interface WorldDef {
   }
   /** How strongly shiny surfaces mirror the sky, 0 (not at all) to 2. `true` uses the preset's. */
   reflections?: boolean | number
+  /**
+   * Screen effects: `bloom` (bright things glow), `ao` (contact shading in creases and under things), `vignette` (darker corners, 0 to 1),
+   * `saturation` and `contrast` (color grading, 1 is unchanged). `true` or `false` turns the preset's set on or off.
+   */
+  effects?: boolean | {
+    bloom?: boolean | { strength?: number; radius?: number; threshold?: number }
+    ao?: boolean | { radius?: number; intensity?: number }
+    vignette?: number
+    saturation?: number
+    contrast?: number
+  }
   /** Where the camera starts (you can still orbit): `distance` as a multiple of the world's size (default 2.5), `elevation` and `azimuth` in degrees (defaults 23 and 45), `fov` field of view in degrees (default 55). */
   camera?: { distance?: number; elevation?: number; azimuth?: number; fov?: number }
   /** A ground plane, for scenes without terrain: `{ "texture": "grass" }`, `{ "color": "#222", "y": -1 }`. `false` or leaving it out draws none. */
@@ -203,6 +214,8 @@ export interface WorldDef {
   grid?: boolean
   /** Color of the bounds box. */
   boundsColor?: string
+  /** Draw the outline of the world's box (default true). Turn it off for a scene that reads better as open ground. */
+  frame?: boolean
   /** "heading" colors each agent by the way it faces, or give one color for all. */
   agentColor?: 'heading' | string
   /** Cast shadows: `true`/`false`, or settings: `softness` (blur, 0 to 4), `resolution` (shadow map size) and `bias`. On by default for physics scenes with terrain, off otherwise. */
@@ -302,7 +315,8 @@ export const sceneSchema = {
         frequency: { type: 'number', exclusiveMinimum: 0 },
         octaves: { type: 'integer', minimum: 1, maximum: 6 },
         color,
-        texture: { enum: ['static', 'grid', 'none'] },
+        texture: { anyOf: [{ enum: ['static', 'grid', 'none'] }, textureDef] },
+        palette: { type: 'object', additionalProperties: false, properties: { low: color, mid: color, high: color, steep: color } },
         shading: { enum: ['smooth', 'flat'] },
       },
     },
@@ -340,6 +354,22 @@ export const sceneSchema = {
           },
         },
         reflections: { anyOf: [{ type: 'boolean' }, { type: 'number', minimum: 0, maximum: 2 }] },
+        effects: {
+          anyOf: [
+            { type: 'boolean' },
+            {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                bloom: { anyOf: [{ type: 'boolean' }, { type: 'object', additionalProperties: false, properties: { strength: { type: 'number', minimum: 0, maximum: 5 }, radius: { type: 'number', minimum: 0, maximum: 1.5 }, threshold: { type: 'number', minimum: 0, maximum: 5 } } }] },
+                ao: { anyOf: [{ type: 'boolean' }, { type: 'object', additionalProperties: false, properties: { radius: { type: 'number', exclusiveMinimum: 0 }, intensity: { type: 'number', minimum: 0, maximum: 4 } } }] },
+                vignette: { type: 'number', minimum: 0, maximum: 1 },
+                saturation: { type: 'number', minimum: 0, maximum: 3 },
+                contrast: { type: 'number', minimum: 0.2, maximum: 3 },
+              },
+            },
+          ],
+        },
         camera: { type: 'object', additionalProperties: false, properties: { distance: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, elevation: { type: 'number', minimum: -10, maximum: 89 }, azimuth: { type: 'number' }, fov: { type: 'number', minimum: 10, maximum: 120 } } },
         floor: {
           anyOf: [
@@ -361,11 +391,12 @@ export const sceneSchema = {
         sky: {
           anyOf: [
             color,
-            { type: 'object', required: ['top', 'horizon'], additionalProperties: false, properties: { top: color, horizon: color, ground: color } },
+            { type: 'object', required: ['top', 'horizon'], additionalProperties: false, properties: { top: color, horizon: color, ground: color, stars: { type: 'number', minimum: 0, maximum: 1 }, clouds: { type: 'number', minimum: 0, maximum: 1 }, sun: { type: 'boolean' } } },
           ],
         },
         grid: { type: 'boolean' },
         boundsColor: color,
+        frame: { type: 'boolean' },
         agentColor: { anyOf: [{ const: 'heading' }, color] },
         shadows: {
           anyOf: [

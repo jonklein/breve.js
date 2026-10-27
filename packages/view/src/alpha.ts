@@ -5,7 +5,7 @@ import * as THREE from 'three'
  * It only blends when `blend(true)` says some instance is see-through, so the common case keeps depth writes and sorting-free drawing.
  */
 export function alphaMaterial(): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.05 })
+  const m = new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0 })
   const glow = { value: 0 }, baseAlpha = { value: 1 }
   m.userData.glow = glow
   m.userData.baseAlpha = baseAlpha

@@ -2,7 +2,7 @@
   "name": "remote-policy",
   "seed": 3,
   "bounds": { "size": 20 },
-  "world": { "preset": "day", "grid": false, "shadows": true, "floor": { "texture": "grass", "y": -0.6}},
+  "world": { "frame": false, "preset": "day", "grid": false, "shadows": true, "floor": { "texture": "grass", "y": -0.6}},
   "models": { "policy": { "url": "ws://localhost:8765" } },
   "params": {
     "count": { "value": 60, "min": 5, "max": 400, "step": 5 },

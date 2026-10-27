@@ -88,3 +88,22 @@ test('camera: defaults match the old three-quarter view, and settings override t
   assert.deepEqual([c.distance, c.elevation, c.azimuth, c.fov], [1.4, 12, 45, 40])
   assert.equal(resolveLook({ camera: { elevation: 200 } }).camera.elevation, 89)
 })
+
+test('effects: presets set bloom, ambient occlusion, vignette and grading; the scene overrides or turns them off', () => {
+  const plain = resolveLook({ preset: 'plain' }).effects
+  assert.deepEqual([plain.bloom, plain.ao, plain.vignette, plain.saturation], [null, null, 0, 1])
+  const dusk = resolveLook({ preset: 'dusk' }).effects
+  assert.ok(dusk.bloom && dusk.ao && dusk.vignette > 0)
+  assert.equal(resolveLook({ preset: 'dusk', effects: false }).effects.bloom, null)
+  const custom = resolveLook({ preset: 'plain', effects: { bloom: { strength: 1.2, threshold: 0.4 }, ao: true, vignette: 0.5, saturation: 0.8 } }).effects
+  assert.deepEqual([custom.bloom!.strength, custom.bloom!.threshold, custom.vignette, custom.saturation], [1.2, 0.4, 0.5, 0.8])
+  assert.ok(custom.ao, 'ao: true turns it on even where the preset has none')
+  assert.equal(resolveLook({ preset: 'night', effects: { bloom: false } }).effects.bloom, null)
+  assert.ok(resolveLook({ effects: { bloom: { strength: 99 } } }).effects.bloom!.strength <= 5, 'values are clamped')
+})
+
+test('sky effects: preset defaults, overridden from the sky block', () => {
+  assert.deepEqual(resolveLook({ preset: 'night' }).skyFx, { stars: 1, clouds: 0.15, sun: false })
+  const s = resolveLook({ preset: 'day', sky: { top: '#123456', horizon: '#abcdef', clouds: 0, sun: false } }).skyFx
+  assert.deepEqual([s.clouds, s.sun], [0, false])
+})

@@ -2,7 +2,7 @@
   "name": "herding",
   "seed": 21,
   "bounds": { "size": 24 },
-  "world": {"preset": "day", "grid": false, "shadows": true, "floor": {"texture": "grass", "y": -0.6}, "camera": {"distance": 1.25, "elevation": 30}},
+  "world": { "frame": false,"preset": "day", "grid": false, "shadows": true, "floor": {"texture": "grass", "y": -0.6}, "camera": {"distance": 1.25, "elevation": 30}},
   "params": {
     "sheep": { "value": 40, "min": 5, "max": 150, "step": 5 },
     "fear": { "value": 40, "min": 0, "max": 120, "step": 1, "label": "how scared of the dog" },

@@ -6,6 +6,7 @@ import { normalizeTexture } from './texture-gen'
  */
 
 export interface LookInput {
+  effects?: unknown
   camera?: unknown
   floor?: unknown
   preset?: unknown
@@ -14,6 +15,7 @@ export interface LookInput {
   light?: unknown
   reflections?: unknown
   grid?: unknown
+  frame?: unknown
   boundsColor?: unknown
   agentColor?: unknown
   shadows?: unknown
@@ -24,6 +26,8 @@ export type ToneMapping = 'none' | 'aces' | 'neutral'
 export interface ResolvedLook {
   preset: string
   sky: { top: string; horizon: string; ground: string }
+  /** What is drawn in the sky besides the gradient. */
+  skyFx: { stars: number; clouds: number; sun: boolean }
   fog: { kind: 'none' | 'linear' | 'exp'; color: string; near: number; far: number; density: number }
   sun: { color: string; intensity: number; azimuth: number; elevation: number }
   ambient: { color: string; intensity: number }
@@ -35,8 +39,11 @@ export interface ResolvedLook {
   reflections: number
   grid: boolean
   boundsColor: string
+  frame: boolean
   /** A fixed agent color, or null for "by heading". */
   agentColor: string | null
+  /** Screen effects. `aoRadius` is a multiple of the world's size. `null` means off. */
+  effects: { bloom: { strength: number; radius: number; threshold: number } | null; ao: { radius: number; intensity: number } | null; vignette: number; saturation: number; contrast: number }
   /** Where the camera starts. */
   camera: { distance: number; elevation: number; azimuth: number; fov: number }
   /** The ground plane, or null for none. `y` and `size` are null when they should follow the world's size. */
@@ -44,7 +51,9 @@ export interface ResolvedLook {
 }
 
 interface Preset {
+  fx: { bloom: number; ao: number; vignette: number; saturation: number; contrast: number }
   sky: { top: string; horizon: string; ground: string }
+  skyFx: { stars: number; clouds: number; sun: boolean }
   fog: false | { color?: string; near: number; far: number }
   sun: ResolvedLook['sun']
   ambient: ResolvedLook['ambient']
@@ -58,40 +67,52 @@ interface Preset {
 /** `near` and `far` for fog are multiples of the world's size, so a preset suits a small arena and a big one alike. */
 export const PRESETS: Record<string, Preset> = {
   plain: {
+    fx: { bloom: 0, ao: 0, vignette: 0, saturation: 1, contrast: 1 },
+    skyFx: { stars: 0, clouds: 0, sun: false },
     sky: { top: '#0b1226', horizon: '#2a4a7a', ground: '#122034' }, fog: false,
     sun: { color: '#ffffff', intensity: 1.6, azimuth: 32, elevation: 52 },
     ambient: { color: '#ffffff', intensity: 0.9 }, hemisphere: { sky: '#ffffff', ground: '#444444', intensity: 0 },
     exposure: 1, toneMapping: 'none', softness: 1, reflections: 0,
   },
   day: {
+    fx: { bloom: 0.12, ao: 1, vignette: 0.12, saturation: 1.08, contrast: 1.05 },
+    skyFx: { stars: 0, clouds: 0.5, sun: true },
     sky: { top: '#3f86d6', horizon: '#cfe4f4', ground: '#7d8f86' }, fog: { near: 1.6, far: 7 },
     sun: { color: '#fff1d6', intensity: 2.6, azimuth: 40, elevation: 52 },
     ambient: { color: '#ffffff', intensity: 0.2 }, hemisphere: { sky: '#bcd9ff', ground: '#6e6450', intensity: 1.0 },
-    exposure: 1, toneMapping: 'aces', softness: 1.5, reflections: 0.7,
+    exposure: 1, toneMapping: 'aces', softness: 1.5, reflections: 0.3,
   },
   dusk: {
+    fx: { bloom: 0.3, ao: 1, vignette: 0.25, saturation: 1.12, contrast: 1.08 },
+    skyFx: { stars: 0.25, clouds: 0.4, sun: true },
     sky: { top: '#141f45', horizon: '#c8704f', ground: '#2b2233' }, fog: { color: '#6d4a5c', near: 1.8, far: 8 },
     sun: { color: '#ffb27a', intensity: 2.8, azimuth: 235, elevation: 16 },
     ambient: { color: '#a090c0', intensity: 0.35 }, hemisphere: { sky: '#8a9ad8', ground: '#4a3a50', intensity: 1.2 },
-    exposure: 1.1, toneMapping: 'aces', softness: 2, reflections: 0.9,
+    exposure: 1.1, toneMapping: 'aces', softness: 2, reflections: 0.35,
   },
   night: {
+    fx: { bloom: 0.5, ao: 0.8, vignette: 0.35, saturation: 1.1, contrast: 1.1 },
+    skyFx: { stars: 1, clouds: 0.15, sun: false },
     sky: { top: '#03050d', horizon: '#0f1b36', ground: '#05070f' }, fog: { color: '#0a1228', near: 1.6, far: 7.5 },
     sun: { color: '#9dbcff', intensity: 1.3, azimuth: 120, elevation: 40 },
     ambient: { color: '#4a5a8a', intensity: 0.4 }, hemisphere: { sky: '#3a4f8e', ground: '#10131f', intensity: 0.9 },
-    exposure: 1.2, toneMapping: 'aces', softness: 2, reflections: 0.5,
+    exposure: 1.2, toneMapping: 'aces', softness: 2, reflections: 0.25,
   },
   studio: {
+    fx: { bloom: 0.08, ao: 1, vignette: 0.1, saturation: 1, contrast: 1.05 },
+    skyFx: { stars: 0, clouds: 0, sun: false },
     sky: { top: '#2a2e36', horizon: '#4b515c', ground: '#1e2126' }, fog: false,
     sun: { color: '#ffffff', intensity: 2.4, azimuth: 30, elevation: 55 },
     ambient: { color: '#ffffff', intensity: 0.1 }, hemisphere: { sky: '#ffffff', ground: '#5a5f68', intensity: 0.9 },
-    exposure: 1, toneMapping: 'neutral', softness: 2.5, reflections: 1,
+    exposure: 1, toneMapping: 'neutral', softness: 2.5, reflections: 0.5,
   },
   space: {
+    fx: { bloom: 0.55, ao: 0, vignette: 0.3, saturation: 1.1, contrast: 1.1 },
+    skyFx: { stars: 1, clouds: 0, sun: false },
     sky: { top: '#000000', horizon: '#06070f', ground: '#000000' }, fog: false,
     sun: { color: '#ffffff', intensity: 2.8, azimuth: 60, elevation: 28 },
     ambient: { color: '#233055', intensity: 0.18 }, hemisphere: { sky: '#101830', ground: '#05060a', intensity: 0.25 },
-    exposure: 1, toneMapping: 'aces', softness: 0.5, reflections: 0.3,
+    exposure: 1, toneMapping: 'aces', softness: 0.5, reflections: 0.2,
   },
 }
 
@@ -115,6 +136,7 @@ export function resolveLook(world: LookInput | undefined, size = 30): ResolvedLo
   const name = typeof world?.preset === 'string' && world.preset in PRESETS ? world.preset : world ? 'plain' : DEFAULT_PRESET
   const p = PRESETS[name]
 
+  const skyIn = isObj(world?.sky) ? world.sky : {}
   // sky: a single color flattens the gradient
   let sky = p.sky
   if (typeof world?.sky === 'string') { const c = str(world.sky, p.sky.top); sky = { top: c, horizon: c, ground: c } }
@@ -156,6 +178,11 @@ export function resolveLook(world: LookInput | undefined, size = 30): ResolvedLo
   return {
     preset: name,
     sky,
+    skyFx: {
+      stars: Math.max(0, Math.min(1, num(skyIn.stars, p.skyFx.stars))),
+      clouds: Math.max(0, Math.min(1, num(skyIn.clouds, p.skyFx.clouds))),
+      sun: typeof skyIn.sun === 'boolean' ? skyIn.sun : p.skyFx.sun,
+    },
     fog,
     sun: {
       color: str(sunIn.color, p.sun.color), intensity: Math.max(0, num(sunIn.intensity, p.sun.intensity)),
@@ -174,9 +201,32 @@ export function resolveLook(world: LookInput | undefined, size = 30): ResolvedLo
     reflections: refl === false ? 0 : refl === true || refl === undefined ? p.reflections : Math.max(0, Math.min(2, num(refl, p.reflections))),
     grid: world?.grid !== false,
     boundsColor: str(world?.boundsColor, '#3a4658'),
+    frame: world?.frame !== false,
+    effects: resolveEffects(world?.effects, p.fx),
     camera: resolveCamera(world?.camera),
     floor: resolveFloor(world?.floor),
     agentColor: typeof world?.agentColor === 'string' && world.agentColor !== 'heading' ? str(world.agentColor, '#ffffff') : null,
+  }
+}
+
+/**
+ * Effects: the preset's strengths, overridden by the scene. `bloom` and `ao` may be `true` (the preset's amount, or a default when the
+ * preset has none), `false`, or an object. An amount of 0 means off.
+ */
+function resolveEffects(e: unknown, base: Preset['fx']): ResolvedLook['effects'] {
+  const off = e === false
+  const all = isObj(e) ? e : {}
+  const bloomIn = all.bloom, aoIn = all.ao
+  const bloomOn = !off && (bloomIn === true || isObj(bloomIn) || (bloomIn === undefined && base.bloom > 0))
+  const aoOn = !off && (aoIn === true || isObj(aoIn) || (aoIn === undefined && base.ao > 0))
+  const b = isObj(bloomIn) ? bloomIn : {}
+  const a = isObj(aoIn) ? aoIn : {}
+  return {
+    bloom: bloomOn ? { strength: Math.max(0, Math.min(5, num(b.strength, base.bloom || 0.3))), radius: Math.max(0, Math.min(1.5, num(b.radius, 0.5))), threshold: Math.max(0, num(b.threshold, 0.75)) } : null,
+    ao: aoOn ? { radius: Math.max(0.001, num(a.radius, 0.06)), intensity: Math.max(0, Math.min(4, num(a.intensity, base.ao || 1))) } : null,
+    vignette: off ? 0 : Math.max(0, Math.min(1, num(all.vignette, base.vignette))),
+    saturation: off ? 1 : Math.max(0, Math.min(3, num(all.saturation, base.saturation))),
+    contrast: off ? 1 : Math.max(0.2, Math.min(3, num(all.contrast, base.contrast))),
   }
 }
 

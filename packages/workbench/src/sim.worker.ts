@@ -160,6 +160,8 @@ async function startPopulation(parent: Parent, mine: number): Promise<void> {
   postMessage({ type: 'crumbs', trail: ['All runs'] } satisfies FromWorker)
 }
 
+let replayLog: { tick: number; set: number; row: number; decision: unknown }[] | null = null // a log to replay on the next sim built
+
 async function rebuild(): Promise<void> {
   if (!scene) return
   const mine = ++builds
@@ -179,6 +181,8 @@ async function rebuild(): Promise<void> {
     return
   }
   next.provider = askModel
+  // a replay must be set before the new sim can take a step, or its first thoughts would ask the model
+  if (replayLog && mine === builds) { next.replay(replayLog); replayLog = null }
   if (mine !== builds) return next.dispose() // a newer rebuild started while this one loaded
   sim?.dispose()
   sim = next
@@ -433,8 +437,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'replay':
       applyScene(sceneText)
+      replayLog = m.log
+      sim?.replay(m.log) // the sim that is still running while the new one is built must stop asking now
       await rebuild()
-      sim?.replay(m.log)
       lastPosted = -1
       break
     case 'sweep':

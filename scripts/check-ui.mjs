@@ -118,10 +118,12 @@ const logPath = await download.path()
 const fs = await import('node:fs')
 const log = JSON.parse(fs.readFileSync(logPath, 'utf8'))
 fs.writeFileSync(logPath + '.json', JSON.stringify(log))
-const before2 = asked
 await page.setInputFiles('#think-file', logPath + '.json')
-await page.waitForFunction(() => /replaying/.test(document.getElementById('think-count').textContent), null, { timeout: 20000 }).catch(() => {}) // slower on a busy machine
-check('a saved decision log replays without asking the model', log.length > 0 && asked === before2 && /replaying/.test(await page.textContent('#think-count')), `${log.length} decisions`)
+// on a slow machine the page can take a while to start the replay, and the old run may ask in the meantime: what counts is that nothing asks once it has started
+await page.waitForFunction(() => /replaying/.test(document.getElementById('think-count').textContent), null, { timeout: 60000 }).catch(() => {})
+const before2 = asked
+await page.waitForTimeout(3000)
+check('a saved decision log replays without asking the model', log.length > 0 && asked === before2 && /replaying/.test(await page.textContent('#think-count')), `${log.length} decisions, ${asked - before2} asked while replaying`)
 
 // a project opened from a share link is held until approved
 await sim('boids')

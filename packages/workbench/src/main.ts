@@ -114,6 +114,14 @@ async function main(): Promise<void> {
   // JSON opens as a tree of fields; the text view is one click away, and the last choice is remembered
   const pref = (k: string, fallback: string) => { try { return localStorage.getItem(k) ?? fallback } catch { return fallback } }
   const remember = (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* private window: the choice just lasts this visit */ } }
+  // the controls and charts fold away to a single bar, and stay that way next visit
+  const setPanel = (open: boolean) => {
+    $('panel').classList.toggle('collapsed', !open)
+    $('panel-toggle').setAttribute('aria-expanded', String(open))
+    remember('breve.panel', open ? 'open' : 'closed')
+  }
+  setPanel(pref('breve.panel', 'open') === 'open')
+  $('panel-toggle').addEventListener('click', () => setPanel($('panel-toggle').getAttribute('aria-expanded') !== 'true'))
   let treeView = pref('breve.json', 'tree') === 'tree'
   let tab = 'scene'
   const sceneTree = new JsonTree($('tree-scene'), sceneSchema, (text) => sceneEditor.setText(text))

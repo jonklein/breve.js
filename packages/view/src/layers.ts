@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { WorldFrame } from './world-view'
 import { alphaMaterial, blend, withAlpha } from './alpha'
 import { applyMaterial, shapeGeometry, type Fallback } from './style'
+import { Trails } from './trails'
 
 const MAX_INSTANCES = 5000
 const MAX_CUBES = 200000
@@ -25,6 +26,8 @@ export class AgentLayer {
   private big = new THREE.Vector3(1, 1, 1)
   /** Highlighted row (the one being inspected), or -1. */
   selected = -1
+  private trails: Trails | null = null
+  private trailRgb = new Float32Array(0)
 
   constructor(private scene: THREE.Scene, shadowsOn = false) {
     const geo = new THREE.ConeGeometry(0.32, 1.3, 20, 1) // enough sides that the cone reads as round
@@ -47,7 +50,7 @@ export class AgentLayer {
     return hit && hit.instanceId !== undefined ? { row: hit.instanceId, distance: hit.distance } : null
   }
 
-  setVisible(on: boolean): void { this.mesh.visible = on }
+  setVisible(on: boolean): void { this.mesh.visible = on; this.trails?.setVisible(on) }
 
   setShadows(on: boolean): void { this.mesh.castShadow = on }
 
@@ -103,9 +106,23 @@ export class AgentLayer {
     colors.needsUpdate = true
     this.alpha.needsUpdate = true
     blend(this.mesh.material as THREE.Material, see)
+    this.updateTrails(f, n, colors)
+  }
+
+  /** `style.trail`: a fading line behind each agent, in the agent's own color. */
+  private updateTrails(f: WorldFrame, n: number, colors: THREE.InstancedBufferAttribute): void {
+    const t = f.style?.trail
+    const length = typeof t === 'number' ? t : t?.length ?? 0
+    if (length < 2) { this.trails?.dispose(); this.trails = null; return }
+    const strength = typeof t === 'object' ? t.strength ?? 1 : 1
+    this.trails ??= new Trails(this.scene)
+    if (this.trailRgb.length < n * 3) this.trailRgb = new Float32Array(n * 3)
+    for (let i = 0; i < n * 3; i++) this.trailRgb[i] = colors.array[i]
+    this.trails.push(n, f.pos, this.trailRgb, length, strength)
   }
 
   dispose(): void {
+    this.trails?.dispose()
     this.scene.remove(this.mesh)
     this.mesh.geometry.dispose()
     ;(this.mesh.material as THREE.Material).dispose()
@@ -365,7 +382,7 @@ export class GraphLayer {
     this.alpha!.needsUpdate = true
     blend(this.mesh.material as THREE.Material, see)
     if (g.version !== this.version) this.drawLinks(f)
-    if (this.lines) this.lines.visible = true
+    if (this.lines) { this.lines.visible = true; this.colorLinks(f) }
   }
 
   private drawLinks(f: WorldFrame): void {
@@ -376,9 +393,25 @@ export class GraphLayer {
     for (let i = 0; i < e.length; i++) pos.set([f.pos[e[i] * 3], f.pos[e[i] * 3 + 1], f.pos[e[i] * 3 + 2]], i * 3)
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-    this.lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#6b7a99', transparent: true, opacity: 0.35 }))
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(e.length * 3), 3).setUsage(THREE.DynamicDrawUsage))
+    // links glow softly in the colors of the nodes they join (additive, so they never hide what is behind them)
+    this.lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }))
     this.lines.frustumCulled = false
     this.scene.add(this.lines)
+  }
+
+  /** Each end of a link takes the color of its node (dimmed), so links read as part of the graph and change with it. */
+  private colorLinks(f: WorldFrame): void {
+    const e = f.graph!.edges
+    const col = this.lines!.geometry.attributes.color as THREE.BufferAttribute
+    const src = this.mesh!.instanceColor!.array
+    for (let i = 0; i < e.length; i++) {
+      const k = e[i] * 3
+      col.array[i * 3] = src[k] * 0.45
+      col.array[i * 3 + 1] = src[k + 1] * 0.45
+      col.array[i * 3 + 2] = src[k + 2] * 0.45
+    }
+    col.needsUpdate = true
   }
 
   private disposeNodes(): void {

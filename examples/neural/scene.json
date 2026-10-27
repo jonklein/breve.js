@@ -11,7 +11,7 @@
   },
   "entities": [
     {
-      "name": "thinker", "style": {"shape": "octahedron", "material": {"roughness": 0.45, "metalness": 0.1, "glow": 0.25}},
+      "name": "thinker", "style": {"trail": {"length": 14, "strength": 0.6}, "shape": "octahedron", "material": {"roughness": 0.45, "metalness": 0.1, "glow": 0.25}},
       "count": "$count",
       "controller": "brain.js",
       "sensors": [{ "type": "neighbors", "radius": "$radius" }],

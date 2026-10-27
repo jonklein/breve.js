@@ -24,7 +24,7 @@ export interface WorldFrame {
   /** Per-set color for free agents. */
   color?: string
   scale?: number
-  style?: { shape?: string; material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number } }
+  style?: { shape?: string; trail?: number | { length?: number; strength?: number }; material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number } }
   rate?: number
 }
 

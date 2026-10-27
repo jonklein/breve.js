@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 export interface SetStyleInput {
   shape?: string
+  trail?: number | { length?: number; strength?: number }
   material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number }
 }
 
@@ -18,6 +19,7 @@ export function shapeGeometry(shape: string | undefined, fallback: Fallback): TH
   switch (kind) {
     case 'sphere': return new THREE.SphereGeometry(0.45, 28, 18)
     case 'cube': return fallback === 'cube' ? new THREE.BoxGeometry(1, 1, 1) : new RoundedBoxGeometry(0.75, 0.75, 0.75, 4, 0.14)
+    case 'rounded': return fallback === 'cube' ? new RoundedBoxGeometry(1, 1, 1, 4, 0.16) : new RoundedBoxGeometry(0.75, 0.75, 0.75, 4, 0.14)
     case 'capsule': { const g = new THREE.CapsuleGeometry(0.22, 0.75, 8, 18); g.rotateX(Math.PI / 2); return g }
     case 'octahedron': return new THREE.OctahedronGeometry(0.55)
     case 'tetrahedron': return new THREE.TetrahedronGeometry(0.6)

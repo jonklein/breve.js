@@ -123,10 +123,12 @@ export interface EntityDef {
 
 /** How the things in one entity set look. */
 export interface SetStyle {
-  /** What each agent or node is drawn as: `cone` (the default for agents, pointing the way they move), `sphere`, `cube`, `capsule`, `octahedron`, `tetrahedron`, `disc`, `cylinder`. Lattice cells are cubes and nodes are spheres unless this says otherwise. */
-  shape?: 'cone' | 'sphere' | 'cube' | 'capsule' | 'octahedron' | 'tetrahedron' | 'disc' | 'cylinder'
+  /** What each agent or node is drawn as: `cone` (the default for agents, pointing the way they move), `sphere`, `cube`, `rounded` (a cube with soft edges), `capsule`, `octahedron`, `tetrahedron`, `disc`, `cylinder`. Lattice cells are cubes and nodes are spheres unless this says otherwise. */
+  shape?: 'cone' | 'sphere' | 'cube' | 'rounded' | 'capsule' | 'octahedron' | 'tetrahedron' | 'disc' | 'cylinder'
   /** Surface: `roughness` 0 (mirror) to 1 (matte), `metalness` 0 to 1, `glow` how much the color lights itself (0 none, 1 as bright as lit, above 1 glows), `opacity` 0 to 1. */
   material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number }
+  /** A fading line behind each agent: how many ticks long (up to 240), or `{ length, strength }` (strength scales brightness, default 1). */
+  trail?: number | { length?: number; strength?: number }
 }
 
 /** The patterns a generated texture can be. */
@@ -461,7 +463,7 @@ export const sceneSchema = {
             type: 'object',
             additionalProperties: false,
             properties: {
-              shape: { enum: ['cone', 'sphere', 'cube', 'capsule', 'octahedron', 'tetrahedron', 'disc', 'cylinder'] },
+              shape: { enum: ['cone', 'sphere', 'cube', 'rounded', 'capsule', 'octahedron', 'tetrahedron', 'disc', 'cylinder'] },
               material: {
                 type: 'object',
                 additionalProperties: false,
@@ -472,6 +474,7 @@ export const sceneSchema = {
                   opacity: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
                 },
               },
+              trail: { anyOf: [{ type: 'number', minimum: 0, maximum: 240 }, { type: 'object', additionalProperties: false, properties: { length: { type: 'number', minimum: 0, maximum: 240 }, strength: { type: 'number', minimum: 0, maximum: 4 } } }] },
             },
           },
           count: numOrParam,

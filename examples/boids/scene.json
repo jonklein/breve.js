@@ -16,7 +16,7 @@
   },
   "entities": [
     {
-      "name": "boid", "style": {"shape": "cone", "material": {"roughness": 0.55, "metalness": 0, "glow": 0.12}},
+      "name": "boid", "style": {"trail": {"length": 10, "strength": 0.55}, "shape": "cone", "material": {"roughness": 0.55, "metalness": 0, "glow": 0.12}},
       "count": "$count",
       "controller": "flock.js",
       "sensors": [{ "type": "neighbors", "radius": "$radius" }],

@@ -53,12 +53,30 @@ export const Ground = {
     return { food: FOOD.some((f) => inside(f, f[3])) ? 5 : 0, scent: 0, nest: inside(NEST, NEST_RADIUS), delivered: 0 }
   },
 
-  // what to draw: the nest blue, food gold, scent green (brighter when stronger); bare ground is not drawn
+  // What to draw: the nest blue, food gold, scent green (brighter when stronger); bare ground is not drawn.
+  //
+  // This is the whole-set form: one call gets every cell's `scent`, `food` and `nest` as Fields, and the arithmetic below
+  // works out a number from 0 to 1 for all of the cells at once (-1 means "do not draw"), with no loop in the script.
   displayAll({ scent, food, nest }, p, ctx) {
     const look = food.gt(0).where(1, scent.gt(0.05).where(scent.div(4).min(1).div(3).add(1 / 3), -1))
     const shown = nest.where(0, look)
     return { visible: shown.ge(0), color: ctx.colors.rampField(['#4f86f7', '#2f5a3c', '#7be495', '#ffd34a'], shown.max(0)) }
   },
+
+  // The same picture as a per-cell `display`, which is easier to read: it is called once for each cell, and `self` holds that
+  // one cell's numbers. It is slower on a big grid (a function call and a small object for every cell), so use it while learning
+  // or for small sets. To try it, comment out `displayAll` above and uncomment this; a set uses one or the other.
+  //
+  // display({ self }, p, ctx) {
+  //   if (self.nest) return { color: ctx.colors.ramp(STOPS, 0) }                     // the nest: blue
+  //   if (self.food > 0) return { color: ctx.colors.ramp(STOPS, 1) }                 // food: gold
+  //   if (self.scent > 0.05) {                                                        // scent: darker green to brighter green
+  //     const strength = Math.min(self.scent / 4, 1)
+  //     return { color: ctx.colors.ramp(STOPS, strength / 3 + 1 / 3) }
+  //   }
+  //   return { visible: false }                                                       // bare ground is not drawn
+  // },
+  // where STOPS = ['#4f86f7', '#2f5a3c', '#7be495', '#ffd34a'] (put it next to FOOD at the top of the ground section).
 
   actAll({ scent, food }, p) {
     // scent spreads into neighbors, then evaporates a little

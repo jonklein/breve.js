@@ -22,7 +22,7 @@ const sim = async (hash) => {
   if (await page.locator('main.drawer-open').count()) { await page.click('#drawer-close'); await page.waitForTimeout(300) } // the editor is remembered open between visits; the checks want the stage clear
 }
 const openDrawer = async () => { if (!(await page.locator('main.drawer-open').count())) await page.click('#drawer-toggle'); await page.waitForTimeout(350) }
-const tickOf = async () => Number((await page.textContent('#timeline-label')).match(/tick (\d+)/)[1])
+const tickOf = async () => Number((await page.textContent('#timeline-label')).match(/t = (\d+)/)[1])
 
 // the front page: a live simulation behind the words, and a way in; the three live demos are on the explore page
 await page.goto(`${base}/`)

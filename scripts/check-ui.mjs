@@ -165,6 +165,14 @@ await page.click('.post-card a')
 await page.waitForTimeout(500)
 check('a post renders its markdown', (await page.locator('article.post h1').count()) === 1 && (await page.locator('article.post h2').count()) >= 2)
 
+// formulas: a lattice written as formulas runs (on the processor here: this browser has no WebGPU), and one too big for that says why
+await sim('life2d-formula')
+await page.waitForTimeout(3000)
+check('a formula lattice runs and shows its cells', /live cells/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, await page.textContent('#stats'))
+await sim('life-giant')
+await page.waitForTimeout(4000)
+check('a grid too big for the processor explains that it needs WebGPU', /WebGPU/.test((await page.locator('.problems li').allTextContents()).join(' ')), (await page.locator('.problems li').allTextContents()).join(' | ').slice(0, 160))
+
 // a slider move on an untouched example remembers the value, not a frozen copy of the example
 await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('breve:')) localStorage.removeItem(k) })
 await sim('boids')

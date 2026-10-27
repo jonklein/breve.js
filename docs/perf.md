@@ -36,3 +36,12 @@ so they suit grids up to roughly 50,000 cells.
 
 Per-cell handles are only built when a `act` rule or a lattice metric asks for them; a metric such as
 `cells.alive.sum()` on a million cells therefore builds a million handle objects once and is slow. Prefer `actAll`.
+
+## Life on the graphics card (`examples/life-giant`, `@breve/gpu`)
+
+Measured only on a software WebGPU adapter (SwiftShader on a CPU, in headless Chromium), which is not a real graphics card and tells you
+little about speed, but shows it works at size: 4096 x 4096 (16,777,216 cells) runs about 1 tick a second there, including the picture
+(1024 x 1024) and the population total each frame. On a real card the same passes are expected to be thousands of times faster; numbers
+from real hardware belong here once someone runs it. The CPU interpreter, for comparison, would need several seconds a tick and
+over a gigabyte for this grid, which is why the processor path refuses grids over 8,388,608 cells.
+

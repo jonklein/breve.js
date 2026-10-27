@@ -501,11 +501,10 @@ export class FieldLayer {
     const t = this.texture!, mesh = this.mesh!
     ;(t.image as { data: Uint8Array }).data = p.pixels as unknown as Uint8Array<ArrayBuffer>
     t.needsUpdate = true
-    // the quad covers the window, in world units, centered on the grid (a cell is `spacing` wide)
-    const [x0, y0, x1, y1] = p.window
+    // the quad is always the whole grid, centered (a cell is `spacing` wide); zooming changes what the picture shows, not where it is drawn
     const [nx, ny] = p.dims
-    mesh.scale.set((x1 - x0) * p.spacing, (y1 - y0) * p.spacing, 1)
-    mesh.position.set(((x0 + x1) / 2 - nx / 2) * p.spacing, ((y0 + y1) / 2 - ny / 2) * p.spacing, 0)
+    mesh.scale.set(nx * p.spacing, ny * p.spacing, 1)
+    mesh.position.set(0, 0, 0)
   }
 
   dispose(): void {

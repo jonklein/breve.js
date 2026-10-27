@@ -38,6 +38,7 @@ async function main(): Promise<void> {
   const send = (m: ToWorker) => worker.postMessage(m)
 
   const viewport = new Viewport($('viewport'))
+  viewport.onFieldView = (set, window, width, height) => send({ type: 'fieldView', set, window, width, height })
   const about = new AboutOverlay($('viewport'))
   const metrics = new MetricsPanel($('metrics'))
 
@@ -596,7 +597,7 @@ async function main(): Promise<void> {
         const tps = Math.max(0, ((m.tick - lastTick) * 1000) / (now - lastTime))
         lastTick = m.tick
         lastTime = now
-        $('stats').textContent = `${m.frames.map((f) => `${f.count} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
+        $('stats').textContent = `${m.frames.map((f) => `${f.count.toLocaleString()} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'field' ? 'cells on the graphics card' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
       }
     } else if (m.type === 'crumbs') {
       // a trail like "All runs › c04": every step but the last goes back to that level

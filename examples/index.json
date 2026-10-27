@@ -86,6 +86,22 @@
     "about": "about.md"
   },
   {
+    "id": "life-giant",
+    "name": "Giant Life (GPU)",
+    "description": "Life on 16 million cells, kept and updated on the graphics card, with a zoomable picture. Needs WebGPU.",
+    "scene": "scene.json",
+    "script": "life.js",
+    "tags": [
+      "grid",
+      "cellular automaton",
+      "fast",
+      "formula",
+      "gpu"
+    ],
+    "folder": "Cells & patterns",
+    "about": "about.md"
+  },
+  {
     "id": "epidemic-grid",
     "name": "Epidemic on a grid",
     "description": "The very same contagion script, now running on a grid of cells.",

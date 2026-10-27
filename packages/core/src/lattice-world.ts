@@ -37,6 +37,9 @@ function store(dst: Column, f: StateField, data: ArrayLike<number>, n: number): 
  * so a 100,000-cell grid needs no edge lists. Rules are synchronous: every cell reads
  * the old state, and the new state is written all at once at the end of the tick.
  */
+/** Most cells the processor path builds: its neighbor tables and cell objects take hundreds of bytes a cell. */
+export const MAX_CPU_CELLS = 8_388_608
+
 export class LatticeWorld implements World, PatchLayer {
   readonly table: Table<string>
   readonly patches = this
@@ -65,6 +68,9 @@ export class LatticeWorld implements World, PatchLayer {
     const L = def.lattice!
     this.dims = L.size
     this.n = L.size[0] * L.size[1] * L.size[2]
+    if (this.n > MAX_CPU_CELLS) {
+      throw new Error(`"${host.def.name}" has ${this.n.toLocaleString()} cells, which is more than the processor path handles (${MAX_CPU_CELLS.toLocaleString()}). A grid this big needs a graphics card with WebGPU and a script written with \`initFormula\` and \`actFormula\`, or a smaller \`size\``)
+    }
     const sf = host.fields
     for (const f of sf) { this.fieldOf[f.name] = f; this.types[f.name] = f.type }
     this.fields = sf.map((f) => f.name)

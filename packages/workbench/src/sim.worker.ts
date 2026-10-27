@@ -12,6 +12,8 @@ export type ToWorker =
   | { type: 'play'; running: boolean }
   | { type: 'step' }
   | { type: 'reset' }
+  /** Zoom and pan a lattice kept on the graphics card: which part of the grid (left, top, right, bottom in cells) to draw, in how many pixels. */
+  | { type: 'fieldView'; set: number; window: [number, number, number, number]; width: number; height: number }
   /** The keys held down in the view, for human-driven controllers. */
   | { type: 'keys'; keys: string[] }
   /** Watch one entity (or nothing). Its fields come back with every frame. */
@@ -106,7 +108,7 @@ async function applyScript(code: string): Promise<void> {
   try {
     script = await compile(code)
     scriptErrors = []
-    postMessage({ type: 'controllers', names: Object.entries(script).filter(([k, v]) => k !== 'metrics' && !!v && typeof v === 'object' && ['act', 'actAll', 'init', 'initAll'].some((f) => typeof (v as Record<string, unknown>)[f] === 'function')).map(([k]) => k) } satisfies FromWorker)
+    postMessage({ type: 'controllers', names: Object.entries(script).filter(([k, v]) => k !== 'metrics' && !!v && typeof v === 'object' && ['act', 'actAll', 'actFormula', 'init', 'initAll', 'initFormula'].some((f) => typeof (v as Record<string, unknown>)[f] === 'function')).map(([k]) => k) } satisfies FromWorker)
   } catch (e) {
     scriptErrors = [e instanceof Error ? e.message : String(e)]
   }
@@ -164,7 +166,18 @@ async function rebuild(): Promise<void> {
   const parent = parentOf(script)
   if (parent) return startPopulation(parent, mine)
   if (population || parked) leavePopulation()
-  const next = await Sim.create(scene, script ?? undefined)
+  let next: Sim
+  try {
+    next = await Sim.create(scene, script ?? undefined)
+  } catch (e) {
+    // a scene that cannot be built (a grid too big for this machine, a missing engine) is explained in the problems list, not lost
+    if (mine !== builds) return
+    sim?.dispose()
+    sim = null
+    lastSent = ''
+    postMessage({ type: 'problems', scene: sceneErrors, script: scriptErrors, runtime: [e instanceof Error ? e.message : String(e)] } satisfies FromWorker)
+    return
+  }
   next.provider = askModel
   if (mine !== builds) return next.dispose() // a newer rebuild started while this one loaded
   sim?.dispose()
@@ -268,24 +281,25 @@ function stepPopulation(): void {
 }
 
 let refreshing = false // a lattice kept on the graphics card is bringing its picture and totals back
+let pictureReady = false // ...and has brought them: the next frame can go out
 
 function post(): void {
   if (population?.mutating) return // a new generation is being made: wait until it is whole
   if (group) return postGroup()
   if (!sim) return
-  if (sim.onGraphicsCard) {
-    // the picture has to come back from the card before a frame can be sent; steps wait for it, so the card is never far ahead of what is shown
-    if (!refreshing && sim.needsRefresh && sim.tick !== lastPosted) {
-      refreshing = true
-      const s = sim
-      void s.refresh().catch(() => {}).finally(() => { refreshing = false })
-    }
-    if (refreshing) return
+  // A lattice on the graphics card must have its picture fetched before a frame can be sent. Ticks wait for the fetch (see the step loop),
+  // so the card is never far ahead of what is shown, and the frame that follows is the one that was fetched, not a newer one.
+  const card = sim.onGraphicsCard
+  if (card && !refreshing && !pictureReady && sim.tick !== lastPosted) {
+    refreshing = true
+    const s = sim
+    void s.refresh().catch(() => {}).finally(() => { refreshing = false; pictureReady = true })
   }
-  if (sim.tick !== lastPosted) {
+  if (sim.tick !== lastPosted && (!card || pictureReady)) {
     lastPosted = sim.tick
+    pictureReady = false
     const frames = sim.frames()
-    const m = sim.tick % 4 === 0 || sim.rate < 30 ? sim.metrics() : null
+    const m = sim.tick % 4 === 0 || sim.rate < 30 || card ? sim.metrics() : null // totals from a graphics card are already in hand
     if (m) { metricLog.push({ tick: sim.tick, m }); if (metricLog.length > 600) metricLog.shift() }
     const inspected = selection ? sim.inspect(selection.set, selection.row) : null
     const msg: FromWorker = { type: 'frame', epoch, tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying, complete: sim.decisionLogComplete }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, rate: sim.rate, frames }
@@ -389,6 +403,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'play':
       running = m.running
+      break
+    case 'fieldView':
+      if (sim) { sim.setFieldView(m.set, { window: m.window, width: m.width, height: m.height }); lastPosted = -1; pictureReady = false } // draw it now, even when paused
       break
     case 'step':
       if (population) { if (!populationBusy) stepPopulation() }

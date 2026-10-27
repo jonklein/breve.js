@@ -66,3 +66,22 @@ test('a formula that uses operators instead of expression methods is reported in
   const errors = sim.takeErrors().map(String)
   assert.ok(errors.some((m) => /expression has no number/.test(m)), errors.join(' | '))
 })
+
+test('a grid too big for the processor path is refused with a reason, and the giant example says it needs WebGPU', async () => {
+  const scene = sceneOf('life-giant')
+  assert.deepEqual(scene.entities[0].lattice!.size, [4096, 4096, 1])
+  const script = await example('life-giant', 'life.js')
+  await assert.rejects(Sim.create(scene, script), /graphics card with WebGPU/)
+})
+
+test('lattice compute accepts auto and cpu and rejects anything else', async () => {
+  const scene = sceneOf('life2d-formula')
+  for (const compute of ['auto', 'cpu']) {
+    const s = structuredClone(scene); s.entities[0].lattice!.compute = compute as 'auto'
+    assert.ok(parseScene(JSON.stringify(s)).ok, compute)
+  }
+  const bad = structuredClone(scene); (bad.entities[0].lattice as { compute?: string }).compute = 'gpu'
+  const r = parseScene(JSON.stringify(bad))
+  assert.equal(r.ok, false)
+  assert.match(r.ok ? '' : r.errors.join('\n'), /lattice\.compute/)
+})

@@ -544,7 +544,7 @@ export const sceneSchema = {
             required: ['size'],
             additionalProperties: false,
             properties: {
-              size: { type: 'array', items: { type: 'integer', minimum: 1, maximum: 2048 }, minItems: 3, maxItems: 3 },
+              size: { type: 'array', items: { type: 'integer', minimum: 1, maximum: 16384 }, minItems: 3, maxItems: 3 },
               spacing: { type: 'number', exclusiveMinimum: 0 },
               edges: { enum: ['dead', 'wrap'] },
               neighborhood: { enum: ['moore', 'von-neumann'] },

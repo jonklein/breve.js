@@ -100,6 +100,8 @@ export interface EntityDef {
   color?: string
   /** How big free agents are drawn, as a multiple of the default (1). */
   size?: number
+  /** How this set is drawn (purely visual): its shape and its surface. Colors come from `color`, the world's `agentColor`, or the script's `display`. */
+  style?: SetStyle
   /** Free-moving agents. Use this or `lattice`. */
   count?: NumOrParam
   lattice?: LatticeDef
@@ -119,18 +121,107 @@ export interface EntityDef {
   body?: BodyInput
 }
 
+/** How the things in one entity set look. */
+export interface SetStyle {
+  /** What each agent or node is drawn as: `cone` (the default for agents, pointing the way they move), `sphere`, `cube`, `rounded` (a cube with soft edges), `capsule`, `octahedron`, `tetrahedron`, `disc`, `cylinder`. Lattice cells are cubes and nodes are spheres unless this says otherwise. */
+  shape?: 'cone' | 'sphere' | 'cube' | 'rounded' | 'capsule' | 'octahedron' | 'tetrahedron' | 'disc' | 'cylinder'
+  /** Surface: `roughness` 0 (mirror) to 1 (matte), `metalness` 0 to 1, `glow` how much the color lights itself (0 none, 1 as bright as lit, above 1 glows), `opacity` 0 to 1. */
+  material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number }
+  /** A fading line behind each agent: how many ticks long (up to 240), or `{ length, strength }` (strength scales brightness, default 1). */
+  trail?: number | { length?: number; strength?: number }
+}
+
+/** The patterns a generated texture can be. */
+export const TEXTURE_KINDS = ['noise', 'fbm', 'checker', 'stripes', 'grid', 'dots', 'bricks', 'marble', 'grass', 'sand', 'water', 'url'] as const
+
+/**
+ * A surface texture, either picked by name (`"grass"`) or described: a generated `kind` (made from a few numbers, the same every time,
+ * and seamless when repeated) or an image from a `url`. Purely visual.
+ */
+export type TextureDef = (typeof TEXTURE_KINDS)[number] | {
+  kind?: (typeof TEXTURE_KINDS)[number]
+  /** Image to load, for kind `url` (relative paths start at the project's assets). */
+  url?: string
+  /** Colors the pattern blends between, dark to light or as the pattern calls for (two or more). */
+  colors?: string[]
+  /** How many pattern cells across one tile (default depends on the kind). */
+  scale?: number
+  /** Changes the pattern while keeping its style. */
+  seed?: number
+  /** Stronger or weaker differences between the colors, 0 to 2 (default 1). */
+  contrast?: number
+  /** How strongly the pattern bumps the surface, 0 to 4 (default 1; 0 turns bumps off). */
+  bump?: number
+  /** World units one repeat of the texture covers (default 10). */
+  tile?: number
+}
+
+/** A ground plane for scenes that have no terrain of their own. */
+export interface FloorDef {
+  /** Base color (shows through the texture). */
+  color?: string
+  texture?: TextureDef
+  /** Height of the floor in world units. Default: the bottom of the world box. */
+  y?: number
+  /** Edge length (default 12 times the world's size, so it reaches the haze). */
+  size?: number
+  /** 0 (mirror) to 1 (matte). Default 0.9. */
+  roughness?: number
+  /** 0 (plastic or earth) to 1 (metal). Default 0. */
+  metalness?: number
+}
+
 /** Look of the world. Purely visual: it never affects the simulation. Every field has a default. */
 export interface WorldDef {
+  /**
+   * A ready-made look to start from; every other field here overrides it. `day`, `dusk`, `night`, `studio`, `space`,
+   * or `plain` (the older flat look). With no `world` block at all, the look is `dusk`.
+   */
+  preset?: 'day' | 'dusk' | 'night' | 'studio' | 'space' | 'plain'
   /** A solid color, or a gradient from `top` to `horizon`. */
-  sky?: string | { top: string; horizon: string }
+  sky?: string | { top: string; horizon: string; ground?: string; /** 0 to 1: how many stars. */ stars?: number; /** 0 to 1: how much cloud. */ clouds?: number; /** Draw a sun disc and glow where the light comes from (default: on for day and dusk). */ sun?: boolean }
+  /**
+   * Distance haze. `true` uses the preset's; `false` turns it off. Give `near` and `far` (distances from the camera) for linear fog,
+   * or a `density` for exponential fog. `color` defaults to the horizon color of the sky.
+   */
+  fog?: boolean | { color?: string; near?: number; far?: number; density?: number }
+  /** Lighting. Angles are in degrees: `azimuth` turns the sun around the vertical axis from +x toward +z, `elevation` lifts it above the horizon. */
+  light?: {
+    sun?: { color?: string; intensity?: number; azimuth?: number; elevation?: number }
+    ambient?: { color?: string; intensity?: number }
+    hemisphere?: { sky?: string; ground?: string; intensity?: number }
+    /** Overall brightness (default 1). */
+    exposure?: number
+    /** How bright values are squeezed into the screen's range: `none`, `aces` (filmic) or `neutral`. */
+    toneMapping?: 'none' | 'aces' | 'neutral'
+  }
+  /** How strongly shiny surfaces mirror the sky, 0 (not at all) to 2. `true` uses the preset's. */
+  reflections?: boolean | number
+  /**
+   * Screen effects: `bloom` (bright things glow), `ao` (contact shading in creases and under things), `vignette` (darker corners, 0 to 1),
+   * `saturation` and `contrast` (color grading, 1 is unchanged). `true` or `false` turns the preset's set on or off.
+   */
+  effects?: boolean | {
+    bloom?: boolean | { strength?: number; radius?: number; threshold?: number }
+    ao?: boolean | { radius?: number; intensity?: number }
+    vignette?: number
+    saturation?: number
+    contrast?: number
+  }
+  /** Where the camera starts (you can still orbit): `distance` as a multiple of the world's size (default 2.5), `elevation` and `azimuth` in degrees (defaults 23 and 45), `fov` field of view in degrees (default 55). */
+  camera?: { distance?: number; elevation?: number; azimuth?: number; fov?: number }
+  /** A ground plane, for scenes without terrain: `{ "texture": "grass" }`, `{ "color": "#222", "y": -1 }`. `false` or leaving it out draws none. */
+  floor?: false | FloorDef
   /** A floor grid at the bottom of the bounds. */
   grid?: boolean
   /** Color of the bounds box. */
   boundsColor?: string
+  /** Draw the outline of the world's box (default true). Turn it off for a scene that reads better as open ground. */
+  frame?: boolean
   /** "heading" colors each agent by the way it faces, or give one color for all. */
   agentColor?: 'heading' | string
-  /** Cast shadows. On by default for physics scenes with terrain, off otherwise. */
-  shadows?: boolean
+  /** Cast shadows: `true`/`false`, or settings: `softness` (blur, 0 to 4), `resolution` (shadow map size) and `bias`. On by default for physics scenes with terrain, off otherwise. */
+  shadows?: boolean | { softness?: number; resolution?: 512 | 1024 | 2048 | 4096; bias?: number }
   /** Poles standing on the ground at fixed spots, so you can see how far things have gone. Drawn only: nothing collides with them. */
   markers?: { /** Where, on the ground: [x, z]. */ at: [number, number]; /** Pole height in world units. Default 2. */ height?: number; color?: string }[]
   /** Physics scenes: the camera follows the first body of the first creature, keeping whatever angle and distance you orbit to. Default false. */
@@ -175,6 +266,26 @@ const numOrParam = {
 
 const vec3 = { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 } as const
 
+const textureDef = {
+  anyOf: [
+    { enum: [...TEXTURE_KINDS] },
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { enum: [...TEXTURE_KINDS] },
+        url: { type: 'string', minLength: 1 },
+        colors: { type: 'array', items: { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$' }, minItems: 2, maxItems: 8 },
+        scale: { type: 'number', exclusiveMinimum: 0, maximum: 256 },
+        seed: { type: 'integer' },
+        contrast: { type: 'number', minimum: 0, maximum: 2 },
+        bump: { type: 'number', minimum: 0, maximum: 4 },
+        tile: { type: 'number', exclusiveMinimum: 0 },
+      },
+    },
+  ],
+} as const
+
 const color = { type: 'string', pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$' }
 
 export const sceneSchema = {
@@ -210,7 +321,9 @@ export const sceneSchema = {
         frequency: { type: 'number', exclusiveMinimum: 0 },
         octaves: { type: 'integer', minimum: 1, maximum: 6 },
         color,
-        texture: { enum: ['static', 'grid', 'none'] },
+        texture: { anyOf: [{ enum: ['static', 'grid', 'none'] }, textureDef] },
+        palette: { type: 'object', additionalProperties: false, properties: { low: color, mid: color, high: color, steep: color } },
+        shading: { enum: ['smooth', 'flat'] },
       },
     },
     physics: {
@@ -228,16 +341,75 @@ export const sceneSchema = {
       type: 'object',
       additionalProperties: false,
       properties: {
+        preset: { enum: ['day', 'dusk', 'night', 'studio', 'space', 'plain'] },
+        fog: {
+          anyOf: [
+            { type: 'boolean' },
+            { type: 'object', additionalProperties: false, properties: { color, near: { type: 'number', minimum: 0 }, far: { type: 'number', exclusiveMinimum: 0 }, density: { type: 'number', exclusiveMinimum: 0 } } },
+          ],
+        },
+        light: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            sun: { type: 'object', additionalProperties: false, properties: { color, intensity: { type: 'number', minimum: 0 }, azimuth: { type: 'number' }, elevation: { type: 'number', minimum: -90, maximum: 90 } } },
+            ambient: { type: 'object', additionalProperties: false, properties: { color, intensity: { type: 'number', minimum: 0 } } },
+            hemisphere: { type: 'object', additionalProperties: false, properties: { sky: color, ground: color, intensity: { type: 'number', minimum: 0 } } },
+            exposure: { type: 'number', exclusiveMinimum: 0, maximum: 10 },
+            toneMapping: { enum: ['none', 'aces', 'neutral'] },
+          },
+        },
+        reflections: { anyOf: [{ type: 'boolean' }, { type: 'number', minimum: 0, maximum: 2 }] },
+        effects: {
+          anyOf: [
+            { type: 'boolean' },
+            {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                bloom: { anyOf: [{ type: 'boolean' }, { type: 'object', additionalProperties: false, properties: { strength: { type: 'number', minimum: 0, maximum: 5 }, radius: { type: 'number', minimum: 0, maximum: 1.5 }, threshold: { type: 'number', minimum: 0, maximum: 5 } } }] },
+                ao: { anyOf: [{ type: 'boolean' }, { type: 'object', additionalProperties: false, properties: { radius: { type: 'number', exclusiveMinimum: 0 }, intensity: { type: 'number', minimum: 0, maximum: 4 } } }] },
+                vignette: { type: 'number', minimum: 0, maximum: 1 },
+                saturation: { type: 'number', minimum: 0, maximum: 3 },
+                contrast: { type: 'number', minimum: 0.2, maximum: 3 },
+              },
+            },
+          ],
+        },
+        camera: { type: 'object', additionalProperties: false, properties: { distance: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, elevation: { type: 'number', minimum: -10, maximum: 89 }, azimuth: { type: 'number' }, fov: { type: 'number', minimum: 10, maximum: 120 } } },
+        floor: {
+          anyOf: [
+            { const: false },
+            {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                color,
+                texture: textureDef,
+                y: { type: 'number' },
+                size: { type: 'number', exclusiveMinimum: 0 },
+                roughness: { type: 'number', minimum: 0, maximum: 1 },
+                metalness: { type: 'number', minimum: 0, maximum: 1 },
+              },
+            },
+          ],
+        },
         sky: {
           anyOf: [
             color,
-            { type: 'object', required: ['top', 'horizon'], additionalProperties: false, properties: { top: color, horizon: color } },
+            { type: 'object', required: ['top', 'horizon'], additionalProperties: false, properties: { top: color, horizon: color, ground: color, stars: { type: 'number', minimum: 0, maximum: 1 }, clouds: { type: 'number', minimum: 0, maximum: 1 }, sun: { type: 'boolean' } } },
           ],
         },
         grid: { type: 'boolean' },
         boundsColor: color,
+        frame: { type: 'boolean' },
         agentColor: { anyOf: [{ const: 'heading' }, color] },
-        shadows: { type: 'boolean' },
+        shadows: {
+          anyOf: [
+            { type: 'boolean' },
+            { type: 'object', additionalProperties: false, properties: { softness: { type: 'number', minimum: 0, maximum: 4 }, resolution: { enum: [512, 1024, 2048, 4096] }, bias: { type: 'number' } } },
+          ],
+        },
         markers: {
           type: 'array',
           items: {
@@ -299,6 +471,24 @@ export const sceneSchema = {
           every: { type: 'integer', minimum: 1, maximum: 1000 },
           color,
           size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
+          style: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              shape: { enum: ['cone', 'sphere', 'cube', 'rounded', 'capsule', 'octahedron', 'tetrahedron', 'disc', 'cylinder'] },
+              material: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  roughness: { type: 'number', minimum: 0, maximum: 1 },
+                  metalness: { type: 'number', minimum: 0, maximum: 1 },
+                  glow: { type: 'number', minimum: 0, maximum: 8 },
+                  opacity: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
+                },
+              },
+              trail: { anyOf: [{ type: 'number', minimum: 0, maximum: 240 }, { type: 'object', additionalProperties: false, properties: { length: { type: 'number', minimum: 0, maximum: 240 }, strength: { type: 'number', minimum: 0, maximum: 4 } } }] },
+            },
+          },
           count: numOrParam,
           network: {
             type: 'object',

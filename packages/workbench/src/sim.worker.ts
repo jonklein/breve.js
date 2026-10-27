@@ -5,7 +5,7 @@ import { ParentRun, parentOf, Sim, SimGroup, type Parent, type SimSnapshot, type
 
 export type ToWorker =
   /** `base` is where a scene's relative model paths start (the example's folder). */
-  | { type: 'init'; scene: string; script: string; base?: string }
+  | { type: 'init'; scene: string; script: string; base?: string; /** Which opening of a project this is: frames carry it back so the page can drop ones from a project it has left. */ epoch?: number }
   | { type: 'scene'; scene: string }
   | { type: 'script'; script: string }
   | { type: 'play'; running: boolean }
@@ -42,6 +42,7 @@ export interface WorldFrameMsg {
   name?: string
   color?: string
   scale?: number
+  style?: import('@breve/core').SetStyle
   kind: 'agents' | 'lattice' | 'bodies' | 'graph'
   count: number
   size: number
@@ -58,13 +59,13 @@ export type FromWorker =
   | { type: 'population'; on: boolean }
   /** Where you are in a multi-sim setup, root first: `['All runs', 'c04']`. Empty when there is nothing to go back to. */
   | { type: 'crumbs'; trail: string[] }
-  | { type: 'tiles'; tick: number; rate: number; stepMs: number; /** a parent's progress line, when a parent runs the sims */ status?: string; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
+  | { type: 'tiles'; epoch: number; tick: number; rate: number; stepMs: number; /** a parent's progress line, when a parent runs the sims */ status?: string; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
   | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
   | { type: 'log'; log: DecisionLog }
   /** The metric samples up to a moment, after a seek: the charts redraw from them. */
   | { type: 'metrics'; samples: Record<string, number>[] }
-  | { type: 'frame'; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean; complete: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
+  | { type: 'frame'; epoch: number; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean; complete: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -74,6 +75,7 @@ let script: ScriptModule | null = null
 let running = true
 let sceneErrors: string[] = []
 let scriptErrors: string[] = []
+let epoch = 0
 let lastSent = ''
 let selection: { set: number; row: number } | null = null
 // sweep mode: many sims in one group, ticking together
@@ -246,7 +248,7 @@ function postGroup(): void {
     groupTick = first.tick
     const all = first.tick % 4 === 0 || first.rate < 30
     const tiles = [...group.sims].map(([name, s]) => ({ name, params: sweepRuns.get(name) ?? {}, metrics: all ? s.metrics() : null, frames: s.frames() }))
-    postMessage({ type: 'tiles', tick: first.tick, rate: first.rate, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
+    postMessage({ type: 'tiles', epoch, tick: first.tick, rate: first.rate, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
   }
   const runtime = [...new Set([...group.sims.values()].flatMap((s) => s.takeErrors()))]
   const problems = JSON.stringify([sceneErrors, scriptErrors, runtime])
@@ -273,7 +275,7 @@ function post(): void {
     const m = sim.tick % 4 === 0 || sim.rate < 30 ? sim.metrics() : null
     if (m) { metricLog.push({ tick: sim.tick, m }); if (metricLog.length > 600) metricLog.shift() }
     const inspected = selection ? sim.inspect(selection.set, selection.row) : null
-    const msg: FromWorker = { type: 'frame', tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying, complete: sim.decisionLogComplete }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, rate: sim.rate, frames }
+    const msg: FromWorker = { type: 'frame', epoch, tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying, complete: sim.decisionLogComplete }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, rate: sim.rate, frames }
     postMessage(msg, frames.flatMap(transfers))
   }
   const runtime = [...modelProblems, ...sim.takeErrors()]
@@ -326,6 +328,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       group?.dispose()
       group = null
       lastPosted = -1
+      epoch = m.epoch ?? 0
       modelBase = m.base ?? ''
       applyScene(m.scene)
       await applyScript(m.script)

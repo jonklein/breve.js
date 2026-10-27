@@ -257,7 +257,7 @@ export class Sim {
 
   /** What to draw for each entity set, in scene order. */
   frames(): FrameData[] {
-    return this.worlds.map((w, i) => ({ ...w.frame(), name: this.scene.entities[i].name, color: this.scene.entities[i].color, scale: this.scene.entities[i].size }))
+    return this.worlds.map((w, i) => ({ ...w.frame(), name: this.scene.entities[i].name, color: this.scene.entities[i].color, scale: this.scene.entities[i].size, style: this.scene.entities[i].style }))
   }
 
   /** The first set's frame, for scenes that have only one. */

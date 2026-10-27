@@ -1,18 +1,8 @@
 {
   "name": "urdf-bot",
   "seed": 5,
-  "world": {
-    "sky": {
-      "top": "#16233f",
-      "horizon": "#7f6a6c"
-    }
-  },
-  "terrain": {
-    "size": 60,
-    "amplitude": 0.4,
-    "frequency": 0.07,
-    "color": "#6a7a55"
-  },
+  "world": { "preset": "dusk" },
+  "terrain": {"size": 60, "amplitude": 0.4, "frequency": 0.07, "texture": {"kind": "sand", "tile": 9}, "shading": "smooth"},
   "params": {
     "count": {
       "value": 6,

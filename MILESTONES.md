@@ -19,6 +19,7 @@ About 170 tests pass (stdlib 7, experiment 13, core 136, server 7, inference 5),
 | M6 | Bodies and physics | **Done** | `creature`, `urdf-bot`, `morphology` |
 | M7 | Learning and language models | **Done** (WebGPU untested) | `llm-wanderers`, `neural`, assistant |
 | M8 | Site and editing polish | **Done** | home page, site nav, gallery, share links, tree editor |
+| M12 | Visual quality | **In progress** | every example gets a look |
 | Later | Timeline scrubber, remote models | **Done** | any run; `examples/remote-policy` |
 | Later | Sandboxed scripts (QuickJS), GPU-resident patch layers, server-side projects and accounts | Not started | |
 
@@ -180,10 +181,50 @@ See `docs/decisions/engine-mechanisms-only.md`.
 - [x] Free agents' soft and clamped bounds moved to the stdlib (`Bounds`, `ctx.bounds`, `ctx.world.size`); the agent examples ask for them in their scripts.
 - [ ] Ready-made controllers in the stdlib that scripts extend (a walker, a flocker), once the helpers are settled.
 
+## M12 — Visual quality — In progress
+
+Make the simulations look good, and make every look configurable from the scene (the `world` block and a per-set `look`), never baked into the renderer. Looks are visual only: they never touch the simulation, so determinism is unaffected. Each phase ends with every example still loading, a unit test of the config handling that needs no GPU, and screenshots of the demos it touches.
+
+**How configuration works.** `world.preset` (`day`, `dusk`, `night`, `studio`, `space`, `plain`) picks a coherent set of defaults for sky, fog, light, shadows, reflections and tone mapping; every field below overrides it. A scene with no `world` block looks good on its own. The config is validated by the scene schema with readable errors, resolved to plain numbers by a pure function in `packages/view` (testable without WebGL), and applied by the renderer.
+
+Progress: phases 1 and 2 are mostly done and every example has a preset, a camera or floor where it helps, and a style. Still to do: loadable textures are in but untested against real image files, a `camera` and `style` tour of the remaining examples, trails and outlines, bloom and ambient occlusion, graph link styling, the quality governor, workbench polish, gallery thumbnails.
+
+Phase 1 — lighting, atmosphere, shading (the foundation)
+
+- [x] `world.fog` (linear or exponential, colour matching the sky by default) so distance fades instead of ending in a hard cut.
+- [x] `world.light`: sun colour, intensity and direction (azimuth and elevation), ambient or hemisphere light (sky and ground colours), exposure and tone mapping (`none`, `aces`, `neutral`), with a night and a studio setup.
+- [x] Shadows for every kind of scene, not just creatures: a floor that catches them, `shadows: { softness, resolution, bias }`, and a shadow frustum that fits what is drawn.
+- [x] **Smooth surface normals** (terrain smooth by default, `terrain.shading`; rounder cones, capsules and spheres; rounded cubes for agents still to do for lattice cells). Terrain is flat-shaded today; it becomes smooth by default with `terrain.shading: "smooth" | "flat"`, plus correct normals for every generated mesh (cones, capsules, cubes with optional bevels).
+- [x] Physically based materials in place of plain diffuse ones, with `look.material` per entity set: roughness, metalness, emissive colour and strength, opacity.
+- [x] Reflections: an environment map generated from the sky (so glossy things reflect it), `world.reflections` strength, and an optional reflective water plane.
+
+Phase 2 — textures and surfaces
+
+- [ ] Loadable textures: image URLs for the ground, a sky box or equirectangular sky, and a normal or roughness map; loaded through the asset base used for glTF parts, with a clear error and a fallback when a file is missing.
+- [x] Parametric textures generated from a few numbers, deterministic from a seed: `noise`, `fbm`, `checker`, `stripes`, `grid`, `dots`, `bricks`, `marble`, `grass`, `sand`, `water`, each with colours, scale and contrast. Each also yields a matching bump or normal map.
+- [ ] Better defaults: ground and lattice cells, agents and nodes get tasteful textures and colours out of the box.
+- [x] `world.floor` for scenes without terrain (colour, texture, height, whether it is drawn at all).
+
+Phase 3 — things look better
+
+- [~] Per-set `style.shape` and `style.material` (shape, roughness, metalness, glow, opacity; done), with rounded cubes for lattices and a glTF shape still to do: (cone, sphere, cube, capsule, octahedron, disc, arrow, or a glTF) and `look.size`, with smooth normals; rounded cubes for lattices.
+- [ ] Trails behind agents (`look.trail`: length and fade), glow for emissive things, outlines for the selected entity.
+- [ ] Optional effects, each off or subtle by default: bloom, ambient occlusion, vignette. Lattice cells and graph nodes can glow.
+- [ ] Graph links as soft, coloured, optionally curved lines; node labels on hover.
+
+Phase 4 — the app itself and the examples
+
+- [ ] A quality governor: lower the pixel ratio and effects when frames run long, `?quality=low|medium|high`, and a screenshot or recording button.
+- [ ] Workbench polish: spacing and type, nicer charts, controls, gallery thumbnails rendered from the real examples, a cleaner header; light and dark parity.
+- [ ] Give every example a look that suits it: boids at dusk with fog and glossy cones; Life as glowing glass cubes; ants on a textured ground in daylight; the epidemic and market as luminous graphs; the creatures on lit, smooth, textured terrain; the URDF robot in a studio. Regenerate the gallery pictures.
+
+Acceptance: every example has a deliberate look from its scene alone; `world.preset` alone gives a good result on a blank scene; a test checks every look field validates and resolves; a screenshot pass over all examples shows no regressions; the default view stays above 50 frames a second on a laptop-class GPU for the standard demos.
+
 ## Later
 
 Not started:
 
+- **More example simulations (backlog):** a **hypercycle** (Eigen and Schuster's catalytic cycle of replicators, with and without parasites, on a well-mixed pool and on a spatial grid), and **reaction-diffusion** (Gray-Scott and similar, as a whole-grid `update` rule on a lattice, with the feed and kill rates as sliders and a few presets for spots, stripes and waves). Both should ship with an experiment file and a look from M12.
 - Server-side project storage and accounts; projects live in browser storage only today. This needs a decision from the project owner first (a hosted service, and what to store where), per CLAUDE.md.
 - Sandboxed untrusted sims (QuickJS). Until then, projects opened from a share link are held back until you read the script and press Run (a trust prompt, not a sandbox).
 - ~~Timeline scrubber~~ done: the workbench records a snapshot every 10 ticks (within a 64 MB budget), a slider under the view goes back to any of them and pauses there, and Play carries on from that point as a new branch (the charts rewind too). Works for physics scenes. Not for sweeps. Moments between snapshots cannot be reached, because stepping forward from a snapshot would not match a run driven by a person or a model.

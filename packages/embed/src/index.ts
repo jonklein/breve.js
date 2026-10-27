@@ -71,6 +71,7 @@ export async function run(target: string | HTMLElement, code: string, config: un
   controls.addEventListener('start', () => { controls.autoRotate = false })
   const view = new WorldView(renderer, camera, controls)
   if (options.assetBase) view.setAssetBase(options.assetBase)
+  view.quality = 'high'
   view.setWorld(scene.world as WorldLook | undefined)
 
   const resize = () => {
@@ -111,7 +112,7 @@ export async function run(target: string | HTMLElement, code: string, config: un
       }
       view.tick(dt)
       controls.update()
-      renderer.render(view.scene, camera)
+      view.render()
     }
     requestAnimationFrame(loop)
   }

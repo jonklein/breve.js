@@ -14,7 +14,7 @@ const page = await browser.newPage({ viewport: { width: 800, height: 500 } })
 await page.route('**/api/decide', (r) => r.fulfill({ json: { text: JSON.stringify({ dx: 0.4, dz: -0.3 }) } }))
 for (const e of examples) {
   if (only.length && !only.includes(e.id)) continue
-  await page.goto(`${base}/sim/?embed#${e.id}`)
+  await page.goto(`${base}/sim/?embed&quality=${process.env.BREVE_QUALITY ?? 'medium'}#${e.id}`) // software GL is slow: no ambient occlusion unless asked
   // let it run long enough to look like itself; bodies need the physics engine to load first
   await page.waitForTimeout(['creature', 'creature-gltf', 'urdf-bot', 'morphology', 'evolved-creatures'].includes(e.id) ? 7000 : 4500)
   // creatures are small in a big arena: zoom in on the middle of the view

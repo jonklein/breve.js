@@ -23,6 +23,9 @@ export class Viewport {
     this.controls = new OrbitControls(camera, this.renderer.domElement)
     this.controls.enableDamping = true
     this.view = new WorldView(this.renderer, camera, this.controls)
+    // screen effects (ambient occlusion, bloom, grading); `?quality=low|medium|high` picks the starting level, and it steps down if frames run long
+    const asked = new URLSearchParams(location.search).get('quality')
+    this.view.quality = asked === 'low' || asked === 'medium' || asked === 'high' ? asked : 'high'
     // a click (press and release without dragging) picks the entity under the pointer
     const canvas = this.renderer.domElement
     let down: { x: number; y: number } | null = null
@@ -41,7 +44,7 @@ export class Viewport {
       this.view.tick(Math.min(0.1, (now - this.lastTime) / 1000))
       this.lastTime = now
       this.controls.update()
-      if (this.container.clientWidth) this.renderer.render(this.view.scene, this.view.camera)
+      if (this.container.clientWidth) this.view.render()
       requestAnimationFrame(loop)
     }
     loop()

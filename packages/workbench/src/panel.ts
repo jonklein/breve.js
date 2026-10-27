@@ -165,18 +165,39 @@ export class MetricsPanel {
     const all = [...chart.values.values()].flat()
     if (all.length < 2) return
     const lo = Math.min(0, ...all), hi = Math.max(1, ...all)
-    c.lineWidth = 2
+    const y = (v: number) => h - 6 - ((v - lo) / (hi - lo)) * (h - 12)
+    // faint guide lines, so a chart reads as a chart
+    c.strokeStyle = 'rgba(255,255,255,0.07)'
+    c.lineWidth = 1
+    for (let g = 1; g < 4; g++) { c.beginPath(); c.moveTo(0, (h * g) / 4); c.lineTo(w, (h * g) / 4); c.stroke() }
     chart.names.forEach((name, k) => {
       const values = chart.values.get(name) ?? []
       if (values.length < 2) return
-      c.strokeStyle = LINE_COLORS[k % LINE_COLORS.length]
+      const color = LINE_COLORS[k % LINE_COLORS.length]
+      const path = () => values.forEach((v, i) => (i ? c.lineTo((i / 299) * w, y(v)) : c.moveTo(0, y(v))))
+      // a soft fill under the line, fading toward the bottom
+      const fill = c.createLinearGradient(0, 0, 0, h)
+      fill.addColorStop(0, color + '55')
+      fill.addColorStop(1, color + '00')
       c.beginPath()
-      values.forEach((v, i) => {
-        const x = (i / 299) * w, y = h - 6 - ((v - lo) / (hi - lo)) * (h - 12)
-        if (i) c.lineTo(x, y)
-        else c.moveTo(x, y)
-      })
+      path()
+      c.lineTo(((values.length - 1) / 299) * w, h)
+      c.lineTo(0, h)
+      c.closePath()
+      c.fillStyle = fill
+      c.fill()
+      c.beginPath()
+      path()
+      c.strokeStyle = color
+      c.lineWidth = 2
+      c.lineJoin = 'round'
       c.stroke()
+      // a dot on the latest value
+      const lastX = ((values.length - 1) / 299) * w
+      c.beginPath()
+      c.arc(lastX, y(values[values.length - 1]), 3, 0, Math.PI * 2)
+      c.fillStyle = color
+      c.fill()
     })
   }
 }

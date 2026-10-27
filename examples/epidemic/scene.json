@@ -2,14 +2,14 @@
   "name": "epidemic",
   "seed": 8,
   "clock": { "rate": 10 },
-  "world": { "sky": { "top": "#070b14", "horizon": "#162238" }, "grid": false },
+  "world": { "frame": false, "preset": "night", "camera": {"distance": 2.4, "elevation": 10}, "grid": false, "fog": false },
   "params": {
     "infectiousness": { "value": 0.05, "min": 0, "max": 0.5, "step": 0.01, "label": "chance per sick neighbor" },
     "recoveryTime": { "value": 14, "min": 2, "max": 50, "step": 1, "label": "ticks until recovered" }
   },
   "entities": [
     {
-      "name": "people",
+      "name": "people", "style": {"material": {"roughness": 0.4, "glow": 0.45}},
       "count": 300,
       "controller": "contagion.js",
       "network": { "topology": "smallworld", "degree": 6, "rewire": 0.08, "layout": "force", "radius": 24, "size": 1.3 }

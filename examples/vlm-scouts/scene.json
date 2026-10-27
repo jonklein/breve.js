@@ -2,7 +2,7 @@
   "name": "vlm-scouts",
   "seed": 4,
   "bounds": { "size": 20 },
-  "world": { "sky": { "top": "#10172b", "horizon": "#44536f" }, "grid": true },
+  "world": { "frame": false, "preset": "day", "grid": false, "shadows": true, "floor": { "texture": "grass", "y": -0.6}},
   "params": {
     "speed": { "value": 4, "min": 1, "max": 10, "step": 0.5 },
     "push": { "value": 14, "min": 1, "max": 30, "step": 1, "label": "how hard they follow what they see" }

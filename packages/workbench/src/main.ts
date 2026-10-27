@@ -25,6 +25,7 @@ async function main(): Promise<void> {
   const exampleById = new Map(examples.map((e) => [e.id, e]))
   const isExample = (id: string) => exampleById.has(id)
 
+  let epoch = 0
   const worker = new Worker(new URL('./sim.worker.ts', import.meta.url), { type: 'module' })
   const send = (m: ToWorker) => worker.postMessage(m)
 
@@ -250,7 +251,7 @@ async function main(): Promise<void> {
     $('held').classList.toggle('hidden', !unapproved)
     const assets = `${location.origin}/${home && isExample(home) ? home + '/' : ''}`
     viewport.view.setAssetBase(assets)
-    send({ type: 'init', scene: doc.scene, script: live(doc.script), base: assets })
+    send({ type: 'init', scene: doc.scene, script: live(doc.script), base: assets, epoch: ++epoch })
   }
 
   picker.addEventListener('change', () => open(picker.value))
@@ -350,35 +351,56 @@ async function main(): Promise<void> {
 
   // ---- the editor drawer: closed by default so the simulation has the stage; opens from the header, the edge tab or the E key ----
   const mainEl = document.querySelector('main')!
+  const editorsEl = $('editors')
   const setDrawer = (open: boolean) => {
     mainEl.classList.toggle('drawer-open', open)
+    editorsEl.inert = !open // the closed strip must not take focus
     $('drawer-toggle').setAttribute('aria-expanded', String(open))
     remember('breve.drawer', open ? 'open' : 'closed')
   }
-  // drag the edge to resize; the width is remembered
-  const grip = $('drawer-grip')
-  const widthPref = Number(pref('breve.drawerW', ''))
-  if (widthPref >= 320) mainEl.style.setProperty('--drawer-w', `${Math.min(widthPref, window.innerWidth * 0.94)}px`)
-  grip.addEventListener('pointerdown', (e) => {
-    grip.setPointerCapture(e.pointerId)
-    mainEl.classList.add('drawer-resizing')
+  // The tab and the edge can both be dragged to pull the drawer out and resize it. Closed, a 10px strip stays on screen
+  // so there is always something to grab. A drag that ends narrow closes it; the width you had is remembered.
+  const PEEK = 10, MIN_OPEN = 280, SNAP_CLOSED = 140
+  const maxWidth = () => window.innerWidth * 0.94
+  let width = Math.max(MIN_OPEN, Math.min(Number(pref('breve.drawerW', '')) || 0, maxWidth())) || 0
+  if (width) mainEl.style.setProperty('--drawer-w', `${width}px`)
+  const startDrag = (el: HTMLElement, e: PointerEvent, onClick?: () => void) => {
+    el.setPointerCapture(e.pointerId)
     const left = mainEl.getBoundingClientRect().left
-    const move = (ev: PointerEvent) => mainEl.style.setProperty('--drawer-w', `${Math.max(320, Math.min(ev.clientX - left, window.innerWidth * 0.94))}px`)
-    const up = () => {
-      grip.removeEventListener('pointermove', move)
-      grip.removeEventListener('pointerup', up)
-      grip.removeEventListener('pointercancel', up)
-      mainEl.classList.remove('drawer-resizing')
-      remember('breve.drawerW', String(Math.round($('editors').getBoundingClientRect().width)))
+    const startX = e.clientX
+    let moved = false
+    const move = (ev: PointerEvent) => {
+      if (!moved && Math.abs(ev.clientX - startX) < 4) return
+      if (!moved) { moved = true; mainEl.classList.add('drawer-resizing'); mainEl.classList.add('drawer-open'); editorsEl.inert = false }
+      mainEl.style.setProperty('--drawer-w', `${Math.max(PEEK, Math.min(ev.clientX - left, maxWidth()))}px`)
     }
-    grip.addEventListener('pointermove', move)
-    grip.addEventListener('pointerup', up)
-    grip.addEventListener('pointercancel', up)
+    const up = () => {
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', up)
+      mainEl.classList.remove('drawer-resizing')
+      if (!moved) return onClick?.()
+      const w = Math.round(editorsEl.getBoundingClientRect().width)
+      if (w < SNAP_CLOSED) {
+        mainEl.style.setProperty('--drawer-w', `${width || Math.min(760, maxWidth())}px`) // reopening uses the last real width
+        setDrawer(false)
+      } else {
+        width = Math.max(MIN_OPEN, w)
+        mainEl.style.setProperty('--drawer-w', `${width}px`)
+        remember('breve.drawerW', String(width))
+        setDrawer(true)
+      }
+    }
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
     e.preventDefault()
-  })
+  }
+  $('drawer-grip').addEventListener('pointerdown', (e) => startDrag($('drawer-grip'), e))
+  $('drawer-handle').addEventListener('pointerdown', (e) => startDrag($('drawer-handle'), e, () => toggleDrawer()))
   const toggleDrawer = () => setDrawer(!mainEl.classList.contains('drawer-open'))
   setDrawer(pref('breve.drawer', 'closed') === 'open' || new URLSearchParams(location.search).get('tab') === 'docs')
-  for (const id of ['drawer-toggle', 'drawer-handle']) $(id).addEventListener('click', toggleDrawer)
+  $('drawer-toggle').addEventListener('click', toggleDrawer)
   $('drawer-close').addEventListener('click', () => setDrawer(false))
   document.addEventListener('keydown', (e) => {
     const typing = (e.target as HTMLElement | null)?.closest('input, textarea, select, .cm-editor, [contenteditable]')
@@ -447,6 +469,8 @@ async function main(): Promise<void> {
   let lastTime = performance.now()
   worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     const m = ev.data
+    // frames still in flight from the project we just left must not draw into the new one
+    if ((m.type === 'frame' || m.type === 'tiles') && m.epoch !== epoch) return
     if (m.type === 'frame') {
       $('thinkbar').classList.toggle('hidden', !m.think.enabled || sweeping)
       if (m.think.enabled) {

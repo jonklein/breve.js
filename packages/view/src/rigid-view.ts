@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { buildTexture } from './textures'
+import { antiTile } from './antitile'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { PartShape, RigidFrame, TerrainMesh } from '@breve/core'
@@ -22,6 +24,8 @@ export class RigidView {
   private shadows = false
   /** Where a part's relative `visual.gltf` path starts (a URL ending in `/`). */
   assetBase = ''
+  /** The lowest point of the terrain, so a floor can lie just under it. */
+  groundLevel = 0
   private loaded = new Map<string, Promise<THREE.BufferGeometry>>()
 
   constructor(scene: THREE.Scene, private camera: THREE.PerspectiveCamera, private controls: { target: THREE.Vector3 }) {
@@ -110,7 +114,7 @@ export class RigidView {
   }
 
   private partMesh(part: PartShape, k: number): THREE.InstancedMesh {
-    const mesh = new THREE.InstancedMesh(geometryFor(part), new THREE.MeshLambertMaterial(), MAX_CREATURES)
+    const mesh = new THREE.InstancedMesh(geometryFor(part), new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.08 }), MAX_CREATURES)
     mesh.frustumCulled = false
     mesh.castShadow = this.shadows
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CREATURES * 3), 3)
@@ -127,11 +131,27 @@ export class RigidView {
   private buildTerrain(t: TerrainMesh | null): void {
     if (this.terrain) { this.group.remove(this.terrain); this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); this.terrain = null }
     if (!t) return
-    const tex = groundTexture(t.texture ?? 'static', t.size)
-    this.terrain = new THREE.Mesh(
-      terrainGeometry(t, tex?.tile ?? 1, tex?.offset ?? 0),
-      new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, map: tex?.map ?? null }),
-    )
+    const tex = t.texture ?? 'static'
+    const legacy = tex === 'static' || tex === 'grid' || tex === 'none'
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: t.shading === 'flat', roughness: 0.92, metalness: 0 })
+    let tile = 1, offset = 0
+    if (legacy) {
+      const g = groundTexture(tex, t.size)
+      tile = g?.tile ?? 1
+      offset = g?.offset ?? 0
+      mat.map = g?.map ?? null
+    } else {
+      // a generated or loaded texture repeats over the ground, with its bump map for fine relief
+      const spec = typeof tex === 'string' ? { kind: tex } : tex
+      const built = buildTexture(spec, { assetBase: this.assetBase, changed: () => this.buildTerrain(t) })
+      tile = (typeof spec === 'object' && 'tile' in spec && (spec as { tile?: number }).tile) || 10
+      mat.map = built.map
+      if (built.normalMap) mat.normalMap = built.normalMap
+      for (const x of [built.map, built.normalMap]) x?.repeat.set(1, 1)
+      antiTile(mat)
+    }
+    this.groundLevel = t.heights.length ? Math.min(...t.heights) : 0
+    this.terrain = new THREE.Mesh(terrainGeometry(t, tile, offset, !legacy), mat)
     this.terrain.receiveShadow = this.shadows
     this.group.add(this.terrain)
   }
@@ -156,7 +176,7 @@ function baseGeometry(p: PartShape): THREE.BufferGeometry {
 }
 
 /** A height grid as a mesh, shaded a little lighter on the hilltops. Vertex (ix, iz) matches the physics heightfield. */
-function terrainGeometry(t: TerrainMesh, tile: number, offset: number): THREE.BufferGeometry {
+function terrainGeometry(t: TerrainMesh, tile: number, offset: number, tinted = false): THREE.BufferGeometry {
   const m = t.n + 1
   const step = t.size / t.n
   let lo = Infinity, hi = -Infinity
@@ -184,7 +204,28 @@ function terrainGeometry(t: TerrainMesh, tile: number, offset: number): THREE.Bu
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
   g.setIndex(index)
   g.computeVertexNormals()
+  if (tinted) tintByBiome(g, t, lo, hi)
   return g
+}
+
+/** Color the ground by height (valleys, middle, peaks) and slope (cliffs), tints that multiply with the texture. */
+function tintByBiome(g: THREE.BufferGeometry, t: TerrainMesh, lo: number, hi: number): void {
+  const p = t.palette ?? {}
+  const low = new THREE.Color(p.low ?? '#d8cfa8'), mid = new THREE.Color(p.mid ?? '#ffffff'), high = new THREE.Color(p.high ?? '#e6e6e6'), steep = new THREE.Color(p.steep ?? '#9a9084')
+  const pos = g.attributes.position, nor = g.attributes.normal
+  const col = new Float32Array(pos.count * 3)
+  const c = new THREE.Color()
+  for (let v = 0; v < pos.count; v++) {
+    const h = hi > lo ? (pos.getY(v) - lo) / (hi - lo) : 0.5
+    if (h < 0.35) c.copy(low).lerp(mid, h / 0.35)
+    else if (h < 0.7) c.copy(mid)
+    else c.copy(mid).lerp(high, (h - 0.7) / 0.3)
+    const slope = 1 - nor.getY(v) // 0 flat, toward 1 vertical
+    c.lerp(steep, Math.min(1, Math.max(0, (slope - 0.06) / 0.16)))
+    const shade = 0.82 + 0.3 * h // a little lighter on the hilltops
+    col.set([c.r * shade, c.g * shade, c.b * shade], v * 3)
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3))
 }
 
 /**

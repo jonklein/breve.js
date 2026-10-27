@@ -207,6 +207,8 @@ export interface FrameData {
   color?: string
   /** Drawing scale for agents. */
   scale?: number
+  /** The set's `style` (shape and material). */
+  style?: import('./scene').SetStyle
   kind: 'agents' | 'lattice' | 'bodies' | 'graph'
   /** Number of things to draw. */
   count: number

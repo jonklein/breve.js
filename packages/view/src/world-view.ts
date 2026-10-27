@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { RigidFrame } from '@breve/core'
 import { RigidView } from './rigid-view'
-import { AgentLayer, CellLayer, GraphLayer } from './layers'
+import { AgentLayer, CellLayer, FieldLayer, GraphLayer } from './layers'
 import { resolveLook, sunDirection, type LookInput, type ResolvedLook } from './look'
 import { buildTexture, ownCopy } from './textures'
 import { SKY_FRAGMENT, SKY_VERTEX } from './sky'
@@ -11,7 +11,7 @@ import { antiTile } from './antitile'
 /** What the view needs from a simulation frame. */
 export interface WorldFrame {
   rigid?: RigidFrame
-  kind: 'agents' | 'lattice' | 'bodies' | 'graph'
+  kind: 'agents' | 'lattice' | 'bodies' | 'graph' | 'field'
   count: number
   size: number
   unit: number
@@ -21,6 +21,8 @@ export interface WorldFrame {
   look?: { rgb: Uint8Array | null; visible: Uint8Array | null; alpha: Uint8Array | null; scale: Float32Array | null }
   lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; thickness?: number; rgb?: Uint8Array; alpha?: Uint8Array; sizes?: Float32Array }
   graph?: { edges: Uint32Array; version: number; nodeSize: number }
+  /** A lattice on a graphics card, as a picture of the part of the grid in `window` (see FrameData in the core). */
+  field?: { dims: [number, number]; spacing: number; width: number; height: number; pixels: Uint8Array; window: [number, number, number, number] }
   /** Per-set color for free agents. */
   color?: string
   scale?: number
@@ -41,7 +43,7 @@ export class WorldView {
   /** Where the camera looks. The single view hands in its OrbitControls; tiles use this stand-in. */
   readonly controls: { target: THREE.Vector3 }
   /** One layer per entity set, in scene order. */
-  private layers: (AgentLayer | CellLayer | GraphLayer | null)[] = []
+  private layers: (AgentLayer | CellLayer | FieldLayer | GraphLayer | null)[] = []
   private rigid: RigidView
   private markers: THREE.Group | null = null
   private followWanted = false
@@ -416,7 +418,7 @@ export class WorldView {
     if (this.markers) this.markers.visible = false
     this.setBounds(Math.max(...frames.map((f) => f.size)))
     frames.forEach((f, i) => {
-      const want = f.kind === 'lattice' ? CellLayer : f.kind === 'graph' ? GraphLayer : AgentLayer
+      const want = f.kind === 'lattice' ? CellLayer : f.kind === 'field' ? FieldLayer : f.kind === 'graph' ? GraphLayer : AgentLayer
       let layer = this.layers[i]
       if (!layer || !(layer instanceof want)) {
         layer?.dispose()

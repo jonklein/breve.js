@@ -13,6 +13,7 @@
     "@breve/core": "*",
     "@breve/embed": "*",
     "@breve/experiment": "*",
+    "@breve/gpu": "*",
     "@breve/inference": "*",
     "@breve/physics-mujoco": "*",
     "@breve/view": "*",

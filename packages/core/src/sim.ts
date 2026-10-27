@@ -14,7 +14,9 @@ import { resolveMeshes } from './glb'
 import { fieldOfColumn, fieldOfValue, paramValues, type EntityDef, type Params, type Scene, type StateField } from './scene'
 import { blend } from './blend'
 import { programOf } from './formula-run'
-import type { Formula } from '@breve/stdlib'
+import { GpuLatticeWorld, isExactProgram } from './gpu-lattice-world'
+import { loadFormulaBackend } from './formula-backend'
+import type { Formula, FormulaBackend } from '@breve/stdlib'
 import { HOOKS, type AskOptions, type ModelRequest, type ThinkCtx, type Controller, type Ctx, type FrameData, type Host, type MetricInput, type Message, type ScriptModule, type World } from './world'
 
 /** One entity as an inspector shows it. */
@@ -101,6 +103,7 @@ export class Sim {
   script: ScriptModule | null = null
   private errors = new Map<string, number>()
   private engine?: PhysicsEngine
+  private formulas?: FormulaBackend
   readonly worlds: World[] = []
   /** Keys held down right now, for human-driven controllers. Set with `setInput`. */
   private keys: string[] = []
@@ -113,15 +116,51 @@ export class Sim {
    */
   static async create(scene: Scene, script?: ScriptModule): Promise<Sim> {
     const physics = scene.entities.some((e) => e.body) ? await loadPhysicsEngine(scene.physics?.engine) : undefined
-    return new Sim(physics ? await resolveMeshes(scene) : scene, script, { physics }) // a mesh part's shape comes from its model file
+    // a lattice written as formulas keeps its cells on a graphics card when the host has one
+    const formulas = scene.entities.some((e, i) => GpuLatticeWorld.eligible(e, scriptControllerOf(script, e))) ? (await loadFormulaBackend()) ?? undefined : undefined
+    const sim = new Sim(physics ? await resolveMeshes(scene) : scene, script, { physics, formulas }) // a mesh part's shape comes from its model file
+    await sim.prepare()
+    return sim
   }
 
-  constructor(scene: Scene, script?: ScriptModule, opts: { physics?: PhysicsEngine; from?: Sim } = {}) {
+  /** Compile what the graphics-card lattices will run now, so a mistake is reported in words before the first tick. */
+  async prepare(): Promise<void> {
+    for (const w of this.worlds) await (w as { prepare?(): Promise<void> }).prepare?.()
+  }
+
+  /** True when some set keeps its cells on a graphics card (so frames come from `refresh`, and a snapshot needs `sync`). */
+  get onGraphicsCard(): boolean {
+    return this.worlds.some((w) => !!w.refresh)
+  }
+
+  /** True while some world has a picture or totals to bring up to date (see `refresh`). */
+  get needsRefresh(): boolean {
+    return this.worlds.some((w) => w.needsRefresh)
+  }
+
+  /** Bring frames and metrics up to date. A no-op for scenes with nothing on a graphics card. */
+  async refresh(): Promise<void> {
+    await Promise.all(this.worlds.map((w) => w.refresh?.()))
+  }
+
+  /** Bring the whole state of graphics-card lattices back, so `snapshot`, `hash` and `fork` can be used. A no-op for ordinary scenes. */
+  async sync(): Promise<void> {
+    await Promise.all(this.worlds.map((w) => w.sync?.()))
+  }
+
+  /** Set which part of a graphics-card lattice to draw, and in how many pixels (zooming and panning). */
+  setFieldView(set: number, view: { window?: [number, number, number, number]; width?: number; height?: number }): void {
+    const w = this.worlds[set]
+    if (w instanceof GpuLatticeWorld) w.setView(view)
+  }
+
+  constructor(scene: Scene, script?: ScriptModule, opts: { physics?: PhysicsEngine; from?: Sim; formulas?: FormulaBackend } = {}) {
     this.scene = scene
     this.params = paramValues(scene)
     this.rng = new Rng(scene.seed)
     if (script) this.script = script
     this.engine = opts.physics
+    this.formulas = opts.formulas
     if (scene.entities.some((e) => e.body) && !opts.physics) throw new Error('this scene has a physics body: build it with `await Sim.create(scene, script)`')
     scene.entities.forEach((e, i) => {
       const host = new SetHost(this, i)
@@ -129,6 +168,7 @@ export class Sim {
       const old = opts.from?.worlds[i]
       this.worlds.push(
         e.network ? new NetworkWorld(host, old instanceof NetworkWorld ? old : undefined)
+          : e.lattice && opts.formulas && GpuLatticeWorld.eligible(e, scriptControllerOf(script, e)) && host.fields.length ? new GpuLatticeWorld(host, opts.formulas.lattice({ size: e.lattice.size, wrap: e.lattice.edges === 'wrap', neighborhood: e.lattice.neighborhood }, host.fields.map((f) => f.name)), host.fields.map((f) => f.name))
           : e.lattice ? new LatticeWorld(host, old instanceof LatticeWorld && sameGrid(opts.from!.scene.entities[i], e) ? old : undefined)
           : e.body ? new RigidWorld(host, opts.physics!)
           : new AgentWorld(host),
@@ -435,6 +475,8 @@ export class Sim {
     const out: string[] = this.replaying ? [] : [...this.asked]
     // a model whose math can differ between runs (a GPU) makes every set that thinks non-repeatable
     if (Object.values(this.models).some((m) => !m.deterministic)) for (const e of this.scene.entities) if (e.think && !out.includes(e.name)) out.push(e.name)
+    // a rule that divides or averages can come out a bit differently on another graphics card, so forks and replays on another machine may drift
+    this.worlds.forEach((w, i) => { if (w instanceof GpuLatticeWorld && !w.isExact() && !out.includes(this.scene.entities[i].name)) out.push(this.scene.entities[i].name) })
     this.scene.entities.forEach((e, i) => {
       const c = (this.script as Record<string, unknown> | null)?.[e.type ?? 'default'] as Controller | undefined
       if (c?.spec?.nondeterministic && !out.includes(e.name)) out.push(e.name)
@@ -458,9 +500,11 @@ export class Sim {
     const fns = this.script?.metrics
     if (!fns) return out
     let input: MetricInput | undefined
+    const gpu = Object.assign({}, ...this.worlds.map((w) => w.totals?.() ?? {}))
     for (const name of this.scene.metrics ?? []) {
       const fn = fns[name]
       if (!fn) continue
+      if (name in gpu) { if (Number.isFinite(gpu[name])) out[name] = gpu[name]; continue } // worked out on the graphics card
       try {
         const v = fn(input ??= this.metricInput())
         if (Number.isFinite(v)) out[name] = v
@@ -540,6 +584,12 @@ class SetControllerLookup {
 }
 
 /** Forks can share the neighbor tables when the grid is the same shape. */
+/** The controller object a set would use from this script, if it is one. */
+function scriptControllerOf(script: ScriptModule | null | undefined, e: EntityDef): Controller | undefined {
+  const c = (script as Record<string, unknown> | null | undefined)?.[e.type ?? 'default']
+  return c && typeof c === 'object' ? (c as Controller) : undefined
+}
+
 function sameGrid(x: EntityDef, y: EntityDef): boolean {
   return !!x.lattice && !!y.lattice && x.lattice.size.join() === y.lattice.size.join() && x.lattice.edges === y.lattice.edges && x.lattice.neighborhood === y.lattice.neighborhood
 }

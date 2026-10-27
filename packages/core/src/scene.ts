@@ -48,6 +48,11 @@ export interface LatticeDef {
   /** What happens at the edge: cells beyond it are "dead" (absent), or the grid wraps around. */
   edges?: 'dead' | 'wrap'
   neighborhood?: 'moore' | 'von-neumann'
+  /**
+   * Where a rule written as formulas (`actFormula`) runs: `auto` (the default) keeps the cells on the graphics card when there is one
+   * (a flat grid, and a host that provides one) and uses the processor otherwise; `cpu` always uses the processor.
+   */
+  compute?: 'auto' | 'cpu'
   /** For a flat grid (size 1 on one axis): how thick the drawn cells are along that axis, as a fraction of their width. Default 1. */
   thickness?: number
   /** Ease cells in and out over this fraction of a tick (0 = instant, the default; 1 = a whole tick). */
@@ -543,6 +548,7 @@ export const sceneSchema = {
               spacing: { type: 'number', exclusiveMinimum: 0 },
               edges: { enum: ['dead', 'wrap'] },
               neighborhood: { enum: ['moore', 'von-neumann'] },
+              compute: { enum: ['auto', 'cpu'] },
               thickness: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
               fade: { type: 'number', minimum: 0, maximum: 1 },
             },

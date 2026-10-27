@@ -44,7 +44,7 @@ export interface WorldFrameMsg {
   color?: string
   scale?: number
   style?: import('@breve/core').SetStyle
-  kind: 'agents' | 'lattice' | 'bodies' | 'graph'
+  kind: 'agents' | 'lattice' | 'bodies' | 'graph' | 'field'
   count: number
   size: number
   unit: number
@@ -54,6 +54,7 @@ export interface WorldFrameMsg {
   lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; thickness?: number; rgb?: Uint8Array; alpha?: Uint8Array; sizes?: Float32Array }
   rigid?: RigidFrame
   graph?: { edges: Uint32Array; version: number; nodeSize: number }
+  field?: { dims: [number, number]; spacing: number; width: number; height: number; pixels: Uint8Array; window: [number, number, number, number] }
 }
 
 export type FromWorker =
@@ -237,7 +238,7 @@ let stepMs = 0 // smoothed time one tick takes, shown in the stats line
 
 function transfers(f: WorldFrameMsg): ArrayBuffer[] {
   const buffers = (...arrays: (ArrayBufferView | null | undefined)[]) => arrays.filter((a): a is ArrayBufferView => !!a).map((a) => a.buffer as ArrayBuffer)
-  return buffers(f.pos, f.vel, f.look?.rgb, f.look?.visible, f.look?.alpha, f.look?.scale, f.lattice?.show, f.lattice?.rgb, f.lattice?.alpha, f.lattice?.sizes, f.rigid?.poses, f.graph?.edges)
+  return buffers(f.pos, f.vel, f.look?.rgb, f.look?.visible, f.look?.alpha, f.look?.scale, f.lattice?.show, f.lattice?.rgb, f.lattice?.alpha, f.lattice?.sizes, f.rigid?.poses, f.graph?.edges, f.field?.pixels)
 }
 
 let groupTick = -1
@@ -266,10 +267,21 @@ function stepPopulation(): void {
   run.step().catch((e) => { sceneErrors = [`parent: ${e instanceof Error ? e.message : String(e)}`]; running = false }).finally(() => { populationBusy = false })
 }
 
+let refreshing = false // a lattice kept on the graphics card is bringing its picture and totals back
+
 function post(): void {
   if (population?.mutating) return // a new generation is being made: wait until it is whole
   if (group) return postGroup()
   if (!sim) return
+  if (sim.onGraphicsCard) {
+    // the picture has to come back from the card before a frame can be sent; steps wait for it, so the card is never far ahead of what is shown
+    if (!refreshing && sim.needsRefresh && sim.tick !== lastPosted) {
+      refreshing = true
+      const s = sim
+      void s.refresh().catch(() => {}).finally(() => { refreshing = false })
+    }
+    if (refreshing) return
+  }
   if (sim.tick !== lastPosted) {
     lastPosted = sim.tick
     const frames = sim.frames()
@@ -304,6 +316,7 @@ setInterval(() => {
         budget = Math.min(budget - 1, 1)
         break
       } else if (group) group.step()
+      else if (refreshing) break // the card is still working out the picture: do not queue more ticks behind it
       else if (thinkMode === 'lockstep' && sim!.thinks) {
         if (lockBusy) break // the model has not answered yet: the clock waits
         lockBusy = true

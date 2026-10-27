@@ -463,3 +463,58 @@ export class GraphLayer {
     this.version = -1
   }
 }
+
+/**
+ * A lattice kept on a graphics card, drawn as one picture on a flat quad: the card has already worked out the color of every pixel for the part
+ * of the grid in view (see `field` in FrameData), so a grid of millions of cells costs the same to draw as a small one.
+ */
+export class FieldLayer {
+  private mesh: THREE.Mesh | null = null
+  private texture: THREE.DataTexture | null = null
+  private size = ''
+
+  constructor(private scene: THREE.Scene) {}
+
+  setVisible(on: boolean): void {
+    if (this.mesh) this.mesh.visible = on
+  }
+
+  setShadows(): void { /* a picture casts no shadow */ }
+
+  pick(): { row: number; distance: number } | null { return null }
+
+  update(f: WorldFrame): void {
+    const p = f.field
+    if (!p || !p.width || !p.height) return
+    const key = `${p.width}x${p.height}`
+    if (!this.mesh || key !== this.size) {
+      this.dispose()
+      this.size = key
+      this.texture = new THREE.DataTexture(p.pixels as unknown as BufferSource as Uint8Array<ArrayBuffer>, p.width, p.height, THREE.RGBAFormat, THREE.UnsignedByteType)
+      this.texture.colorSpace = THREE.SRGBColorSpace
+      this.texture.magFilter = THREE.NearestFilter // cells are squares: zooming in shows them as squares, not as a blur
+      this.texture.minFilter = THREE.LinearFilter
+      this.texture.generateMipmaps = false
+      this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }))
+      this.scene.add(this.mesh)
+    }
+    const t = this.texture!, mesh = this.mesh!
+    ;(t.image as { data: Uint8Array }).data = p.pixels as unknown as Uint8Array<ArrayBuffer>
+    t.needsUpdate = true
+    // the quad covers the window, in world units, centered on the grid (a cell is `spacing` wide)
+    const [x0, y0, x1, y1] = p.window
+    const [nx, ny] = p.dims
+    mesh.scale.set((x1 - x0) * p.spacing, (y1 - y0) * p.spacing, 1)
+    mesh.position.set(((x0 + x1) / 2 - nx / 2) * p.spacing, ((y0 + y1) / 2 - ny / 2) * p.spacing, 0)
+  }
+
+  dispose(): void {
+    if (!this.mesh) return
+    this.scene.remove(this.mesh)
+    this.mesh.geometry.dispose()
+    ;(this.mesh.material as THREE.Material).dispose()
+    this.texture?.dispose()
+    this.mesh = null
+    this.texture = null
+  }
+}

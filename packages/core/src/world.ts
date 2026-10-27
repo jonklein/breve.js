@@ -224,7 +224,7 @@ export interface FrameData {
   scale?: number
   /** The set's `style` (shape and material). */
   style?: import('./scene').SetStyle
-  kind: 'agents' | 'lattice' | 'bodies' | 'graph'
+  kind: 'agents' | 'lattice' | 'bodies' | 'graph' | 'field'
   /** Number of things to draw. */
   count: number
   /** Half the width of the world's bounding box. */
@@ -241,6 +241,11 @@ export interface FrameData {
   graph?: { edges: Uint32Array; version: number; nodeSize: number }
   /** Physics bodies (`kind: 'bodies'`): one pose per part, plus the terrain on the first frame. */
   rigid?: RigidFrame
+  /**
+   * A lattice kept on a graphics card (`kind: 'field'`): a picture of the part of the grid in `window` (left, top, right and bottom
+   * edges in cells), `width` x `height` pixels of RGBA, row by row from the top. Zooming and panning only change the window.
+   */
+  field?: { dims: [number, number]; spacing: number; width: number; height: number; pixels: Uint8Array; window: [number, number, number, number] }
 }
 
 /** A layer of cells that agents can stand on: they read the cell under them and add to its fields. */
@@ -271,4 +276,12 @@ export interface World {
   restore?(s: unknown): void
   /** Release engine resources (physics worlds live in wasm memory). */
   dispose?(): void
+  /** Worlds whose state lives on a graphics card: bring the picture and totals that frames and metrics show up to date. */
+  refresh?(): Promise<void>
+  /** True when `refresh` has something to do. */
+  readonly needsRefresh?: boolean
+  /** Bring the whole state back to the processor, which a snapshot, a hash and a fork need. */
+  sync?(): Promise<void>
+  /** The totals that this world's metrics got from the graphics card, by metric name. */
+  totals?(): Record<string, number>
 }

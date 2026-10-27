@@ -142,6 +142,22 @@
     "about": "about.md"
   },
   {
+    "id": "gray-scott-gpu",
+    "name": "Reaction-diffusion on the GPU",
+    "description": "Gray-Scott on a million cells, written as formulas and run on the graphics card, with a zoomable picture.",
+    "scene": "scene.json",
+    "script": "gray-scott.js",
+    "tags": [
+      "grid",
+      "chemistry",
+      "fast",
+      "formula",
+      "gpu"
+    ],
+    "folder": "Cells & patterns",
+    "about": "about.md"
+  },
+  {
     "id": "hypercycle",
     "name": "Hypercycle",
     "description": "Five molecules that each help the next copy itself survive together in chasing spiral waves, until parasites that take help without giving it break the ring.",

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { hash01, saltOf } from '@breve/stdlib'
+import { hash01, interpret, saltOf, trace } from '@breve/stdlib'
 import { Sim, parseScene, type ScriptModule } from '../src/index'
 
 const example = async (id: string, file: string) => (await import(pathToFileURL(new URL(`../../../examples/${id}/${file}`, import.meta.url).pathname).href)) as ScriptModule
@@ -84,4 +84,43 @@ test('lattice compute accepts auto and cpu and rejects anything else', async () 
   const r = parseScene(JSON.stringify(bad))
   assert.equal(r.ok, false)
   assert.match(r.ok ? '' : r.errors.join('\n'), /lattice\.compute/)
+})
+
+test('Gray-Scott written as formulas gives the same chemistry as the whole-field version (substeps run the rule several times a tick)', async () => {
+  const gpuScene = sceneOf('gray-scott-gpu')
+  gpuScene.entities[0].lattice!.size = [48, 48, 1]
+  const formulas = await example('gray-scott-gpu', 'gray-scott.js')
+  const a = new Sim(structuredClone(gpuScene), formulas) // no backend with `new Sim`: the processor runs the formulas
+  const plain = parseScene(readFileSync(new URL('../../../examples/gray-scott/scene.json', import.meta.url), 'utf8'))
+  assert.ok(plain.ok)
+  plain.scene.entities[0].lattice!.size = [48, 1, 48]
+  const start = { u: Float32Array.from(cols(a).u.slice(0, 2304)), v: Float32Array.from(cols(a).v.slice(0, 2304)) }
+  assert.ok(start.v.some((x) => x > 0) && start.u.some((x) => x === 1), 'blobs of v on a field of u')
+  const original = await example('gray-scott', 'gray-scott.js')
+  const b = new Sim(structuredClone(plain.scene), { default: { ...original.default, initAll: () => start }, metrics: original.metrics } as ScriptModule)
+  const speed = 4
+  for (const sim of [a, b]) { sim.params.speed = speed }
+  for (let t = 0; t < 12; t++) { a.step(); b.step() }
+  const close = (x: Float32Array, y: Float32Array) => x.every((v, i) => Math.abs(v - y[i]) < 1e-3)
+  assert.ok(close(cols(a).u.slice(0, 2304), cols(b).u.slice(0, 2304)), 'u matches')
+  assert.ok(close(cols(a).v.slice(0, 2304), cols(b).v.slice(0, 2304)), 'v matches')
+  assert.equal(a.takeErrors().length + b.takeErrors().length, 0)
+  const before = start.v.reduce((s, v) => s + v, 0), after = cols(a).v.slice(0, 2304).reduce((s, v) => s + v, 0)
+  assert.ok(after > before * 0.3, `the chemistry is still going (v ${before.toFixed(1)} -> ${after.toFixed(1)}): the blobs are blobs, not noise`)
+})
+
+test('the unary operations and a gradient trace and run', () => {
+  const program = trace(({ a }, p, k) => ({ abs: a.abs(), neg: a.neg(), sqrt: a.abs().sqrt(), floor: a.floor(), sin: a.sin(), cos: a.cos(), ...(({ r, g, b }) => ({ r, g, b }))(k.gradient(['#000000', '#ff0000', '#ffffff'], a.abs().mul(0.5))) }), ['a'], [])
+  const out = interpret(program, { size: [4, 1, 1], wrap: true }, { state: { a: [-2.5, -0.5, 0.25, 1.75] } })
+  assert.deepEqual(Array.from(out.abs), [2.5, 0.5, 0.25, 1.75])
+  assert.deepEqual(Array.from(out.neg), [2.5, 0.5, -0.25, -1.75])
+  assert.deepEqual(Array.from(out.floor), [-3, -1, 0, 1])
+  assert.ok(Math.abs(out.sin[2] - Math.sin(0.25)) < 1e-6 && Math.abs(out.cos[3] - Math.cos(1.75)) < 1e-6)
+  assert.deepEqual(Array.from(out.sqrt), Array.from([2.5, 0.5, 0.25, 1.75], (v) => Math.fround(Math.sqrt(v))))
+  // a gradient from black through red to white, at |a| * 0.5 = 1.25 (past the end: white), 0.25, 0.125 and 0.875
+  const near = (x: number, y: number) => Math.abs(x - y) < 1e-5
+  assert.ok(near(out.r[0], 1) && near(out.g[0], 1) && near(out.b[0], 1), 'white past the end')
+  assert.ok(near(out.r[1], 0.5) && near(out.g[1], 0), 'half way to red')
+  assert.ok(near(out.r[2], 0.25) && near(out.g[2], 0), 'a quarter of the way to red')
+  assert.ok(near(out.r[3], 1) && near(out.g[3], 0.75) && near(out.b[3], 0.75), 'three quarters of the way from red to white')
 })

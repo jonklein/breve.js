@@ -12,6 +12,10 @@
  * The graph is plain JSON (`Program`), with each node using only earlier nodes. Values are 32-bit floats, as in `Field`.
  */
 
+import { Colors } from './colors'
+
+export type UnOp = 'abs' | 'neg' | 'sqrt' | 'floor' | 'sin' | 'cos'
+export const UN_OPS: readonly UnOp[] = ['abs', 'neg', 'sqrt', 'floor', 'sin', 'cos']
 export type BinOp = 'add' | 'sub' | 'mul' | 'div' | 'min' | 'max' | 'eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge' | 'and' | 'or'
 export type NeighborOp = 'sum' | 'count' | 'avg' | 'max'
 
@@ -26,11 +30,13 @@ export type Node =
   | { k: 'coord'; axis: 0 | 1 | 2 } // which column, row or layer a cell is in
   | { k: 'index' } // the cell's number, in storage order
   | { k: 'tick' }
+  | { k: 'un'; op: UnOp; a: number }
   | { k: 'bin'; op: BinOp; a: number; b: number }
   | { k: 'where'; c: number; a: number; b: number }
   | { k: 'clamp'; a: number; lo: number; hi: number }
   | { k: 'nbr'; op: NeighborOp; a: number }
   | { k: 'hash'; salt: number }
+  | { k: 'rand'; salt: number }
 
 /** A total over every cell, for metrics: `alive.sum()`. */
 export type ReduceOp = 'sum' | 'average'
@@ -126,6 +132,7 @@ export class Expr {
   }
 
   private bin(op: BinOp, o: number | Expr): Expr { return new Expr(this.b, this.b.add({ k: 'bin', op, a: this.id, b: this.operand(o) })) }
+  private un(op: UnOp): Expr { return new Expr(this.b, this.b.add({ k: 'un', op, a: this.id })) }
   private nbr(op: NeighborOp): Expr { return new Expr(this.b, this.b.add({ k: 'nbr', op, a: this.id })) }
 
   add(o: number | Expr): Expr { return this.bin('add', o) }
@@ -143,6 +150,13 @@ export class Expr {
   and(o: number | Expr): Expr { return this.bin('and', o) }
   or(o: number | Expr): Expr { return this.bin('or', o) }
   not(): Expr { return this.bin('eq', 0) }
+  abs(): Expr { return this.un('abs') }
+  /** The same number with its sign flipped (there is no unary minus on an expression). */
+  neg(): Expr { return this.un('neg') }
+  sqrt(): Expr { return this.un('sqrt') }
+  floor(): Expr { return this.un('floor') }
+  sin(): Expr { return this.un('sin') }
+  cos(): Expr { return this.un('cos') }
   where(a: number | Expr, b: number | Expr): Expr { return new Expr(this.b, this.b.add({ k: 'where', c: this.id, a: this.operand(a), b: this.operand(b) })) }
   clamp(lo: number, hi: number): Expr {
     if (!Number.isFinite(lo) || !Number.isFinite(hi)) throw new Error('clamp needs two finite numbers')
@@ -173,6 +187,11 @@ export class Expr {
 
 /** What a formula can ask for besides its fields and parameters. */
 export interface FormulaContext {
+  /**
+   * One random number in [0, 1) for the whole grid (the same value in every cell, new each tick), for things that happen at one place:
+   * `k.random('blob-3').mul(k.size[0])` is where blob 3 goes. The same on every run and machine.
+   */
+  random(name?: string): Expr
   /** A number in [0, 1) that is different for every cell and tick, and the same on every run and machine. `name` makes separate streams. */
   hash(name?: string): Expr
   /** Which column, row and layer the cell is in. */
@@ -182,6 +201,18 @@ export interface FormulaContext {
   /** The cell's number, in storage order. */
   index: Expr
   tick: Expr
+  /** The grid's size in cells (columns, rows, layers), as plain numbers. A formula that uses it is made again for a grid of another size. */
+  size: [number, number, number]
+  /** The scene's `data`, as plain JSON, read when the formula is written. A formula that uses it is made again when the data changes. */
+  data: any
+  /** A color along a list of hex stops, for `t` between 0 and 1: `const { r, g, b } = k.gradient(['#0b1230', '#2fb8bd', '#f6efc4'], v.mul(3))`. */
+  gradient(stops: string[], t: Expr | number): { r: Expr; g: Expr; b: Expr }
+}
+
+/** What a formula may know about the place it will run, besides its fields and parameters. */
+export interface FormulaSite {
+  size?: [number, number, number]
+  data?: unknown
 }
 
 export type Formula = (fields: Record<string, Expr>, params: Record<string, Expr>, k: FormulaContext) => Record<string, Expr | number> | undefined
@@ -190,7 +221,7 @@ export type Formula = (fields: Record<string, Expr>, params: Record<string, Expr
  * Run a formula once and record what it computes. `fields` names the state fields it can read, `params` the parameters
  * (these become values the program is given each tick, so a slider moves without anything being compiled again).
  */
-export function trace(formula: Formula, fields: string[], params: string[]): Program {
+export function trace(formula: Formula, fields: string[], params: string[], site: FormulaSite = {}): Program {
   const b = new Builder()
   const read = (names: string[], k: 'field' | 'param', what: string) =>
     new Proxy(Object.fromEntries(names.map((name) => [name, new Expr(b, b.add({ k, name } as Node))])), {
@@ -201,11 +232,31 @@ export function trace(formula: Formula, fields: string[], params: string[]): Pro
     }) as Record<string, Expr>
   const k: FormulaContext = {
     hash: (name) => new Expr(b, b.add({ k: 'hash', salt: name === undefined ? 0 : saltOf(name) })),
+    random: (name) => new Expr(b, b.add({ k: 'rand', salt: name === undefined ? 0 : saltOf(name) })),
     x: new Expr(b, b.add({ k: 'coord', axis: 0 })),
     y: new Expr(b, b.add({ k: 'coord', axis: 1 })),
     z: new Expr(b, b.add({ k: 'coord', axis: 2 })),
     index: new Expr(b, b.add({ k: 'index' })),
     tick: new Expr(b, b.add({ k: 'tick' })),
+    size: site.size ?? [1, 1, 1],
+    data: site.data === undefined ? undefined : structuredClone(site.data),
+    gradient: (stops, t) => {
+      if (!stops.length) throw new Error('a gradient needs at least one color')
+      const rgb = stops.map(Colors.hex)
+      const x = typeof t === 'number' ? new Expr(b, b.add({ k: 'num', v: Math.fround(t) })) : t
+      const top = rgb.length - 1
+      const channel = (c: 0 | 1 | 2): Expr => {
+        let sum: Expr | number = rgb[0][c]
+        for (let i = 0; i < top; i++) {
+          const delta = rgb[i + 1][c] - rgb[i][c]
+          if (delta === 0) continue
+          const ramp = x.clamp(0, 1).mul(top).sub(i).clamp(0, 1).mul(delta) // 0 before this stretch of the gradient, delta after it
+          sum = typeof sum === 'number' ? ramp.add(sum) : sum.add(ramp)
+        }
+        return typeof sum === 'number' ? new Expr(b, b.add({ k: 'num', v: Math.fround(sum) })) : sum
+      }
+      return { r: channel(0), g: channel(1), b: channel(2) }
+    },
   }
   const result = formula(read(fields, 'field', 'field'), read(params, 'param', 'parameter'), k)
   if (!result || typeof result !== 'object') throw new Error('a formula must return an object of fields: { alive: ... }')
@@ -340,10 +391,17 @@ function evaluate(program: Program, grid: Grid, input: RunInput): Float32Array[]
       case 'coord': for (let i = 0; i < n; i++) out[i] = node.axis === 0 ? i % nx : node.axis === 1 ? Math.floor(i / nx) % ny : Math.floor(i / (nx * ny)); break
       case 'index': for (let i = 0; i < n; i++) out[i] = i; break
       case 'tick': out.fill(tick); break
+      case 'un': {
+        const a = vals[node.a]
+        const f = node.op === 'abs' ? Math.abs : node.op === 'neg' ? (v: number) => -v : node.op === 'sqrt' ? Math.sqrt : node.op === 'floor' ? Math.floor : node.op === 'sin' ? Math.sin : Math.cos
+        for (let i = 0; i < n; i++) out[i] = f(a[i])
+        break
+      }
       case 'bin': binary(node.op, vals[node.a], vals[node.b], out); break
       case 'where': { const c = vals[node.c], a = vals[node.a], b = vals[node.b]; for (let i = 0; i < n; i++) out[i] = c[i] !== 0 ? a[i] : b[i]; break }
       case 'clamp': { const a = vals[node.a]; for (let i = 0; i < n; i++) { const v = a[i]; out[i] = v < node.lo ? node.lo : v > node.hi ? node.hi : v } break }
       case 'hash': for (let i = 0; i < n; i++) out[i] = hash01(i, tick, seed, node.salt); break
+      case 'rand': out.fill(hash01(0, tick, seed, node.salt)); break
       case 'nbr': {
         const { nbr, count } = neighbors()
         const a = vals[node.a], stride = offsets.length
@@ -410,11 +468,12 @@ export function validateProgram(p: unknown): string[] {
       case 'param': if (typeof n.name !== 'string' || (Array.isArray(params) && !params.includes(n.name))) errors.push(`${where}.name: must be one of program.params`); break
       case 'coord': if (![0, 1, 2].includes(n.axis)) errors.push(`${where}.axis: must be 0, 1 or 2`); break
       case 'index': case 'tick': break
+      case 'un': if (!UN_OPS.includes(n.op)) errors.push(`${where}.op: must be one of ${UN_OPS.join(', ')}`); ref('a'); break
       case 'bin': if (!BIN_OPS.includes(n.op)) errors.push(`${where}.op: must be one of ${BIN_OPS.join(', ')}`); ref('a'); ref('b'); break
       case 'where': ref('c'); ref('a'); ref('b'); break
       case 'clamp': ref('a'); if (typeof n.lo !== 'number' || typeof n.hi !== 'number') errors.push(`${where}: lo and hi must be numbers`); break
       case 'nbr': if (!NEIGHBOR_OPS.includes(n.op)) errors.push(`${where}.op: must be one of ${NEIGHBOR_OPS.join(', ')}`); ref('a'); break
-      case 'hash': if (!Number.isInteger(n.salt)) errors.push(`${where}.salt: must be an integer`); break
+      case 'hash': case 'rand': if (!Number.isInteger(n.salt)) errors.push(`${where}.salt: must be an integer`); break
       default: errors.push(`${where}.k: unknown kind "${(n as { k?: unknown }).k}"`)
     }
   })

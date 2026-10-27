@@ -1,0 +1,140 @@
+{
+  "name": "gray-scott gpu",
+  "seed": 3,
+  "clock": {
+    "rate": 30
+  },
+  "world": {
+    "preset": "night",
+    "grid": false,
+    "fog": false,
+    "frame": false
+  },
+  "data": {
+    "palette": "aurora"
+  },
+  "controls": [
+    {
+      "label": "Pattern (sets supply and decay)",
+      "presets": [
+        {
+          "label": "spots",
+          "values": {
+            "params.supply.value": 0.037,
+            "params.decay.value": 0.065
+          }
+        },
+        {
+          "label": "stripes",
+          "values": {
+            "params.supply.value": 0.078,
+            "params.decay.value": 0.061
+          }
+        },
+        {
+          "label": "coral",
+          "values": {
+            "params.supply.value": 0.055,
+            "params.decay.value": 0.062
+          }
+        },
+        {
+          "label": "waves",
+          "values": {
+            "params.supply.value": 0.026,
+            "params.decay.value": 0.051
+          }
+        },
+        {
+          "label": "holes",
+          "values": {
+            "params.supply.value": 0.039,
+            "params.decay.value": 0.058
+          }
+        },
+        {
+          "label": "solitons",
+          "values": {
+            "params.supply.value": 0.03,
+            "params.decay.value": 0.06
+          }
+        }
+      ]
+    },
+    {
+      "label": "Palette",
+      "set": "data.palette",
+      "options": [
+        "ocean",
+        "aurora",
+        "fire",
+        "rainbow",
+        "candy",
+        "mono"
+      ]
+    }
+  ],
+  "params": {
+    "supply": {
+      "value": 0.037,
+      "min": 0.01,
+      "max": 0.1,
+      "step": 0.0005,
+      "label": "supply (how fast u is topped up)"
+    },
+    "decay": {
+      "value": 0.065,
+      "min": 0.04,
+      "max": 0.075,
+      "step": 0.0002,
+      "label": "decay (how fast v breaks down)"
+    },
+    "diffusionU": {
+      "value": 1,
+      "min": 0.2,
+      "max": 1,
+      "step": 0.01,
+      "label": "diffusion of u (how fast it spreads out)"
+    },
+    "diffusionV": {
+      "value": 0.5,
+      "min": 0.1,
+      "max": 0.8,
+      "step": 0.01,
+      "label": "diffusion of v (how fast it spreads out)"
+    },
+    "speed": {
+      "value": 12,
+      "min": 1,
+      "max": 48,
+      "step": 1,
+      "label": "small steps per tick"
+    },
+    "brightness": {
+      "value": 3,
+      "min": 1,
+      "max": 6,
+      "step": 0.1,
+      "label": "color brightness"
+    }
+  },
+  "entities": [
+    {
+      "name": "cell",
+      "controller": "gray-scott.js",
+      "lattice": {
+        "size": [
+          1024,
+          1024,
+          1
+        ],
+        "spacing": 1,
+        "edges": "wrap",
+        "substeps": "$speed"
+      }
+    }
+  ],
+  "metrics": [
+    "chemicalV"
+  ]
+}

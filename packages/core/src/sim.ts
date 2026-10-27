@@ -192,7 +192,7 @@ export class Sim {
     try {
       if (ctrl.initFormula) {
         // a formula's fields are the names it returns, each a number per entity
-        for (const name of Object.keys(programOf(ctrl.initFormula as Formula, [], Object.keys(this.params)).out)) out.push(fieldOfColumn(name, new Float32Array(1))!)
+        for (const name of Object.keys(programOf(ctrl.initFormula as Formula, [], Object.keys(this.params), { size: this.scene.entities[set].lattice?.size, data: this.scene.data }).out)) out.push(fieldOfColumn(name, new Float32Array(1))!)
       } else if (ctrl.initAll) {
         for (const [name, col] of Object.entries((ctrl.initAll({ count: 1, probe: true }, this.params, ctx) ?? {}) as Record<string, unknown>)) {
           const data = col instanceof Field ? col.data : (col as ArrayLike<unknown>)

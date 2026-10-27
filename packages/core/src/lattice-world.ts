@@ -191,7 +191,7 @@ export class LatticeWorld implements World, PatchLayer {
     }
     try {
       if (ctrl.initFormula) {
-        const out = runFormula(ctrl.initFormula as Formula, this.grid(), [], { state: {}, params, tick: 0, seed: this.host.scene.seed })
+        const out = runFormula(ctrl.initFormula as Formula, this.grid(), [], { state: {}, params, tick: 0, seed: this.host.scene.seed }, this.host.scene.data)
         for (const [name, data] of Object.entries(out)) {
           const f = field(name)
           if (f) store(cols[name], f, data, this.n)
@@ -293,18 +293,26 @@ export class LatticeWorld implements World, PatchLayer {
   private stepFormula(rule: Formula): void {
     const cols = this.table.cols
     const numbers = this.fields.filter((f) => this.fieldOf[f].kind === 'number')
-    let out: Record<string, Float32Array>
-    try {
-      out = runFormula(rule, this.grid(), numbers, { state: Object.fromEntries(numbers.map((f) => [f, cols[f] as ArrayLike<number>])), params: this.host.params, tick: this.host.tick, seed: this.host.scene.seed })
-    } catch (e) {
-      this.host.fail('actFormula', e)
-      return
+    const substeps = this.substeps()
+    for (let i = 0; i < substeps; i++) {
+      let out: Record<string, Float32Array>
+      try {
+        out = runFormula(rule, this.grid(), numbers, { state: Object.fromEntries(numbers.map((f) => [f, cols[f] as ArrayLike<number>])), params: this.host.params, tick: this.host.tick * substeps + i, seed: this.host.scene.seed }, this.host.scene.data)
+      } catch (e) {
+        this.host.fail('actFormula', e)
+        return
+      }
+      for (const [name, data] of Object.entries(out)) {
+        const f = this.fieldOf[name]
+        if (!f) { this.host.fail('actFormula', new Error(`"${name}" is not a state field of "${this.name}" (it has: ${this.fields.join(', ')})`)); return }
+        store(cols[name], f, data, this.n)
+      }
     }
-    for (const [name, data] of Object.entries(out)) {
-      const f = this.fieldOf[name]
-      if (!f) { this.host.fail('actFormula', new Error(`"${name}" is not a state field of "${this.name}" (it has: ${this.fields.join(', ')})`)); continue }
-      store(cols[name], f, data, this.n)
-    }
+  }
+
+  /** How many times a tick runs a formula rule (the lattice's `substeps`, a number or a parameter). */
+  private substeps(): number {
+    return Math.max(1, Math.min(256, Math.round(resolve(this.host.def.lattice!.substeps, this.host.params, 1))))
   }
 
   step(): void {
@@ -348,7 +356,7 @@ export class LatticeWorld implements World, PatchLayer {
       const cols = this.table.cols
       const numbers = this.fields.filter((f) => this.fieldOf[f].kind === 'number')
       try {
-        const out = runFormula(ctrl.displayFormula as Formula, this.grid(), numbers, { state: Object.fromEntries(numbers.map((f) => [f, cols[f] as ArrayLike<number>])), params: this.host.params, tick: this.host.tick, seed: this.host.scene.seed })
+        const out = runFormula(ctrl.displayFormula as Formula, this.grid(), numbers, { state: Object.fromEntries(numbers.map((f) => [f, cols[f] as ArrayLike<number>])), params: this.host.params, tick: this.host.tick, seed: this.host.scene.seed }, this.host.scene.data)
         const { r, g, b, ...rest } = out
         return looksOfAll(this.n, { ...rest, ...(r && g && b ? { color: { r, g, b } } : {}) }, fail)
       } catch (e) { fail(e); return none }

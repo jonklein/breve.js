@@ -107,3 +107,30 @@ test('a window that reaches past the grid shows the background there', async (t)
   assert.deepEqual(at(5, 5), [255, 0, 0, 255], 'inside is the cell color')
   assert.equal(got.totals.n, 64)
 })
+
+test('Gray-Scott as written in the example (unary operations, gradient, grid size and data in the formulas) matches the interpreter on the card', async (t) => {
+  if (skip(t)) return
+  const { pathToFileURL } = await import('node:url')
+  const script = (await import(pathToFileURL(fileURLToPath(new URL('../../../examples/gray-scott-gpu/gray-scott.js', import.meta.url))).href)).default
+  const grid: Grid = { size: [64, 48, 1], wrap: true }
+  const fields = ['u', 'v']
+  const params = { supply: 0.037, decay: 0.065, diffusionU: 1, diffusionV: 0.5, speed: 12, brightness: 3 }
+  const names = Object.keys(params)
+  const site = { size: grid.size, data: { palette: 'fire' } }
+  const init = trace(script.initFormula, [], names, site), step = trace(script.actFormula, fields, names, site), look = trace(script.displayFormula, fields, names, site)
+  const { program: metrics } = traceMetrics({ chemicalV: ({ cells }) => cells.v.average() }, fields)
+  const steps = 10
+  const got: any = await page.evaluate(RUN, { grid, fields, init, step, metrics, look, params, steps, seed: 3, window: [0, 0, 64, 48], size: [64, 48] })
+  if (got.skip) return t.skip('no WebGPU adapter')
+  assert.deepEqual(got.problems, [])
+  let state = interpret(init, grid, { state: {}, params, tick: 0, seed: 3 }) as Record<string, Float32Array>
+  for (let tick = 0; tick < steps; tick++) state = interpret(step, grid, { state, params, tick, seed: 3 }) as typeof state
+  const worst = (a: number[], b: Float32Array) => a.reduce((m, v, i) => Math.max(m, Math.abs(v - b[i])), 0)
+  assert.ok(worst(got.state.u, state.u) < 1e-3 && worst(got.state.v, state.v) < 1e-3, `u off by ${worst(got.state.u, state.u)}, v by ${worst(got.state.v, state.v)}`)
+  assert.ok(state.v.some((v) => v > 0.1), 'there is v to see')
+  const want = interpret(look, grid, { state, params, tick: steps, seed: 3 })
+  const byte = (v: number) => Math.floor(Math.min(1, Math.max(0, v)) * 255 + 0.5)
+  let off = 0
+  for (let c = 0; c < 64 * 48; c++) for (const [k, ch] of [['r', 0], ['g', 1], ['b', 2]] as const) off = Math.max(off, Math.abs(got.whole[c * 4 + ch] - byte(want[k][c])))
+  assert.ok(off <= 3, `the picture is off by up to ${off} of 255`)
+})

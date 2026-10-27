@@ -54,6 +54,7 @@ const arith: Partial<Record<BinOp, string>> = { add: '+', sub: '-', mul: '*', di
 /** What this node needs at the same cell. A neighbor operation looks at its operand at other cells, which is a function of its own. */
 function localDeps(n: Node): number[] {
   switch (n.k) {
+    case 'un': return [n.a]
     case 'bin': return [n.a, n.b]
     case 'where': return [n.c, n.a, n.b]
     case 'clamp': return [n.a]
@@ -110,9 +111,11 @@ function emitter(program: Program, grid: Grid, layout: string[]) {
       case 'index': return `f32(${idx(c)})`
       case 'tick': return 'f32(u.tick)'
       case 'hash': return `hash01(${idx(c)}, u.tick, u.seed, ${n.salt >>> 0}u)`
+      case 'rand': return `hash01(0u, u.tick, u.seed, ${n.salt >>> 0}u)`
       case 'where': return `select(${v(n.b)}, ${v(n.a)}, ${v(n.c)} != 0.0)`
       case 'clamp': return `select(select(${v(n.a)}, ${lit(n.hi)}, ${v(n.a)} > ${lit(n.hi)}), ${lit(n.lo)}, ${v(n.a)} < ${lit(n.lo)})`
       case 'nbr': return `nb${id}(${c})`
+      case 'un': return n.op === 'neg' ? `-${v(n.a)}` : `${n.op}(${v(n.a)})`
       case 'bin': {
         const a = v(n.a), b = v(n.b)
         if (arith[n.op]) return `${a} ${arith[n.op]} ${b}`

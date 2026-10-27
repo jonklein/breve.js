@@ -8,6 +8,7 @@
  * interpreter for rules made of whole numbers (Life), and can differ in the last bits for rules that divide or average.
  */
 import { programOf } from './formula-run'
+import { resolve } from './scene'
 import type { FormulaLattice, Grid, Program } from '@breve/stdlib'
 import { trace, traceMetrics } from '@breve/stdlib'
 import type { Table } from './store'
@@ -26,7 +27,7 @@ const MAX_SIDE = 1024
 
 /** The shape of the whole-numbers test: a rule is exact on any machine if it only adds, compares and picks whole numbers. */
 export function isExactProgram(p: Program): boolean {
-  return p.nodes.every((n) => (n.k === 'num' ? Number.isInteger(n.v) : n.k === 'bin' ? n.op !== 'div' : n.k === 'nbr' ? n.op !== 'avg' : n.k !== 'clamp' || (Number.isInteger(n.lo) && Number.isInteger(n.hi))))
+  return p.nodes.every((n) => (n.k === 'num' ? Number.isInteger(n.v) : n.k === 'bin' ? n.op !== 'div' : n.k === 'un' ? ['abs', 'neg', 'floor'].includes(n.op) : n.k === 'nbr' ? n.op !== 'avg' : n.k !== 'clamp' || (Number.isInteger(n.lo) && Number.isInteger(n.hi))))
 }
 
 export class GpuLatticeWorld implements World {
@@ -68,7 +69,7 @@ export class GpuLatticeWorld implements World {
   }
 
   private program(fn: Formula, fields: string[]): Program {
-    return programOf(fn, fields, Object.keys(this.host.params))
+    return programOf(fn, fields, Object.keys(this.host.params), { size: this.dims, data: this.host.scene.data })
   }
 
   /** Compile what the script has now and report anything wrong in words (the sim keeps going without the failing part). */
@@ -101,7 +102,9 @@ export class GpuLatticeWorld implements World {
       return
     }
     try {
-      this.lattice.step(this.program(ctrl.actFormula as Formula, this.fields), this.run(this.host.tick))
+      const program = this.program(ctrl.actFormula as Formula, this.fields)
+      const substeps = Math.max(1, Math.min(256, Math.round(resolve(this.host.def.lattice!.substeps, this.host.params, 1))))
+      for (let i = 0; i < substeps; i++) this.lattice.step(program, this.run(this.host.tick * substeps + i))
     } catch (e) {
       this.host.fail('actFormula', e)
       return

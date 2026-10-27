@@ -124,3 +124,13 @@ test('a program is plain data: it survives JSON, and bad programs are described'
   assert.match(validateProgram({ nodes: [{ k: 'wat' }], out: {}, fields: [], params: [] }).join('\n'), /unknown kind "wat"/)
   assert.match(validateProgram(null).join('\n'), /must be an object/)
 })
+
+test('k.random is one number for the whole grid (new each tick), where k.hash differs from cell to cell', () => {
+  const grid: Grid = { size: [6, 4, 1], wrap: true }
+  const program = trace((f, p, k) => ({ one: k.random('place'), many: k.hash('place') }), [], [])
+  const a = interpret(program, grid, { state: {}, tick: 3, seed: 9 })
+  assert.ok(a.one.every((v) => v === a.one[0]), 'the same in every cell')
+  assert.equal(a.one[0], hash01(0, 3, 9, saltOf('place')))
+  assert.ok(new Set(a.many).size > 10, 'hash differs from cell to cell')
+  assert.notEqual(interpret(program, grid, { state: {}, tick: 4, seed: 9 }).one[0], a.one[0], 'new each tick')
+})

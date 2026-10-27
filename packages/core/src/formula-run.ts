@@ -3,17 +3,17 @@
  * `@breve/stdlib` formula). The script's function runs ONCE to give a program; the program then runs for every cell, each tick,
  * with the scene's parameters as inputs. Programs are kept per function, so editing the script makes a new one.
  */
-import { interpret, trace, type Formula, type Grid, type Program } from '@breve/stdlib'
+import { interpret, trace, type Formula, type FormulaSite, type Grid, type Program } from '@breve/stdlib'
 
 const programs = new WeakMap<Formula, Map<string, Program>>()
 
 /** The program a formula function describes, for these state fields and parameters (worked out once, then remembered). */
-export function programOf(fn: Formula, fields: string[], params: string[]): Program {
+export function programOf(fn: Formula, fields: string[], params: string[], site: FormulaSite = {}): Program {
   let byShape = programs.get(fn)
   if (!byShape) programs.set(fn, (byShape = new Map()))
-  const key = JSON.stringify([fields, params])
+  const key = JSON.stringify([fields, params, site.size, site.data]) // a formula that reads the grid size or the scene's data is made again when they change
   let p = byShape.get(key)
-  if (!p) byShape.set(key, (p = trace(fn, fields, params)))
+  if (!p) byShape.set(key, (p = trace(fn, fields, params, site)))
   return p
 }
 
@@ -25,6 +25,6 @@ export interface FormulaRun {
 }
 
 /** Run a formula's program for every cell and return its result fields. */
-export function runFormula(fn: Formula, grid: Grid, fields: string[], run: FormulaRun): Record<string, Float32Array> {
-  return interpret(programOf(fn, fields, Object.keys(run.params)), grid, run)
+export function runFormula(fn: Formula, grid: Grid, fields: string[], run: FormulaRun, data?: unknown): Record<string, Float32Array> {
+  return interpret(programOf(fn, fields, Object.keys(run.params), { size: grid.size, data }), grid, run)
 }

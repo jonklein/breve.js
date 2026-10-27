@@ -53,6 +53,8 @@ export interface LatticeDef {
    * (a flat grid, and a host that provides one) and uses the processor otherwise; `cpu` always uses the processor.
    */
   compute?: 'auto' | 'cpu'
+  /** Formula rules (`actFormula`) only: how many times to run the rule in one tick (a number or a parameter, 1 to 256; default 1). Slow processes, like diffusion, need many small steps per frame. */
+  substeps?: NumOrParam
   /** For a flat grid (size 1 on one axis): how thick the drawn cells are along that axis, as a fraction of their width. Default 1. */
   thickness?: number
   /** Ease cells in and out over this fraction of a tick (0 = instant, the default; 1 = a whole tick). */
@@ -549,6 +551,7 @@ export const sceneSchema = {
               edges: { enum: ['dead', 'wrap'] },
               neighborhood: { enum: ['moore', 'von-neumann'] },
               compute: { enum: ['auto', 'cpu'] },
+              substeps: numOrParam,
               thickness: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
               fade: { type: 'number', minimum: 0, maximum: 1 },
             },

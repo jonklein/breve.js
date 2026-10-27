@@ -808,19 +808,9 @@ Workgroups per total: `partials` (binding 2, f32) holds `totals.length * groups`
 
 ## toWgslReduce
 
+## UnOp
+
 ## BinOp
-
-Formulas: a whole-set rule written once, as an expression.
-
-A formula is a function that runs ONCE. The fields it is given are not numbers but places in an expression, so what it
-returns is a program (a small graph of operations) that can be run for every cell, on the CPU or compiled for the GPU:
-
-  alive => { const crowd = alive.neighborSum(); return { alive: crowd.eq(3).or(alive.and(crowd.eq(2))) } }
-
-`trace` runs the function and records the graph. `interpret` runs a graph on the CPU, cell by cell and node by node: it is the
-reference every faster backend is checked against, so it favors being obviously right over being fast.
-
-The graph is plain JSON (`Program`), with each node using only earlier nodes. Values are 32-bit floats, as in `Field`.
 
 ## NeighborOp
 
@@ -997,6 +987,44 @@ or(o: number | Expr): Expr
 not(): Expr
 ```
 
+### `Expr.abs`
+
+```ts
+abs(): Expr
+```
+
+### `Expr.neg`
+
+```ts
+neg(): Expr
+```
+
+The same number with its sign flipped (there is no unary minus on an expression).
+
+### `Expr.sqrt`
+
+```ts
+sqrt(): Expr
+```
+
+### `Expr.floor`
+
+```ts
+floor(): Expr
+```
+
+### `Expr.sin`
+
+```ts
+sin(): Expr
+```
+
+### `Expr.cos`
+
+```ts
+cos(): Expr
+```
+
 ### `Expr.where`
 
 ```ts
@@ -1083,6 +1111,15 @@ toString(): string
 
 What a formula can ask for besides its fields and parameters.
 
+### `FormulaContext.random`
+
+```ts
+random(name?: string): Expr
+```
+
+One random number in [0, 1) for the whole grid (the same value in every cell, new each tick), for things that happen at one place:
+`k.random('blob-3').mul(k.size[0])` is where blob 3 goes. The same on every run and machine.
+
 ### `FormulaContext.hash`
 
 ```ts
@@ -1123,6 +1160,46 @@ The cell's number, in storage order.
 
 ```ts
 tick: Expr
+```
+
+### `FormulaContext.size`
+
+```ts
+size: [number, number, number]
+```
+
+The grid's size in cells (columns, rows, layers), as plain numbers. A formula that uses it is made again for a grid of another size.
+
+### `FormulaContext.data`
+
+```ts
+data: any
+```
+
+The scene's `data`, as plain JSON, read when the formula is written. A formula that uses it is made again when the data changes.
+
+### `FormulaContext.gradient`
+
+```ts
+gradient(stops: string[], t: Expr | number):
+```
+
+A color along a list of hex stops, for `t` between 0 and 1: `const { r, g, b } = k.gradient(['#0b1230', '#2fb8bd', '#f6efc4'], v.mul(3))`.
+
+## FormulaSite
+
+What a formula may know about the place it will run, besides its fields and parameters.
+
+### `FormulaSite.size`
+
+```ts
+size?: [number, number, number]
+```
+
+### `FormulaSite.data`
+
+```ts
+data?: unknown
 ```
 
 ## Formula

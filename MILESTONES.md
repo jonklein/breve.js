@@ -187,25 +187,27 @@ Make the simulations look good, and make every look configurable from the scene 
 
 **How configuration works.** `world.preset` (`day`, `dusk`, `night`, `studio`, `space`, `plain`) picks a coherent set of defaults for sky, fog, light, shadows, reflections and tone mapping; every field below overrides it. A scene with no `world` block looks good on its own. The config is validated by the scene schema with readable errors, resolved to plain numbers by a pure function in `packages/view` (testable without WebGL), and applied by the renderer.
 
+Progress: phases 1 and 2 are mostly done and every example has a preset, a camera or floor where it helps, and a style. Still to do: loadable textures are in but untested against real image files, a `camera` and `style` tour of the remaining examples, trails and outlines, bloom and ambient occlusion, graph link styling, the quality governor, workbench polish, gallery thumbnails.
+
 Phase 1 — lighting, atmosphere, shading (the foundation)
 
-- [ ] `world.fog` (linear or exponential, colour matching the sky by default) so distance fades instead of ending in a hard cut.
-- [ ] `world.light`: sun colour, intensity and direction (azimuth and elevation), ambient or hemisphere light (sky and ground colours), exposure and tone mapping (`none`, `aces`, `neutral`), with a night and a studio setup.
-- [ ] Shadows for every kind of scene, not just creatures: a floor that catches them, `shadows: { softness, resolution, bias }`, and a shadow frustum that fits what is drawn.
-- [ ] **Smooth surface normals.** Terrain is flat-shaded today; it becomes smooth by default with `terrain.shading: "smooth" | "flat"`, plus correct normals for every generated mesh (cones, capsules, cubes with optional bevels).
-- [ ] Physically based materials in place of plain diffuse ones, with `look.material` per entity set: roughness, metalness, emissive colour and strength, opacity.
-- [ ] Reflections: an environment map generated from the sky (so glossy things reflect it), `world.reflections` strength, and an optional reflective water plane.
+- [x] `world.fog` (linear or exponential, colour matching the sky by default) so distance fades instead of ending in a hard cut.
+- [x] `world.light`: sun colour, intensity and direction (azimuth and elevation), ambient or hemisphere light (sky and ground colours), exposure and tone mapping (`none`, `aces`, `neutral`), with a night and a studio setup.
+- [x] Shadows for every kind of scene, not just creatures: a floor that catches them, `shadows: { softness, resolution, bias }`, and a shadow frustum that fits what is drawn.
+- [x] **Smooth surface normals** (terrain smooth by default, `terrain.shading`; rounder cones, capsules and spheres; rounded cubes for agents still to do for lattice cells). Terrain is flat-shaded today; it becomes smooth by default with `terrain.shading: "smooth" | "flat"`, plus correct normals for every generated mesh (cones, capsules, cubes with optional bevels).
+- [x] Physically based materials in place of plain diffuse ones, with `look.material` per entity set: roughness, metalness, emissive colour and strength, opacity.
+- [x] Reflections: an environment map generated from the sky (so glossy things reflect it), `world.reflections` strength, and an optional reflective water plane.
 
 Phase 2 — textures and surfaces
 
 - [ ] Loadable textures: image URLs for the ground, a sky box or equirectangular sky, and a normal or roughness map; loaded through the asset base used for glTF parts, with a clear error and a fallback when a file is missing.
-- [ ] Parametric textures generated from a few numbers, deterministic from a seed: `noise`, `fbm`, `checker`, `stripes`, `grid`, `dots`, `bricks`, `marble`, `grass`, `sand`, `water`, each with colours, scale and contrast. Each also yields a matching bump or normal map.
+- [x] Parametric textures generated from a few numbers, deterministic from a seed: `noise`, `fbm`, `checker`, `stripes`, `grid`, `dots`, `bricks`, `marble`, `grass`, `sand`, `water`, each with colours, scale and contrast. Each also yields a matching bump or normal map.
 - [ ] Better defaults: ground and lattice cells, agents and nodes get tasteful textures and colours out of the box.
-- [ ] `world.floor` for scenes without terrain (colour, texture, height, whether it is drawn at all).
+- [x] `world.floor` for scenes without terrain (colour, texture, height, whether it is drawn at all).
 
 Phase 3 — things look better
 
-- [ ] Per-set `look.shape` (cone, sphere, cube, capsule, octahedron, disc, arrow, or a glTF) and `look.size`, with smooth normals; rounded cubes for lattices.
+- [~] Per-set `style.shape` and `style.material` (shape, roughness, metalness, glow, opacity; done), with rounded cubes for lattices and a glTF shape still to do: (cone, sphere, cube, capsule, octahedron, disc, arrow, or a glTF) and `look.size`, with smooth normals; rounded cubes for lattices.
 - [ ] Trails behind agents (`look.trail`: length and fade), glow for emissive things, outlines for the selected entity.
 - [ ] Optional effects, each off or subtle by default: bloom, ambient occlusion, vignette. Lattice cells and graph nodes can glow.
 - [ ] Graph links as soft, coloured, optionally curved lines; node labels on hover.

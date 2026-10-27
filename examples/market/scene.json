@@ -12,7 +12,7 @@
   },
   "entities": [
     {
-      "name": "traders",
+      "name": "traders", "style": {"material": {"roughness": 0.2, "metalness": 0.3, "glow": 0.6}},
       "count": 80,
       "controller": "market.js",
       "network": { "topology": "scalefree", "degree": 4, "layout": "force", "radius": 24, "size": 1.2 }

@@ -42,6 +42,7 @@ export interface WorldFrameMsg {
   name?: string
   color?: string
   scale?: number
+  style?: import('@breve/core').SetStyle
   kind: 'agents' | 'lattice' | 'bodies' | 'graph'
   count: number
   size: number

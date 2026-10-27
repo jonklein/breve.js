@@ -9,7 +9,7 @@
   },
   "entities": [
     {
-      "name": "people",
+      "name": "people", "style": {"material": {"roughness": 0.25, "glow": 0.7}},
       "count": 300,
       "controller": "contagion.js",
       "network": { "topology": "smallworld", "degree": 6, "rewire": 0.08, "layout": "force", "radius": 24, "size": 1.3 }

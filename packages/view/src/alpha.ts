@@ -6,13 +6,20 @@ import * as THREE from 'three'
  */
 export function alphaMaterial(): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.05 })
+  const glow = { value: 0 }, baseAlpha = { value: 1 }
+  m.userData.glow = glow
+  m.userData.baseAlpha = baseAlpha
   m.onBeforeCompile = (shader) => {
+    shader.uniforms.glow = glow
+    shader.uniforms.baseAlpha = baseAlpha
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float instanceAlpha;\nvarying float vInstanceAlpha;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvInstanceAlpha = instanceAlpha;')
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vInstanceAlpha;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vInstanceAlpha;')
+      .replace('#include <common>', '#include <common>\nvarying float vInstanceAlpha;\nuniform float glow;\nuniform float baseAlpha;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vInstanceAlpha * baseAlpha;')
+      // a glowing thing lights itself with its own color, so it stays bright in shadow and in the dark
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * glow;')
   }
   return m
 }
@@ -26,6 +33,9 @@ export function withAlpha(mesh: THREE.InstancedMesh, capacity: number): THREE.In
 
 /** Switch blending on only when something is see-through. */
 export function blend(mat: THREE.Material, on: boolean): void {
+  // a set that is see-through everywhere (`material.opacity` below 1) always blends
+  const base = (mat.userData as { baseAlpha?: { value: number } }).baseAlpha?.value ?? 1
+  on = on || base < 1
   if (mat.transparent === on) return
   mat.transparent = on
   mat.depthWrite = !on

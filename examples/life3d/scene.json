@@ -2,13 +2,13 @@
   "name": "life3d",
   "seed": 3,
   "clock": { "rate": 8 },
-  "world": { "preset": "night", "grid": false, "agentColor": "heading", "shadows": true, "reflections": 1, "floor": { "color": "#0a0f1c", "roughness": 0.25, "metalness": 0.4}},
+  "world": {"preset": "night", "grid": false, "agentColor": "heading", "shadows": true, "reflections": 1, "floor": {"color": "#0a0f1c", "roughness": 0.25, "metalness": 0.4}, "camera": {"distance": 2.7, "elevation": 28}},
   "params": {
     "density": { "value": 0.2, "min": 0.02, "max": 0.6, "step": 0.01, "label": "starting density" }
   },
   "entities": [
     {
-      "name": "cell",
+      "name": "cell", "style": {"material": {"roughness": 0.25, "metalness": 0.2, "glow": 0.4}},
       "lattice": { "size": [20, 20, 20], "spacing": 1.2, "edges": "wrap" },
       "controller": "life.js"
     }

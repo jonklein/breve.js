@@ -6,6 +6,7 @@ import { normalizeTexture } from './texture-gen'
  */
 
 export interface LookInput {
+  camera?: unknown
   floor?: unknown
   preset?: unknown
   sky?: unknown
@@ -36,6 +37,8 @@ export interface ResolvedLook {
   boundsColor: string
   /** A fixed agent color, or null for "by heading". */
   agentColor: string | null
+  /** Where the camera starts. */
+  camera: { distance: number; elevation: number; azimuth: number; fov: number }
   /** The ground plane, or null for none. `y` and `size` are null when they should follow the world's size. */
   floor: null | { color: string; texture: ReturnType<typeof normalizeTexture>; y: number | null; size: number | null; roughness: number; metalness: number }
 }
@@ -171,8 +174,19 @@ export function resolveLook(world: LookInput | undefined, size = 30): ResolvedLo
     reflections: refl === false ? 0 : refl === true || refl === undefined ? p.reflections : Math.max(0, Math.min(2, num(refl, p.reflections))),
     grid: world?.grid !== false,
     boundsColor: str(world?.boundsColor, '#3a4658'),
+    camera: resolveCamera(world?.camera),
     floor: resolveFloor(world?.floor),
     agentColor: typeof world?.agentColor === 'string' && world.agentColor !== 'heading' ? str(world.agentColor, '#ffffff') : null,
+  }
+}
+
+function resolveCamera(c: unknown): ResolvedLook['camera'] {
+  const o = isObj(c) ? c : {}
+  return {
+    distance: Math.max(0.1, num(o.distance, 2.5)),
+    elevation: Math.max(-10, Math.min(89, num(o.elevation, 23))),
+    azimuth: num(o.azimuth, 45),
+    fov: Math.max(10, Math.min(120, num(o.fov, 55))),
   }
 }
 

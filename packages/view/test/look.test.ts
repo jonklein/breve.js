@@ -80,3 +80,11 @@ test('floor: none unless asked, with the texture normalized and size and height 
   const plain = resolveLook({ floor: {} }).floor!
   assert.deepEqual([plain.texture, plain.y, plain.color], [null, null, '#ffffff'])
 })
+
+test('camera: defaults match the old three-quarter view, and settings override them', () => {
+  const d = resolveLook({}).camera
+  assert.deepEqual([d.distance, d.elevation, d.azimuth, d.fov], [2.5, 23, 45, 55])
+  const c = resolveLook({ camera: { distance: 1.4, elevation: 12, fov: 40 } }).camera
+  assert.deepEqual([c.distance, c.elevation, c.azimuth, c.fov], [1.4, 12, 45, 40])
+  assert.equal(resolveLook({ camera: { elevation: 200 } }).camera.elevation, 89)
+})

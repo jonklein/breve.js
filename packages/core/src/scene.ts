@@ -100,6 +100,8 @@ export interface EntityDef {
   color?: string
   /** How big free agents are drawn, as a multiple of the default (1). */
   size?: number
+  /** How this set is drawn (purely visual): its shape and its surface. Colors come from `color`, the world's `agentColor`, or the script's `display`. */
+  style?: SetStyle
   /** Free-moving agents. Use this or `lattice`. */
   count?: NumOrParam
   lattice?: LatticeDef
@@ -117,6 +119,14 @@ export interface EntityDef {
   }
   /** An articulated physics body. Makes this entity set a group of creatures (use with `count`). */
   body?: BodyInput
+}
+
+/** How the things in one entity set look. */
+export interface SetStyle {
+  /** What each agent or node is drawn as: `cone` (the default for agents, pointing the way they move), `sphere`, `cube`, `capsule`, `octahedron`, `tetrahedron`, `disc`, `cylinder`. Lattice cells are cubes and nodes are spheres unless this says otherwise. */
+  shape?: 'cone' | 'sphere' | 'cube' | 'capsule' | 'octahedron' | 'tetrahedron' | 'disc' | 'cylinder'
+  /** Surface: `roughness` 0 (mirror) to 1 (matte), `metalness` 0 to 1, `glow` how much the color lights itself (0 none, 1 as bright as lit, above 1 glows), `opacity` 0 to 1. */
+  material?: { roughness?: number; metalness?: number; glow?: number; opacity?: number }
 }
 
 /** The patterns a generated texture can be. */
@@ -185,6 +195,8 @@ export interface WorldDef {
   }
   /** How strongly shiny surfaces mirror the sky, 0 (not at all) to 2. `true` uses the preset's. */
   reflections?: boolean | number
+  /** Where the camera starts (you can still orbit): `distance` as a multiple of the world's size (default 2.5), `elevation` and `azimuth` in degrees (defaults 23 and 45), `fov` field of view in degrees (default 55). */
+  camera?: { distance?: number; elevation?: number; azimuth?: number; fov?: number }
   /** A ground plane, for scenes without terrain: `{ "texture": "grass" }`, `{ "color": "#222", "y": -1 }`. `false` or leaving it out draws none. */
   floor?: false | FloorDef
   /** A floor grid at the bottom of the bounds. */
@@ -328,6 +340,7 @@ export const sceneSchema = {
           },
         },
         reflections: { anyOf: [{ type: 'boolean' }, { type: 'number', minimum: 0, maximum: 2 }] },
+        camera: { type: 'object', additionalProperties: false, properties: { distance: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, elevation: { type: 'number', minimum: -10, maximum: 89 }, azimuth: { type: 'number' }, fov: { type: 'number', minimum: 10, maximum: 120 } } },
         floor: {
           anyOf: [
             { const: false },
@@ -413,6 +426,23 @@ export const sceneSchema = {
           every: { type: 'integer', minimum: 1, maximum: 1000 },
           color,
           size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
+          style: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              shape: { enum: ['cone', 'sphere', 'cube', 'capsule', 'octahedron', 'tetrahedron', 'disc', 'cylinder'] },
+              material: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  roughness: { type: 'number', minimum: 0, maximum: 1 },
+                  metalness: { type: 'number', minimum: 0, maximum: 1 },
+                  glow: { type: 'number', minimum: 0, maximum: 8 },
+                  opacity: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
+                },
+              },
+            },
+          },
           count: numOrParam,
           network: {
             type: 'object',

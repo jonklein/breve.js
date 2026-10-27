@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { WorldFrame } from './world-view'
 import { alphaMaterial, blend, withAlpha } from './alpha'
+import { applyMaterial, shapeGeometry, type Fallback } from './style'
 
 const MAX_INSTANCES = 5000
 const MAX_CUBES = 200000
@@ -51,8 +52,23 @@ export class AgentLayer {
   setShadows(on: boolean): void { this.mesh.castShadow = on }
 
   /** `fixed` is the color every agent gets, or null to color by heading. */
+  private styleKey = ''
+  /** Pick up the set's shape and material settings when they change. */
+  private restyle(style: WorldFrame['style']): void {
+    const key = JSON.stringify(style ?? null)
+    if (key === this.styleKey) return
+    this.styleKey = key
+    const old = this.mesh.geometry
+    this.mesh.geometry = shapeGeometry(style?.shape, 'cone')
+    this.mesh.geometry.setAttribute('instanceAlpha', this.alpha)
+    old.dispose()
+    this.mesh.boundingSphere = null
+    applyMaterial(this.mesh.material as THREE.MeshStandardMaterial, style)
+  }
+
   update(f: WorldFrame, fixed: THREE.Color | null): void {
     this.mesh.visible = true
+    this.restyle(f.style)
     const own = f.color ? color(f.color) : fixed
     const sc = f.scale ?? 1
     const n = Math.min(f.count, MAX_INSTANCES)
@@ -149,6 +165,7 @@ export class CellLayer {
     this.dispose()
     this.capacity = need
     this.rows = new Int32Array(need)
+    this.styleKey = ''
     const cubes = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), alphaMaterial(), need)
     this.alpha = withAlpha(cubes, need)
     cubes.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(need * 3), 3)
@@ -159,12 +176,28 @@ export class CellLayer {
     return (this.cubes = cubes)
   }
 
+  private styleKey = ''
+  /** Pick up the set's shape and material settings when they change (a new mesh starts over). */
+  private restyle(cubes: THREE.InstancedMesh, style: WorldFrame['style']): void {
+    const key = JSON.stringify(style ?? null)
+    if (key === this.styleKey) return
+    this.styleKey = key
+    const old = cubes.geometry
+    cubes.geometry = shapeGeometry(style?.shape, 'cube')
+    cubes.geometry.setAttribute('instanceAlpha', this.alpha!)
+    old.dispose()
+    cubes.boundingSphere = null
+    applyMaterial(cubes.material as THREE.MeshStandardMaterial, style)
+  }
+
   /** Take a new frame: set where each cell is heading; `animate` does the easing. */
   set(f: WorldFrame, fixed: THREE.Color | null): void {
     const L = f.lattice!
     const { dims, spacing, show, fade } = L
     const n = show.length
-    this.ensure(n).visible = true
+    const cubes = this.ensure(n)
+    cubes.visible = true
+    this.restyle(cubes, f.style)
     this.fixed = fixed
     let c = this.cells
     if (!c || c.scale.length !== n || c.dims.some((d, i) => d !== dims[i])) {
@@ -278,12 +311,26 @@ export class GraphLayer {
     return hit && hit.instanceId !== undefined ? { row: hit.instanceId, distance: hit.distance } : null
   }
 
+  private styleKey = ''
+  private restyle(style: WorldFrame['style']): void {
+    const key = JSON.stringify(style ?? null)
+    if (key === this.styleKey || !this.mesh) return
+    this.styleKey = key
+    const old = this.mesh.geometry
+    this.mesh.geometry = shapeGeometry(style?.shape, 'sphere')
+    this.mesh.geometry.setAttribute('instanceAlpha', this.alpha!)
+    old.dispose()
+    this.mesh.boundingSphere = null
+    applyMaterial(this.mesh.material as THREE.MeshStandardMaterial, style)
+  }
+
   update(f: WorldFrame, fixed: THREE.Color | null): void {
     const g = f.graph
     if (!g) return
     const n = f.count
     if (!this.mesh || this.capacity < n) {
       this.disposeNodes()
+      this.styleKey = '' // a new mesh takes the set's style afresh
       this.capacity = n
       this.mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 28, 18), alphaMaterial(), Math.max(1, n))
       this.mesh.castShadow = this.shadows
@@ -293,6 +340,7 @@ export class GraphLayer {
       this.scene.add(this.mesh)
     }
     this.mesh.visible = true
+    this.restyle(f.style)
     this.mesh.count = n
     const look = f.look
     let see = false

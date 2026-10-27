@@ -486,6 +486,156 @@ sum(): number
 average(): number
 ```
 
+## RunArgs
+
+What a program is given for one run.
+
+### `RunArgs.params`
+
+```ts
+params: Record<string, number>
+```
+
+### `RunArgs.tick`
+
+```ts
+tick: number
+```
+
+### `RunArgs.seed`
+
+```ts
+seed: number
+```
+
+The scene's seed, for `hash`.
+
+## ImageRequest
+
+### `ImageRequest.width`
+
+```ts
+width: number
+```
+
+### `ImageRequest.height`
+
+```ts
+height: number
+```
+
+### `ImageRequest.window`
+
+```ts
+window: [number, number, number, number]
+```
+
+Which part of the grid to draw: left, top, right and bottom edges in cells (the whole grid is `[0, 0, width, height]`).
+
+### `ImageRequest.layer`
+
+```ts
+layer?: number
+```
+
+Which layer of a 3D lattice (default 0).
+
+### `ImageRequest.background`
+
+```ts
+background?: [number, number, number]
+```
+
+The color of anything not visible or outside the grid, each 0 to 1.
+
+## FormulaLattice
+
+The state of one lattice, held by a backend.
+
+### `FormulaLattice.cells`
+
+```ts
+readonly cells: number
+```
+
+### `FormulaLattice.check`
+
+```ts
+check(programs: Program[]): Promise<string[]>
+```
+
+Compile these programs now and say what is wrong with them (readable messages, or none). Nothing else needs to be called first.
+
+### `FormulaLattice.init`
+
+```ts
+init(program: Program, run: RunArgs): void
+```
+
+Fill the state from a program that reads no state (`initFormula`).
+
+### `FormulaLattice.step`
+
+```ts
+step(program: Program, run: RunArgs): void
+```
+
+One tick: every cell reads the old state, and the program's results become the new state.
+
+### `FormulaLattice.upload`
+
+```ts
+upload(state: Record<string, ArrayLike<number>>): void
+```
+
+Replace the state (after a restore, or an edit from outside).
+
+### `FormulaLattice.download`
+
+```ts
+download(): Promise<Record<string, Float32Array>>
+```
+
+The state, one value per cell for each field.
+
+### `FormulaLattice.totals`
+
+```ts
+totals(program: Program, run: RunArgs): Promise<Record<string, number>>
+```
+
+The program's totals (`program.reduce`) over the current state.
+
+### `FormulaLattice.image`
+
+```ts
+image(program: Program, request: ImageRequest, run: RunArgs): Promise<Uint8Array>
+```
+
+A picture of the state: the program's `visible`, `r`, `g`, `b` for the cell under each pixel. RGBA, 4 bytes a pixel, row by row from the top.
+
+### `FormulaLattice.dispose`
+
+```ts
+dispose(): void
+```
+
+## FormulaBackend
+
+### `FormulaBackend.name`
+
+```ts
+readonly name: string
+```
+
+### `FormulaBackend.lattice`
+
+```ts
+lattice(grid: Grid, fields: string[]): FormulaLattice
+```
+
+A lattice of this shape; `fields` is the order the state is kept in.
+
 ## WgslModule
 
 ### `WgslModule.code`
@@ -547,6 +697,117 @@ How many workgroups to dispatch in each direction.
 `fields` is the whole state of the set, in the order the buffer holds it (default: the fields the program reads, then any it
 returns that it did not read).
 
+## WgslImageModule
+
+A shader that draws a window of the grid into a picture.
+
+### `WgslImageModule.code`
+
+```ts
+code: string
+```
+
+### `WgslImageModule.layout`
+
+```ts
+layout: string[]
+```
+
+### `WgslImageModule.cells`
+
+```ts
+cells: number
+```
+
+### `WgslImageModule.uniform`
+
+```ts
+uniform:
+```
+
+Uniform buffer (binding 0), in bytes: tick u32 at 0, seed u32 at 4, width u32 at 8, height u32 at 12, then four f32 at 16: the window's
+left, top, right and bottom edges in cells (a cell is one unit; the left edge of cell 0 is 0), then three f32 at 32: the background
+color (0 to 1) shown where a cell is not visible, a f32 at 44: the layer (z) to draw, then one f32 per parameter at `paramsOffset`.
+
+### `WgslImageModule.workgroupSize`
+
+```ts
+workgroupSize: [number, number, number]
+```
+
+State is read from `src` (binding 1, the layout above); pixels are written to `pixels` (binding 2), one u32 each (red in the lowest byte, alpha 255).
+
+### `WgslImageModule.dispatchFor`
+
+```ts
+dispatchFor(width: number, height: number): [number, number, number]
+```
+
+Workgroups to dispatch for a picture of this size.
+
+## toWgslImage
+
+The look of a lattice as a picture: each pixel finds the cell under it and works out `visible`, `r`, `g`, `b` (the program's outputs, colors
+between 0 and 1) there. Zooming and panning only change the window, so a huge grid is drawn at the size of the screen, never cell by cell.
+
+## WgslReduceModule
+
+A shader that totals expressions over the whole grid (metrics): one partial total per workgroup, which the host adds up.
+
+### `WgslReduceModule.code`
+
+```ts
+code: string
+```
+
+### `WgslReduceModule.layout`
+
+```ts
+layout: string[]
+```
+
+### `WgslReduceModule.cells`
+
+```ts
+cells: number
+```
+
+### `WgslReduceModule.totals`
+
+```ts
+totals:
+```
+
+What each total is, in the order the partials are stored.
+
+### `WgslReduceModule.uniform`
+
+```ts
+uniform:
+```
+
+### `WgslReduceModule.workgroupSize`
+
+```ts
+workgroupSize: [number, number, number]
+```
+
+### `WgslReduceModule.dispatch`
+
+```ts
+dispatch: [number, number, number]
+```
+
+### `WgslReduceModule.groups`
+
+```ts
+groups: number
+```
+
+Workgroups per total: `partials` (binding 2, f32) holds `totals.length * groups` numbers, the first total's groups first.
+
+## toWgslReduce
+
 ## BinOp
 
 Formulas: a whole-set rule written once, as an expression.
@@ -567,6 +828,10 @@ The graph is plain JSON (`Program`), with each node using only earlier nodes. Va
 
 One step of a program. Operands are indexes of earlier nodes.
 
+## ReduceOp
+
+A total over every cell, for metrics: `alive.sum()`.
+
 ## Program
 
 ### `Program.nodes`
@@ -582,6 +847,14 @@ out: Record<string, number>
 ```
 
 Which node holds each result field.
+
+### `Program.reduce`
+
+```ts
+reduce?: Record<string,
+```
+
+Single numbers worked out from a node over every cell (metrics only): `{ population: { op: 'sum', node: 3 } }`.
 
 ### `Program.fields`
 
@@ -777,13 +1050,15 @@ zip(): never
 ### `Expr.sum`
 
 ```ts
-sum(): never
+sum(): Total
 ```
+
+A total over every cell. Only a metric may ask for one (a rule describes each cell, not all of them).
 
 ### `Expr.average`
 
 ```ts
-average(): never
+average(): Total
 ```
 
 ### `Expr.data`
@@ -857,6 +1132,16 @@ tick: Expr
 Run a formula once and record what it computes. `fields` names the state fields it can read, `params` the parameters
 (these become values the program is given each tick, so a slider moves without anything being compiled again).
 
+## Total
+
+A single number worked out over every cell: what a metric returns when it is written with field methods.
+
+## traceMetrics
+
+Metrics for a set whose state lives on a graphics card: the function is run once with expressions for the fields (`cells.alive`),
+and each total it returns (`cells.alive.sum()`, `.average()`) becomes a reduction the card works out. `metrics` maps a name to its
+function, as in a script's `export const metrics`; a metric that returns anything but a total is left out and named in `skipped`.
+
 ## neighborOffsets
 
 The offsets of a cell's neighbors, in the order `LatticeWorld` visits them (sums of floats depend on the order).
@@ -894,6 +1179,10 @@ The scene's seed, for `hash`.
 ## interpret
 
 Run a program on the CPU for every cell and return its result fields. Each node is worked out over the whole grid before the next.
+
+## interpretTotals
+
+The program's totals (`program.reduce`), worked out on the CPU. Sums add in 64-bit, like `Field.sum`.
 
 ## validateProgram
 

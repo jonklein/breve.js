@@ -32,10 +32,16 @@ export type Node =
   | { k: 'nbr'; op: NeighborOp; a: number }
   | { k: 'hash'; salt: number }
 
+/** A total over every cell, for metrics: `alive.sum()`. */
+export type ReduceOp = 'sum' | 'average'
+export const REDUCE_OPS: readonly ReduceOp[] = ['sum', 'average']
+
 export interface Program {
   nodes: Node[]
   /** Which node holds each result field. */
   out: Record<string, number>
+  /** Single numbers worked out from a node over every cell (metrics only): `{ population: { op: 'sum', node: 3 } }`. */
+  reduce?: Record<string, { op: ReduceOp; node: number }>
   /** The state fields the program reads and the parameters it was given a name for. */
   fields: string[]
   params: string[]
@@ -85,6 +91,8 @@ const TRACE_HINT = 'A formula runs once and its fields are expressions, not numb
 
 class Builder {
   nodes: Node[] = []
+  /** Metrics may total over cells (`alive.sum()`); a rule may not. */
+  constructor(readonly metrics = false) {}
   private seen = new Map<string, number>()
 
   /** The index of this node, reusing an identical one made earlier (so a value used twice is worked out once). */
@@ -149,8 +157,13 @@ export class Expr {
 
   map(): never { throw new Error(`map takes a JavaScript function, which cannot be compiled. ${TRACE_HINT}`) }
   zip(): never { throw new Error(`zip takes a JavaScript function, which cannot be compiled. ${TRACE_HINT}`) }
-  sum(): never { throw new Error('a formula describes every cell; a total over all cells is a metric, not a part of the rule') }
-  average(): never { return this.sum() }
+  /** A total over every cell. Only a metric may ask for one (a rule describes each cell, not all of them). */
+  sum(): Total { return this.total('sum') }
+  average(): Total { return this.total('average') }
+  private total(op: ReduceOp): Total {
+    if (!this.b.metrics) throw new Error('a formula describes every cell; a total over all cells is a metric, not a part of the rule')
+    return new Total(op, this.id)
+  }
   get data(): never { throw new Error(`a formula's fields have no values while it is being written. ${TRACE_HINT}`) }
 
   // `a + b`, `a > 3` and `if (a)` on an expression land here
@@ -205,6 +218,33 @@ export function trace(formula: Formula, fields: string[], params: string[]): Pro
   return { nodes: b.nodes, out, fields: [...fields], params: [...params] }
 }
 
+/** A single number worked out over every cell: what a metric returns when it is written with field methods. */
+export class Total {
+  constructor(readonly op: ReduceOp, readonly node: number) {}
+}
+
+/**
+ * Metrics for a set whose state lives on a graphics card: the function is run once with expressions for the fields (`cells.alive`),
+ * and each total it returns (`cells.alive.sum()`, `.average()`) becomes a reduction the card works out. `metrics` maps a name to its
+ * function, as in a script's `export const metrics`; a metric that returns anything but a total is left out and named in `skipped`.
+ */
+export function traceMetrics(metrics: Record<string, (input: any) => unknown>, fields: string[]): { program: Program; skipped: string[] } {
+  const b = new Builder(true)
+  const exprs = Object.fromEntries(fields.map((name) => [name, new Expr(b, b.add({ k: 'field', name }))]))
+  const reduce: Record<string, { op: ReduceOp; node: number }> = {}
+  const skipped: string[] = []
+  for (const [name, fn] of Object.entries(metrics)) {
+    try {
+      const v = fn({ cells: exprs, sets: new Proxy({}, { get: () => exprs }) })
+      if (v instanceof Total) reduce[name] = { op: v.op, node: v.node }
+      else skipped.push(name)
+    } catch {
+      skipped.push(name)
+    }
+  }
+  return { program: { nodes: b.nodes, out: {}, reduce, fields: [...fields], params: [] }, skipped }
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // The reference interpreter
 
@@ -234,6 +274,26 @@ export interface RunInput {
 
 /** Run a program on the CPU for every cell and return its result fields. Each node is worked out over the whole grid before the next. */
 export function interpret(program: Program, grid: Grid, input: RunInput): Record<string, Float32Array> {
+  const vals = evaluate(program, grid, input)
+  const result: Record<string, Float32Array> = {}
+  for (const [name, id] of Object.entries(program.out)) result[name] = vals[id]
+  return result
+}
+
+/** The program's totals (`program.reduce`), worked out on the CPU. Sums add in 64-bit, like `Field.sum`. */
+export function interpretTotals(program: Program, grid: Grid, input: RunInput): Record<string, number> {
+  const vals = evaluate(program, grid, input)
+  const out: Record<string, number> = {}
+  for (const [name, { op, node }] of Object.entries(program.reduce ?? {})) {
+    const v = vals[node]
+    let s = 0
+    for (let i = 0; i < v.length; i++) s += v[i]
+    out[name] = op === 'average' ? (v.length ? s / v.length : 0) : s
+  }
+  return out
+}
+
+function evaluate(program: Program, grid: Grid, input: RunInput): Float32Array[] {
   const [nx, ny, nz] = grid.size
   const n = nx * ny * nz
   const params = input.params ?? {}
@@ -306,9 +366,7 @@ export function interpret(program: Program, grid: Grid, input: RunInput): Record
     }
     vals[id] = out
   })
-  const result: Record<string, Float32Array> = {}
-  for (const [name, id] of Object.entries(program.out)) result[name] = vals[id]
-  return result
+  return vals
 }
 
 function binary(op: BinOp, a: Float32Array, b: Float32Array, out: Float32Array): void {
@@ -362,5 +420,13 @@ export function validateProgram(p: unknown): string[] {
   })
   if (!out || typeof out !== 'object') errors.push('program.out must map result field names to node indexes')
   else for (const [name, i] of Object.entries(out)) if (!known(i, nodes.length)) errors.push(`out.${name}: must be the index of a node`)
+  const reduce = (p as Program).reduce
+  if (reduce !== undefined) {
+    if (!reduce || typeof reduce !== 'object') errors.push('program.reduce must map names to { op, node }')
+    else for (const [name, r] of Object.entries(reduce)) {
+      if (!r || !REDUCE_OPS.includes(r.op)) errors.push(`reduce.${name}.op: must be one of ${REDUCE_OPS.join(', ')}`)
+      if (!r || !known(r.node, nodes.length)) errors.push(`reduce.${name}.node: must be the index of a node`)
+    }
+  }
   return errors
 }

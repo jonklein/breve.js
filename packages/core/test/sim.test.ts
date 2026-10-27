@@ -82,10 +82,25 @@ test('invalid scenes produce readable errors', () => {
 
 test('world settings validate, and bad colors get a readable error', async () => {
   const { scene } = await load()
-  assert.ok(scene.world?.sky, 'example scene declares a sky')
+  assert.ok(scene.world?.preset, 'example scene picks a look')
   const bad = JSON.stringify({ ...scene, world: { sky: { top: 'blue', horizon: '#123' } } })
   const r = parseScene(bad)
   assert.equal(r.ok, false)
   assert.match(r.ok ? '' : r.errors.join('\n'), /world\.sky/)
   assert.ok(parseScene(JSON.stringify({ ...scene, world: undefined })).ok, 'world is optional')
+})
+
+test('the look settings (preset, fog, light, shadows, reflections, terrain shading) validate with readable errors', async () => {
+  const { scene } = await load()
+  const world = { preset: 'dusk', fog: { near: 10, far: 90, color: '#334455' }, light: { sun: { azimuth: 200, elevation: 20, intensity: 2 }, hemisphere: { intensity: 0.5 }, exposure: 1.2, toneMapping: 'aces' }, shadows: { softness: 2, resolution: 1024 }, reflections: 0.8 }
+  assert.ok(parseScene(JSON.stringify({ ...scene, world })).ok)
+  const bad = (w: object) => { const r = parseScene(JSON.stringify({ ...scene, world: w })); return r.ok ? '' : r.errors.join('\n') }
+  assert.match(bad({ preset: 'sunny' }), /world\.preset/)
+  assert.match(bad({ light: { toneMapping: 'filmic' } }), /world\.light\.toneMapping/)
+  assert.match(bad({ light: { sun: { elevation: 120 } } }), /world\.light\.sun\.elevation/)
+  assert.match(bad({ fog: { colour: '#fff' } }), /world\.fog/)
+  assert.match(bad({ shadows: { resolution: 999 } }), /world\.shadows/)
+  assert.match(bad({ reflections: 5 }), /world\.reflections/)
+  assert.ok(parseScene(JSON.stringify({ ...scene, terrain: { shading: 'flat' } })).ok)
+  assert.match(String((parseScene(JSON.stringify({ ...scene, terrain: { shading: 'lumpy' } })) as { errors?: string[] }).errors), /terrain\.shading/)
 })

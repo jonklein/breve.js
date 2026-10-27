@@ -2,12 +2,7 @@
   "name": "life3d",
   "seed": 3,
   "clock": { "rate": 8 },
-  "world": {
-    "sky": { "top": "#05070d", "horizon": "#101a2e" },
-    "grid": false,
-    "boundsColor": "#3a4658",
-    "agentColor": "heading"
-  },
+  "world": { "preset": "night", "grid": false, "agentColor": "heading", "shadows": true, "reflections": 1 },
   "params": {
     "density": { "value": 0.2, "min": 0.02, "max": 0.6, "step": 0.01, "label": "starting density" }
   },

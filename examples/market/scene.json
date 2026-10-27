@@ -2,7 +2,7 @@
   "name": "market",
   "seed": 4,
   "clock": { "rate": 15 },
-  "world": { "sky": { "top": "#0d0b16", "horizon": "#2a2140" }, "grid": false },
+  "world": { "preset": "dusk", "grid": false, "fog": false },
   "params": {
     "produceEvery": { "value": 5, "min": 2, "max": 20, "step": 1, "label": "a producer makes a good every n ticks" },
     "consumeEvery": { "value": 14, "min": 2, "max": 20, "step": 1, "label": "everyone uses a good every n ticks" },

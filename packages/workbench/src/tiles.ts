@@ -187,7 +187,7 @@ export class TileGrid {
       s.view.tick(1 / 60)
       this.renderer.setViewport(x, H - y - h, w, h)
       this.renderer.setScissor(x, H - y - h, w, h)
-      this.renderer.render(s.view.scene, s.view.camera)
+      s.view.render()
     }
   }
 }

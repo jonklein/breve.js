@@ -121,16 +121,38 @@ export interface EntityDef {
 
 /** Look of the world. Purely visual: it never affects the simulation. Every field has a default. */
 export interface WorldDef {
+  /**
+   * A ready-made look to start from; every other field here overrides it. `day`, `dusk`, `night`, `studio`, `space`,
+   * or `plain` (the older flat look). With no `world` block at all, the look is `dusk`.
+   */
+  preset?: 'day' | 'dusk' | 'night' | 'studio' | 'space' | 'plain'
   /** A solid color, or a gradient from `top` to `horizon`. */
   sky?: string | { top: string; horizon: string }
+  /**
+   * Distance haze. `true` uses the preset's; `false` turns it off. Give `near` and `far` (distances from the camera) for linear fog,
+   * or a `density` for exponential fog. `color` defaults to the horizon color of the sky.
+   */
+  fog?: boolean | { color?: string; near?: number; far?: number; density?: number }
+  /** Lighting. Angles are in degrees: `azimuth` turns the sun around the vertical axis from +x toward +z, `elevation` lifts it above the horizon. */
+  light?: {
+    sun?: { color?: string; intensity?: number; azimuth?: number; elevation?: number }
+    ambient?: { color?: string; intensity?: number }
+    hemisphere?: { sky?: string; ground?: string; intensity?: number }
+    /** Overall brightness (default 1). */
+    exposure?: number
+    /** How bright values are squeezed into the screen's range: `none`, `aces` (filmic) or `neutral`. */
+    toneMapping?: 'none' | 'aces' | 'neutral'
+  }
+  /** How strongly shiny surfaces mirror the sky, 0 (not at all) to 2. `true` uses the preset's. */
+  reflections?: boolean | number
   /** A floor grid at the bottom of the bounds. */
   grid?: boolean
   /** Color of the bounds box. */
   boundsColor?: string
   /** "heading" colors each agent by the way it faces, or give one color for all. */
   agentColor?: 'heading' | string
-  /** Cast shadows. On by default for physics scenes with terrain, off otherwise. */
-  shadows?: boolean
+  /** Cast shadows: `true`/`false`, or settings: `softness` (blur, 0 to 4), `resolution` (shadow map size) and `bias`. On by default for physics scenes with terrain, off otherwise. */
+  shadows?: boolean | { softness?: number; resolution?: 512 | 1024 | 2048 | 4096; bias?: number }
 }
 
 export interface Scene {
@@ -207,6 +229,7 @@ export const sceneSchema = {
         octaves: { type: 'integer', minimum: 1, maximum: 6 },
         color,
         texture: { enum: ['static', 'grid', 'none'] },
+        shading: { enum: ['smooth', 'flat'] },
       },
     },
     physics: {
@@ -224,6 +247,25 @@ export const sceneSchema = {
       type: 'object',
       additionalProperties: false,
       properties: {
+        preset: { enum: ['day', 'dusk', 'night', 'studio', 'space', 'plain'] },
+        fog: {
+          anyOf: [
+            { type: 'boolean' },
+            { type: 'object', additionalProperties: false, properties: { color, near: { type: 'number', minimum: 0 }, far: { type: 'number', exclusiveMinimum: 0 }, density: { type: 'number', exclusiveMinimum: 0 } } },
+          ],
+        },
+        light: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            sun: { type: 'object', additionalProperties: false, properties: { color, intensity: { type: 'number', minimum: 0 }, azimuth: { type: 'number' }, elevation: { type: 'number', minimum: -90, maximum: 90 } } },
+            ambient: { type: 'object', additionalProperties: false, properties: { color, intensity: { type: 'number', minimum: 0 } } },
+            hemisphere: { type: 'object', additionalProperties: false, properties: { sky: color, ground: color, intensity: { type: 'number', minimum: 0 } } },
+            exposure: { type: 'number', exclusiveMinimum: 0, maximum: 10 },
+            toneMapping: { enum: ['none', 'aces', 'neutral'] },
+          },
+        },
+        reflections: { anyOf: [{ type: 'boolean' }, { type: 'number', minimum: 0, maximum: 2 }] },
         sky: {
           anyOf: [
             color,
@@ -233,7 +275,12 @@ export const sceneSchema = {
         grid: { type: 'boolean' },
         boundsColor: color,
         agentColor: { anyOf: [{ const: 'heading' }, color] },
-        shadows: { type: 'boolean' },
+        shadows: {
+          anyOf: [
+            { type: 'boolean' },
+            { type: 'object', additionalProperties: false, properties: { softness: { type: 'number', minimum: 0, maximum: 4 }, resolution: { enum: [512, 1024, 2048, 4096] }, bias: { type: 'number' } } },
+          ],
+        },
       },
     },
     models: {

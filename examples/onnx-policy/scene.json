@@ -2,7 +2,7 @@
   "name": "onnx-policy",
   "seed": 3,
   "bounds": { "size": 20 },
-  "world": { "sky": { "top": "#0e1a2b", "horizon": "#3c5a4a" }, "grid": true },
+  "world": { "preset": "day", "grid": true, "shadows": true },
   "models": { "policy": { "url": "policy.onnx" } },
   "params": {
     "count": { "value": 60, "min": 5, "max": 400, "step": 5 },

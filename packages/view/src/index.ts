@@ -1,3 +1,4 @@
 export { WorldView, type WorldFrame, type WorldLook } from './world-view'
 export { AgentLayer, CellLayer, GraphLayer } from './layers'
 export { RigidView } from './rigid-view'
+export { resolveLook, sunDirection, PRESETS, DEFAULT_PRESET, type LookInput, type ResolvedLook, type ToneMapping } from './look'

@@ -18,6 +18,7 @@ export interface TerrainMesh {
   heights: Float32Array
   color?: string
   texture?: 'static' | 'grid' | 'none'
+  shading?: 'smooth' | 'flat'
 }
 
 /**

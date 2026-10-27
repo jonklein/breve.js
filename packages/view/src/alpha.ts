@@ -1,11 +1,11 @@
 import * as THREE from 'three'
 
 /**
- * A lit material whose instances can each have their own opacity (an `instanceAlpha` attribute, 0 to 1).
+ * A lit, physically based material whose instances can each have their own opacity (an `instanceAlpha` attribute, 0 to 1).
  * It only blends when `blend(true)` says some instance is see-through, so the common case keeps depth writes and sorting-free drawing.
  */
-export function alphaMaterial(): THREE.MeshLambertMaterial {
-  const m = new THREE.MeshLambertMaterial()
+export function alphaMaterial(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.05 })
   m.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float instanceAlpha;\nvarying float vInstanceAlpha;')

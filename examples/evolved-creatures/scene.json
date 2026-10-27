@@ -1,7 +1,7 @@
 {
   "name": "evolved creatures",
   "seed": 5,
-  "world": { "sky": { "top": "#16233f", "horizon": "#7fa6c9" } },
+  "world": { "preset": "day" },
   "physics": { "engine": "mujoco", "minGyration": 0.3 },
   "terrain": { "size": 20, "resolution": 32, "amplitude": 0.15, "frequency": 0.08, "color": "#4f7a46" },
   "params": {

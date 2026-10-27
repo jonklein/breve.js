@@ -110,7 +110,7 @@ export class RigidView {
   }
 
   private partMesh(part: PartShape, k: number): THREE.InstancedMesh {
-    const mesh = new THREE.InstancedMesh(geometryFor(part), new THREE.MeshLambertMaterial(), MAX_CREATURES)
+    const mesh = new THREE.InstancedMesh(geometryFor(part), new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.08 }), MAX_CREATURES)
     mesh.frustumCulled = false
     mesh.castShadow = this.shadows
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CREATURES * 3), 3)
@@ -130,7 +130,7 @@ export class RigidView {
     const tex = groundTexture(t.texture ?? 'static', t.size)
     this.terrain = new THREE.Mesh(
       terrainGeometry(t, tex?.tile ?? 1, tex?.offset ?? 0),
-      new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, map: tex?.map ?? null }),
+      new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: t.shading === 'flat', map: tex?.map ?? null, roughness: 0.92, metalness: 0 }),
     )
     this.terrain.receiveShadow = this.shadows
     this.group.add(this.terrain)

@@ -111,7 +111,7 @@ export async function run(target: string | HTMLElement, code: string, config: un
       }
       view.tick(dt)
       controls.update()
-      renderer.render(view.scene, camera)
+      view.render()
     }
     requestAnimationFrame(loop)
   }

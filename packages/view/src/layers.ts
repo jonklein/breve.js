@@ -25,10 +25,11 @@ export class AgentLayer {
   /** Highlighted row (the one being inspected), or -1. */
   selected = -1
 
-  constructor(private scene: THREE.Scene) {
-    const geo = new THREE.ConeGeometry(0.32, 1.3, 8)
+  constructor(private scene: THREE.Scene, shadowsOn = false) {
+    const geo = new THREE.ConeGeometry(0.32, 1.3, 20, 1) // enough sides that the cone reads as round
     geo.rotateX(Math.PI / 2)
     this.mesh = new THREE.InstancedMesh(geo, alphaMaterial(), MAX_INSTANCES)
+    this.mesh.castShadow = shadowsOn
     this.alpha = withAlpha(this.mesh, MAX_INSTANCES)
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES * 3), 3)
     this.mesh.frustumCulled = false
@@ -46,6 +47,8 @@ export class AgentLayer {
   }
 
   setVisible(on: boolean): void { this.mesh.visible = on }
+
+  setShadows(on: boolean): void { this.mesh.castShadow = on }
 
   /** `fixed` is the color every agent gets, or null to color by heading. */
   update(f: WorldFrame, fixed: THREE.Color | null): void {
@@ -134,6 +137,12 @@ export class CellLayer {
 
   setVisible(on: boolean): void { if (this.cubes) this.cubes.visible = on }
 
+  private shadows = false
+  setShadows(on: boolean): void {
+    this.shadows = on
+    if (this.cubes) this.cubes.castShadow = on
+  }
+
   private ensure(n: number): THREE.InstancedMesh {
     const need = Math.min(Math.max(n, 1), MAX_CUBES)
     if (this.cubes && need <= this.capacity) return this.cubes
@@ -144,6 +153,7 @@ export class CellLayer {
     this.alpha = withAlpha(cubes, need)
     cubes.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(need * 3), 3)
     cubes.frustumCulled = false
+    cubes.castShadow = this.shadows
     cubes.count = 0
     this.scene.add(cubes)
     return (this.cubes = cubes)
@@ -255,6 +265,12 @@ export class GraphLayer {
     if (this.lines) this.lines.visible = on
   }
 
+  private shadows = false
+  setShadows(on: boolean): void {
+    this.shadows = on
+    if (this.mesh) this.mesh.castShadow = on
+  }
+
   pick(ray: THREE.Raycaster): { row: number; distance: number } | null {
     if (!this.mesh) return null
     this.mesh.boundingSphere = null
@@ -269,7 +285,8 @@ export class GraphLayer {
     if (!this.mesh || this.capacity < n) {
       this.disposeNodes()
       this.capacity = n
-      this.mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 14, 10), alphaMaterial(), Math.max(1, n))
+      this.mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 28, 18), alphaMaterial(), Math.max(1, n))
+      this.mesh.castShadow = this.shadows
       this.alpha = withAlpha(this.mesh, Math.max(1, n))
       this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, n) * 3), 3)
       this.mesh.frustumCulled = false

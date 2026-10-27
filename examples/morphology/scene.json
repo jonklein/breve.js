@@ -1,12 +1,7 @@
 {
   "name": "morphology",
   "seed": 11,
-  "world": {
-    "sky": {
-      "top": "#16233f",
-      "horizon": "#7fa6c9"
-    }
-  },
+  "world": { "preset": "day" },
   "terrain": {
     "size": 80,
     "resolution": 64,

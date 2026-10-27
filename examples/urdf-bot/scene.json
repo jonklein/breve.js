@@ -1,12 +1,7 @@
 {
   "name": "urdf-bot",
   "seed": 5,
-  "world": {
-    "sky": {
-      "top": "#16233f",
-      "horizon": "#7f6a6c"
-    }
-  },
+  "world": { "preset": "dusk" },
   "terrain": {
     "size": 60,
     "amplitude": 0.4,

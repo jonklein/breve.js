@@ -16,6 +16,8 @@ export interface TerrainDef {
   color?: string
   /** Ground texture (visual only): fine speckle (default), a one-meter grid for judging motion, or plain. */
   texture?: 'static' | 'grid' | 'none'
+  /** Surface shading (visual only): `smooth` (default) blends neighboring slopes; `flat` shows each facet. */
+  shading?: 'smooth' | 'flat'
 }
 
 export const TERRAIN_DEFAULTS = { size: 60, resolution: 48, amplitude: 1, frequency: 0.07, octaves: 3 }
@@ -27,6 +29,7 @@ export class Terrain {
   readonly heights: Float32Array
   readonly color: string | undefined
   readonly texture: 'static' | 'grid' | 'none'
+  readonly shading: 'smooth' | 'flat'
 
   constructor(def: TerrainDef | undefined, seed: number) {
     const d = { ...TERRAIN_DEFAULTS, ...def }
@@ -34,6 +37,7 @@ export class Terrain {
     this.n = Math.max(2, Math.min(256, Math.round(d.resolution)))
     this.color = def?.color
     this.texture = def?.texture ?? 'static'
+    this.shading = def?.shading ?? 'smooth'
     const noise = new Perlin2(seed)
     const m = this.n + 1
     const step = this.size / this.n

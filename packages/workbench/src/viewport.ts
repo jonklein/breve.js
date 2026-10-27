@@ -41,7 +41,7 @@ export class Viewport {
       this.view.tick(Math.min(0.1, (now - this.lastTime) / 1000))
       this.lastTime = now
       this.controls.update()
-      if (this.container.clientWidth) this.renderer.render(this.view.scene, this.view.camera)
+      if (this.container.clientWidth) this.view.render()
       requestAnimationFrame(loop)
     }
     loop()

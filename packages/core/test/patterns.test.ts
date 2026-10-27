@@ -24,10 +24,10 @@ test('gray-scott: a pattern grows from a few blobs, both chemicals stay between 
   const mean = v.reduce((s, x) => s + x, 0) / v.length
   const spread = Math.sqrt(v.reduce((s, x) => s + (x - mean) ** 2, 0) / v.length)
   assert.ok(spread > 0.05, `the sheet has structure, not a flat wash (spread ${spread.toFixed(3)})`)
-  // with no food added and no v removed beyond the default, a dead setting (kill too high) lets the pattern fade
-  const dying = new Sim(withParams(scene, { kill: 0.075, feed: 0.01 }), script)
+  // a setting where v decays too fast, with too little u supplied, lets the pattern fade
+  const dying = new Sim(withParams(scene, { decay: 0.075, supply: 0.01 }), script)
   for (let t = 0; t < 120; t++) dying.step()
-  assert.ok(dying.metrics().chemicalV < a.metrics().chemicalV, 'a bad feed and kill gives less pattern')
+  assert.ok(dying.metrics().chemicalV < a.metrics().chemicalV, 'too much decay and too little supply gives less pattern')
 })
 
 test('gray-scott: every preset button and palette names real fields and a real palette', async () => {

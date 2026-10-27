@@ -1,16 +1,21 @@
 // Reaction-diffusion: the Gray-Scott model, the pattern-maker behind spots, stripes, mazes and coral.
 //
-// Two chemicals share a sheet. `u` is food that is fed in everywhere; `v` eats it, makes more of itself,
-// and is slowly removed. Both spread out, `u` faster than `v`. Where `v` gets a foothold it grows into
-// spots that split, stripes that wander, or labyrinths, depending mostly on two numbers:
+// Two chemicals share a sheet, and three things happen to them:
 //
-//   feed  how fast food is added          kill  how fast v is removed
+//   reaction   u + 2v -> 3v: where v is present, it turns u into more v
+//   diffusion  both chemicals spread out into neighboring cells, u faster than v
+//   decay      v breaks down; u is supplied everywhere to replace what the reaction uses up
 //
-// The preset buttons set (feed, kill) for the classic patterns. Then try the sliders: the spread rates
-// change how fine the pattern is, and the palette buttons change how it is colored.
+// Where v gets a foothold it grows into spots that split, stripes that wander, or labyrinths,
+// depending mostly on two numbers:
+//
+//   supply  how fast u is topped up          decay  how fast v breaks down
+//
+// The preset buttons set (supply, decay) for the classic patterns. Then try the sliders: the diffusion
+// rates change how fine the pattern is, and the palette buttons change how it is colored.
 //
 // The whole sheet is updated at once with field arithmetic: `u.neighborAverage().sub(u)` is how much
-// each cell differs from its neighbors, which is all that "spreading out" needs.
+// each cell differs from its neighbors, which is all that diffusion needs.
 const PALETTES = {
   ocean: ['#0b1230', '#17509c', '#2fb8bd', '#f6efc4'],
   fire: ['#10040a', '#7a1250', '#e8452e', '#ffd25a', '#fff6d8'],
@@ -21,7 +26,7 @@ const PALETTES = {
 }
 
 export default {
-  // food everywhere, and a few random blobs of v to start things off
+  // u everywhere, and a few random blobs of v to start the reaction
   initAll({ count }, p, ctx) {
     const size = Math.round(Math.sqrt(count))
     const u = new Float32Array(count).fill(1)
@@ -49,11 +54,11 @@ export default {
   actAll({ u, v }, p) {
     // each tick runs several small steps, so the pattern grows at a watchable speed
     for (let step = 0; step < p.speed; step++) {
-      const spreadU = u.neighborAverage().sub(u)
-      const spreadV = v.neighborAverage().sub(v)
-      const react = u.mul(v).mul(v) // u is eaten by v, and turned into more v
-      const nextU = u.add(spreadU.mul(p.spreadU)).sub(react).add(u.mul(-p.feed).add(p.feed))
-      const nextV = v.add(spreadV.mul(p.spreadV)).add(react).sub(v.mul(p.feed + p.kill))
+      const diffusionU = u.neighborAverage().sub(u)
+      const diffusionV = v.neighborAverage().sub(v)
+      const reaction = u.mul(v).mul(v) // u + 2v -> 3v: some u is used up and becomes v
+      const nextU = u.add(diffusionU.mul(p.diffusionU)).sub(reaction).add(u.mul(-p.supply).add(p.supply)) // supply tops u back up toward 1
+      const nextV = v.add(diffusionV.mul(p.diffusionV)).add(reaction).sub(v.mul(p.supply + p.decay)) // v decays (and is washed out as u is supplied)
       u = nextU.clamp(0, 1)
       v = nextV.clamp(0, 1)
     }

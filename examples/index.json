@@ -27,6 +27,20 @@
     "about": "about.md"
   },
   {
+    "id": "particle-life",
+    "name": "Particle Life",
+    "description": "Colored dots and one table of who pulls toward whom: clumps, orbits and chasers from nothing but pulls.",
+    "scene": "scene.json",
+    "script": "life.js",
+    "tags": [
+      "agents",
+      "emergence",
+      "artificial life"
+    ],
+    "folder": "Flocks & swarms",
+    "about": "about.md"
+  },
+  {
     "id": "neural",
     "name": "Neural agents (evolving)",
     "description": "Neural-network brains evolve to chase a jumping goal: a parent ranks each generation and breeds the best, like Evolved creatures.",

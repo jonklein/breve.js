@@ -4,33 +4,182 @@
   "world": {
     "preset": "dusk",
     "markers": [
-      { "at": [-5.5, 4.5], "height": 1.9, "color": "#ffd25a" },
-      { "at": [6.5, -3.5], "height": 1.9, "color": "#ffd25a" },
-      { "at": [0, -8.5], "height": 1.9, "color": "#ffd25a" }
+      {
+        "at": [
+          -5.5,
+          4.5
+        ],
+        "height": 1.9,
+        "color": "#ffd25a"
+      },
+      {
+        "at": [
+          6.5,
+          -3.5
+        ],
+        "height": 1.9,
+        "color": "#ffd25a"
+      },
+      {
+        "at": [
+          0,
+          -8.5
+        ],
+        "height": 1.9,
+        "color": "#ffd25a"
+      }
     ]
   },
-  "terrain": { "size": 30, "resolution": 16, "amplitude": 0, "texture": "grid", "color": "#46557a" },
+  "terrain": {
+    "size": 30,
+    "resolution": 16,
+    "amplitude": 0,
+    "texture": "grid",
+    "color": "#46557a"
+  },
   "data": {
     "arena": 13,
     "lights": [
-      { "at": [-5.5, 4.5], "power": 1 },
-      { "at": [6.5, -3.5], "power": 1 },
-      { "at": [0, -8.5], "power": 1 }
+      {
+        "at": [
+          -5.5,
+          4.5
+        ],
+        "power": 1
+      },
+      {
+        "at": [
+          6.5,
+          -3.5
+        ],
+        "power": 1
+      },
+      {
+        "at": [
+          0,
+          -8.5
+        ],
+        "power": 1
+      }
     ],
     "kinds": [
-      { "name": "fear", "about": "each eye speeds up the wheel on its own side: it swerves away from a light, faster the closer it is", "weights": [[1, 0], [0, 1]], "bias": [0.15, 0.15] },
-      { "name": "aggression", "about": "the eyes cross over: it swerves toward a light and speeds up as it nears", "weights": [[0, 1], [1, 0]], "bias": [0.15, 0.15] },
-      { "name": "love", "about": "each eye slows the wheel on its own side: it turns toward a light, slows as it nears, and settles in front of it", "weights": [[-1, 0], [0, -1]], "bias": [1, 1] },
-      { "name": "explorer", "about": "the eyes cross over and slow the far wheel: it heads for a light, then swerves off and wanders on", "weights": [[0, -1], [-1, 0]], "bias": [1, 1] }
+      {
+        "name": "fear",
+        "about": "each eye speeds up the wheel on its own side: it swerves away from a light, faster the closer it is",
+        "weights": [
+          [
+            1,
+            0
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        "bias": [
+          0.15,
+          0.15
+        ]
+      },
+      {
+        "name": "aggression",
+        "about": "the eyes cross over: it swerves toward a light and speeds up as it nears",
+        "weights": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "bias": [
+          0.15,
+          0.15
+        ]
+      },
+      {
+        "name": "love",
+        "about": "each eye slows the wheel on its own side: it turns toward a light, slows as it nears, and settles in front of it",
+        "weights": [
+          [
+            -1,
+            0
+          ],
+          [
+            0,
+            -1
+          ]
+        ],
+        "bias": [
+          1,
+          1
+        ]
+      },
+      {
+        "name": "explorer",
+        "about": "the eyes cross over and slow the far wheel: it heads for a light, then swerves off and wanders on",
+        "weights": [
+          [
+            0,
+            -1
+          ],
+          [
+            -1,
+            0
+          ]
+        ],
+        "bias": [
+          1,
+          1
+        ]
+      }
     ]
   },
   "params": {
-    "count": { "value": 8, "min": 1, "max": 16, "step": 1, "label": "vehicles (they take the wirings in turn)" },
-    "speed": { "value": 2.4, "min": 0.5, "max": 4, "step": 0.1, "label": "top speed (m/s)" },
-    "gain": { "value": 1.4, "min": 0.2, "max": 4, "step": 0.05, "label": "how strongly the eyes drive the wheels" },
-    "range": { "value": 5, "min": 2, "max": 20, "step": 0.5, "label": "how far the eyes see (m)" },
-    "noise": { "value": 0.12, "min": 0, "max": 0.6, "step": 0.01, "label": "motor noise" },
-    "squint": { "value": 40, "min": 0, "max": 80, "step": 1, "label": "how far apart the eyes look (degrees)" }
+    "count": {
+      "value": 8,
+      "min": 1,
+      "max": 16,
+      "step": 1,
+      "label": "vehicles (they take the wirings in turn)"
+    },
+    "speed": {
+      "value": 2.4,
+      "min": 0.5,
+      "max": 4,
+      "step": 0.1,
+      "label": "top speed (m/s)"
+    },
+    "gain": {
+      "value": 1.4,
+      "min": 0.2,
+      "max": 4,
+      "step": 0.05,
+      "label": "how strongly the eyes drive the wheels"
+    },
+    "range": {
+      "value": 5,
+      "min": 2,
+      "max": 20,
+      "step": 0.5,
+      "label": "how far the eyes see (m)"
+    },
+    "noise": {
+      "value": 0.12,
+      "min": 0,
+      "max": 0.6,
+      "step": 0.01,
+      "label": "motor noise"
+    },
+    "squint": {
+      "value": 40,
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "label": "how far apart the eyes look (degrees)"
+    }
   },
   "entities": [
     {
@@ -39,19 +188,205 @@
       "controller": "vehicles.js",
       "body": {
         "parts": [
-          { "name": "chassis", "shape": "box", "size": [0.5, 0.1, 0.34], "mass": 3, "position": [0, 0.22, 0], "friction": 0.1 },
-          { "name": "left", "shape": "cylinder", "size": [0.07, 0.16], "mass": 0.4, "position": [0.05, 0.16, -0.22], "rotation": [1.5708, 0, 0], "color": "#20242c", "friction": 1.4 },
-          { "name": "right", "shape": "cylinder", "size": [0.07, 0.16], "mass": 0.4, "position": [0.05, 0.16, 0.22], "rotation": [1.5708, 0, 0], "color": "#20242c", "friction": 1.4 },
-          { "name": "caster", "shape": "sphere", "size": [0.085], "mass": 0.2, "position": [-0.22, 0.085, 0], "color": "#8a93a6", "friction": 0.02 }
+          {
+            "name": "chassis",
+            "shape": "box",
+            "size": [
+              0.56,
+              0.1,
+              0.34
+            ],
+            "mass": 3,
+            "position": [
+              0,
+              0.22,
+              0
+            ],
+            "friction": 0.1
+          },
+          {
+            "name": "frontLeft",
+            "shape": "cylinder",
+            "size": [
+              0.07,
+              0.16
+            ],
+            "mass": 0.4,
+            "position": [
+              0.19,
+              0.16,
+              -0.22
+            ],
+            "rotation": [
+              1.5708,
+              0,
+              0
+            ],
+            "color": "#20242c",
+            "friction": 0.8
+          },
+          {
+            "name": "frontRight",
+            "shape": "cylinder",
+            "size": [
+              0.07,
+              0.16
+            ],
+            "mass": 0.4,
+            "position": [
+              0.19,
+              0.16,
+              0.22
+            ],
+            "rotation": [
+              1.5708,
+              0,
+              0
+            ],
+            "color": "#20242c",
+            "friction": 0.8
+          },
+          {
+            "name": "backLeft",
+            "shape": "cylinder",
+            "size": [
+              0.07,
+              0.16
+            ],
+            "mass": 0.4,
+            "position": [
+              -0.19,
+              0.16,
+              -0.22
+            ],
+            "rotation": [
+              1.5708,
+              0,
+              0
+            ],
+            "color": "#20242c",
+            "friction": 0.8
+          },
+          {
+            "name": "backRight",
+            "shape": "cylinder",
+            "size": [
+              0.07,
+              0.16
+            ],
+            "mass": 0.4,
+            "position": [
+              -0.19,
+              0.16,
+              0.22
+            ],
+            "rotation": [
+              1.5708,
+              0,
+              0
+            ],
+            "color": "#20242c",
+            "friction": 0.8
+          }
         ],
         "joints": [
-          { "name": "wheelL", "parent": "chassis", "child": "left", "anchor": [0.05, 0.16, -0.22], "axis": [0, 0, 1], "motor": { "stiffness": 20, "damping": 6, "maxTorque": 5 } },
-          { "name": "wheelR", "parent": "chassis", "child": "right", "anchor": [0.05, 0.16, 0.22], "axis": [0, 0, 1], "motor": { "stiffness": 20, "damping": 6, "maxTorque": 5 } },
-          { "name": "casterJoint", "type": "fixed", "parent": "chassis", "child": "caster", "anchor": [-0.22, 0.17, 0] }
+          {
+            "name": "wheelFL",
+            "parent": "chassis",
+            "child": "frontLeft",
+            "anchor": [
+              0.19,
+              0.16,
+              -0.22
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 20,
+              "damping": 6,
+              "maxTorque": 5
+            }
+          },
+          {
+            "name": "wheelFR",
+            "parent": "chassis",
+            "child": "frontRight",
+            "anchor": [
+              0.19,
+              0.16,
+              0.22
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 20,
+              "damping": 6,
+              "maxTorque": 5
+            }
+          },
+          {
+            "name": "wheelBL",
+            "parent": "chassis",
+            "child": "backLeft",
+            "anchor": [
+              -0.19,
+              0.16,
+              -0.22
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 20,
+              "damping": 6,
+              "maxTorque": 5
+            }
+          },
+          {
+            "name": "wheelBR",
+            "parent": "chassis",
+            "child": "backRight",
+            "anchor": [
+              -0.19,
+              0.16,
+              0.22
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "motor": {
+              "stiffness": 20,
+              "damping": 6,
+              "maxTorque": 5
+            }
+          }
         ],
-        "sensors": [{ "type": "pose" }, { "type": "joints" }]
+        "sensors": [
+          {
+            "type": "pose"
+          },
+          {
+            "type": "joints"
+          }
+        ]
       }
     }
   ],
-  "metrics": ["fear", "aggression", "love", "explorer", "speed"]
+  "metrics": [
+    "fear",
+    "aggression",
+    "love",
+    "explorer",
+    "speed"
+  ]
 }

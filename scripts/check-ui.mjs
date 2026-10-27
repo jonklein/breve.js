@@ -192,6 +192,11 @@ await sim('braitenberg')
 await page.waitForTimeout(7000)
 check('the Braitenberg vehicles run', /creatures/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
 
+// particle life: the dots run with no problems
+await sim('particle-life')
+await page.waitForTimeout(3500)
+check('Particle Life runs', /agents/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, await page.textContent('#stats'))
+
 // a slider move on an untouched example remembers the value, not a frozen copy of the example
 await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('breve:')) localStorage.removeItem(k) })
 await sim('boids')

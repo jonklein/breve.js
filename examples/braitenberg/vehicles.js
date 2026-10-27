@@ -4,7 +4,7 @@
 // Connect the sensors to the motors in different ways and the carts seem to have different characters: one swerves away from lights, one swerves toward them,
 // one slows as it nears one and settles in front of it, one heads for a light and then swerves off. There is no goal or plan in any of them, only wiring.
 //
-// Here the carts are real: a chassis on two driven wheels and a caster, on a floor with friction, bumping into each other. The script is the wiring:
+// Here the carts are real: a chassis on four wheels, the two on each side driven together, on a floor with friction, bumping into each other. The script is the wiring:
 //
 //   eye      how much light each sensor sees: lights nearby and in front of that eye count most
 //   wiring   `data.kinds[...].weights[motor][eye]` says how much each eye pushes each motor (negative slows it); `bias` is each motor's resting drive
@@ -52,10 +52,9 @@ export default {
 
     // a wheel turns at the speed the motor asks for; a hinge that turns this way drives the cart backward, so the sign is flipped
     const spin = drive.map((d) => (-d * p.speed) / WHEEL)
-    const joints = {
-      wheelL: self.joints.wheelL + spin[0] * KD_OVER_KP,
-      wheelR: self.joints.wheelR + spin[1] * KD_OVER_KP,
-    }
+    // four wheels, driven in pairs: both on the left from the left motor, both on the right from the right one (the cart turns by skidding)
+    const aim = (name, motor) => self.joints[name] + spin[motor] * KD_OVER_KP
+    const joints = { wheelFL: aim('wheelFL', 0), wheelBL: aim('wheelBL', 0), wheelFR: aim('wheelFR', 1), wheelBR: aim('wheelBR', 1) }
 
     // the arena has an invisible wall: a cart that reaches it is put back a little inside, facing the middle; so is one that has been flipped over
     const flippedFor = self.up.y < 0.4 ? self.flippedFor + 1 : 0

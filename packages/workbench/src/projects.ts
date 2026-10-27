@@ -26,6 +26,7 @@ export interface UserProject {
 
 const INDEX_KEY = 'breve:projects'
 const docKey = (id: string) => `breve:doc:${id}`
+const paramsKey = (id: string) => `breve:params:${id}`
 
 function read<T>(key: string): T | null {
   try {
@@ -59,7 +60,14 @@ export async function fetchExample(e: ExampleInfo): Promise<Doc> {
 export const userProjects = (): UserProject[] => read<UserProject[]>(INDEX_KEY) ?? []
 export const savedDoc = (id: string): Doc | null => read<Doc>(docKey(id))
 export const saveDoc = (id: string, doc: Doc): void => write(docKey(id), doc)
-export const clearDoc = (id: string): void => write(docKey(id), null)
+export const clearDoc = (id: string): void => { write(docKey(id), null); write(paramsKey(id), null) }
+
+/**
+ * Slider values for an example nobody has edited. They are kept apart from a saved copy of the example, so a slider move does not
+ * freeze the whole scene and script at today's version: the example can still improve underneath.
+ */
+export const savedParams = (id: string): Record<string, number> => read<Record<string, number>>(paramsKey(id)) ?? {}
+export const saveParams = (id: string, values: Record<string, number>): void => write(paramsKey(id), values)
 
 export function createProject(name: string, from: string | undefined, doc: Doc, untrusted = false): UserProject {
   const p: UserProject = { id: 'p-' + Date.now().toString(36), name, from, ...(untrusted ? { untrusted: true } : {}) }

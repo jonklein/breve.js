@@ -4,7 +4,7 @@ import { makeEditor, setParamInText } from './editors'
 import { parseScene, sceneSchema, setEntityKey } from '@breve/core'
 import { ParamsPanel, MetricsPanel } from './panel'
 import {
-  approveProject, clearDoc, createProject, deleteProject, fetchExample, loadExamples, renameProject, saveDoc, savedDoc, userProjects,
+  approveProject, clearDoc, createProject, deleteProject, fetchExample, loadExamples, renameProject, saveDoc, savedDoc, saveParams, savedParams, userProjects,
   type Doc, type ExampleInfo,
 } from './projects'
 import { ChatPanel } from './chat'
@@ -64,13 +64,19 @@ async function main(): Promise<void> {
   const live = (script: string) => (unapproved ? STUB : script)
   const docNow = (): Doc => ({ scene: sceneEditor.getText(), script: scriptEditor.getText(), experiment: experimentEditor.getText() })
 
+  // Moving a slider on an example nobody has edited remembers just the values; anything else saves the whole project.
+  const rememberParams = (values: Record<string, number>) => {
+    if (isExample(current) && !savedDoc(current)) saveParams(current, { ...savedParams(current), ...values })
+    else saveDoc(current, docNow())
+  }
+
   const params = new ParamsPanel($('params'), (name, value) => {
     const next = setParamInText(sceneEditor.getText(), name, value)
     if (next === null) return
     loading = true
     sceneEditor.setText(next)
     loading = false
-    saveDoc(current, docNow())
+    rememberParams({ [name]: value })
     send({ type: 'scene', scene: next })
   })
 
@@ -225,7 +231,10 @@ async function main(): Promise<void> {
     const saved = savedDoc(id)
     if (saved) return saved
     const ex = exampleById.get(id)
-    return ex ? fetchExample(ex as ExampleInfo) : null
+    if (!ex) return null
+    const doc = await fetchExample(ex as ExampleInfo)
+    for (const [name, value] of Object.entries(savedParams(id))) doc.scene = setParamInText(doc.scene, name, value) ?? doc.scene
+    return doc
   }
 
   async function open(id: string): Promise<void> {
@@ -321,7 +330,7 @@ async function main(): Promise<void> {
       loading = true
       sceneEditor.setText(next)
       loading = false
-      saveDoc(current, docNow())
+      rememberParams(params)
       showScene(next)
       send({ type: 'scene', scene: next })
     },
@@ -535,7 +544,7 @@ async function main(): Promise<void> {
       loading = true
       sceneEditor.setText(next)
       loading = false
-      saveDoc(current, docNow())
+      rememberParams(m.params)
       showScene(next)
       showSweep(false)
     } else if (m.type === 'problems') {

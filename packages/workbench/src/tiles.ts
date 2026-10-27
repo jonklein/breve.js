@@ -15,8 +15,11 @@ interface Slot {
   reading: HTMLElement
   spark: HTMLCanvasElement
   history: number[]
+  /** Where the camera sits relative to what it looks at, before the slow drift is applied. */
   base: THREE.Vector3 | null
+  /** Where the camera was put on the last frame, and how far around the drift had turned it. */
   placed: THREE.Vector3
+  angle: number
   rect: { x: number; y: number; w: number; h: number }
   camera: () => THREE.PerspectiveCamera
 }
@@ -27,6 +30,9 @@ const HISTORY = 160
  * Many worlds in one canvas: a shared renderer draws each world into its own rectangle, and a thin layer of
  * DOM on top labels each tile with its param value and a live line for one metric. Click a tile to pick it.
  */
+/** A vector turned about the vertical axis by an angle. */
+const turned = (v: THREE.Vector3, a: number): THREE.Vector3 => new THREE.Vector3(v.x * Math.cos(a) + v.z * Math.sin(a), v.y, -v.x * Math.sin(a) + v.z * Math.cos(a))
+
 export class TileGrid {
   private renderer = new THREE.WebGLRenderer({ antialias: true })
   private slots = new Map<string, Slot>()
@@ -84,7 +90,10 @@ export class TileGrid {
       let s = this.slots.get(t.name)
       if (!s) { s = this.makeSlot(t); this.slots.set(t.name, s); added = true }
       s.view.update(t.frames)
-      if (!s.base || !s.camera().position.equals(s.placed)) s.base = s.camera().position.clone() // the world moved the camera (new size): re-aim
+      // A follow camera moves the camera and its target together, so only a change in where the camera sits *relative to* the target
+      // (a new world size) means re-aim. Measuring the camera's absolute position here would fold the drift into the base and turn it again.
+      const away = s.camera().position.clone().sub(s.view.controls.target)
+      if (!s.base || away.distanceTo(turned(s.base, s.angle)) > 1e-3) s.base = turned(away, -s.angle)
       const v = this.metric ? t.metrics?.[this.metric] : undefined
       if (v !== undefined) {
         s.history.push(v)
@@ -111,7 +120,7 @@ export class TileGrid {
     this.container.appendChild(el)
     const view = new WorldView(this.renderer)
     view.setWorld(this.look)
-    return { view, el, title, reading, spark, history: [], base: null, placed: new THREE.Vector3(NaN), rect: { x: 0, y: 0, w: 0, h: 0 }, camera: () => view.camera }
+    return { view, el, title, reading, spark, history: [], base: null, placed: new THREE.Vector3(NaN), angle: 0, rect: { x: 0, y: 0, w: 0, h: 0 }, camera: () => view.camera }
   }
 
   /** Divide the container into a grid that suits the number of tiles and its shape. */
@@ -178,9 +187,8 @@ export class TileGrid {
       if (w <= 0) continue
       // drift slowly around the world so each tile shows more than one side
       if (s.base) {
-        const a = t * 0.12
-        const c = Math.cos(a), sn = Math.sin(a)
-        s.placed.set(s.base.x * c + s.base.z * sn, s.base.y, -s.base.x * sn + s.base.z * c)
+        s.angle = t * 0.12
+        s.placed.copy(s.view.controls.target).add(turned(s.base, s.angle))
         s.view.camera.position.copy(s.placed)
         s.view.camera.lookAt(s.view.controls.target)
       }

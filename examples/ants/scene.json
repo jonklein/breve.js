@@ -1,35 +1,219 @@
 {
   "name": "ants",
   "seed": 5,
-  "bounds": { "size": 20 },
-  "world": { "frame": false,"preset": "day", "grid": false, "shadows": true, "floor": {"texture": "sand", "y": -0.1}, "camera": {"distance": 1.55, "elevation": 42}},
-  "data": { "colors": { "nest": "#4f86f7", "weakScent": "#2f5a3c", "strongScent": "#7be495", "food": "#ffd34a" } },
+  "bounds": {
+    "size": 20
+  },
+  "world": {
+    "frame": false,
+    "preset": "day",
+    "grid": false,
+    "shadows": true,
+    "floor": {
+      "texture": "sand",
+      "y": -0.1
+    },
+    "camera": {
+      "distance": 1.55,
+      "elevation": 42
+    }
+  },
+  "data": {
+    "colors": {
+      "nest": "#4f86f7",
+      "food": "#ffd34a",
+      "weakScent": "#2f5a3c",
+      "strongScent": "#7be495"
+    },
+    "nest": {
+      "at": [
+        -12,
+        0,
+        0
+      ],
+      "reach": 2.5
+    },
+    "food": [
+      {
+        "at": [
+          11,
+          0,
+          8
+        ],
+        "reach": 3,
+        "amount": 150
+      },
+      {
+        "at": [
+          5,
+          0,
+          -13
+        ],
+        "reach": 2.5,
+        "amount": 100
+      }
+    ]
+  },
   "params": {
-    "count": { "value": 70, "min": 5, "max": 300, "step": 5, "label": "ants" },
-    "speed": { "value": 5, "min": 1, "max": 12, "step": 0.5 },
-    "wander": { "value": 9, "min": 0, "max": 30, "step": 0.5, "label": "how much they wander" },
-    "pull": { "value": 20, "min": 1, "max": 60, "step": 1, "label": "how hard they steer" },
-    "laying": { "value": 1, "min": 0, "max": 4, "step": 0.1, "label": "scent laid per step" },
-    "evaporation": { "value": 0.97, "min": 0.8, "max": 1, "step": 0.005, "label": "scent kept per step" },
-    "spread": { "value": 0.25, "min": 0, "max": 1, "step": 0.05, "label": "how much scent spreads" }
+    "count": {
+      "value": 70,
+      "min": 5,
+      "max": 300,
+      "step": 5,
+      "label": "ants"
+    },
+    "speed": {
+      "value": 5,
+      "min": 1,
+      "max": 12,
+      "step": 0.5
+    },
+    "wander": {
+      "value": 9,
+      "min": 0,
+      "max": 30,
+      "step": 0.5,
+      "label": "how much they wander"
+    },
+    "pull": {
+      "value": 20,
+      "min": 1,
+      "max": 60,
+      "step": 1,
+      "label": "how hard they steer"
+    },
+    "laying": {
+      "value": 1,
+      "min": 0,
+      "max": 4,
+      "step": 0.1,
+      "label": "scent laid per step"
+    },
+    "evaporation": {
+      "value": 0.97,
+      "min": 0.8,
+      "max": 1,
+      "step": 0.005,
+      "label": "scent kept per step"
+    },
+    "spread": {
+      "value": 0.25,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "label": "how much scent spreads"
+    }
   },
   "entities": [
     {
-      "name": "ants", "style": {"shape": "capsule", "material": {"roughness": 0.4, "metalness": 0.1}},
+      "name": "ants",
+      "style": {
+        "shape": "capsule",
+        "material": {
+          "roughness": 0.4,
+          "metalness": 0.1
+        }
+      },
       "type": "Ant",
       "controller": "ants.js",
       "count": "$count",
       "color": "#f2d088",
-      "spawn": { "at": [-12, 0, 0], "spread": 4 },
+      "spawn": {
+        "at": [
+          -12,
+          0,
+          0
+        ],
+        "spread": 4
+      },
       "size": 1.1,
-      "motion": { "maxSpeed": "$speed", "minSpeed": 1.5, "maxAccel": 60, "plane": "xz" }
+      "motion": {
+        "maxSpeed": "$speed",
+        "minSpeed": 1.5,
+        "maxAccel": 60,
+        "plane": "xz"
+      },
+      "sensors": [
+        {
+          "type": "neighbors",
+          "of": "food",
+          "name": "foods",
+          "radius": 4
+        },
+        {
+          "type": "neighbors",
+          "of": "nest",
+          "name": "nests",
+          "radius": 80
+        }
+      ]
+    },
+    {
+      "name": "nest",
+      "type": "Nest",
+      "controller": "ants.js",
+      "count": 1,
+      "size": 1,
+      "style": {
+        "shape": "disc",
+        "material": {
+          "roughness": 0.6,
+          "glow": 0.2
+        }
+      },
+      "motion": {
+        "maxSpeed": 0.01,
+        "minSpeed": 0,
+        "maxAccel": 0,
+        "plane": "xz"
+      }
+    },
+    {
+      "name": "food",
+      "type": "Food",
+      "controller": "ants.js",
+      "count": 2,
+      "size": 1,
+      "style": {
+        "shape": "sphere",
+        "material": {
+          "roughness": 0.5,
+          "glow": 0.3
+        }
+      },
+      "sensors": [
+        {
+          "type": "neighbors",
+          "of": "ants",
+          "name": "ants",
+          "radius": 6
+        }
+      ],
+      "motion": {
+        "maxSpeed": 0.01,
+        "minSpeed": 0,
+        "maxAccel": 0,
+        "plane": "xz"
+      }
     },
     {
       "name": "ground",
       "type": "Ground",
       "every": 2,
-      "lattice": { "size": [40, 1, 40], "spacing": 1, "edges": "dead", "thickness": 0.12 }
+      "lattice": {
+        "size": [
+          40,
+          1,
+          40
+        ],
+        "spacing": 1,
+        "edges": "dead",
+        "thickness": 0.12
+      }
     }
   ],
-  "metrics": ["delivered", "carrying"]
+  "metrics": [
+    "delivered",
+    "carrying"
+  ]
 }

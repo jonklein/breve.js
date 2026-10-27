@@ -578,6 +578,16 @@ export class AgentWorld implements World {
     const cx = idx(x), cy = idx(y), cz = idx(z)
     const reach = Math.max(1, Math.ceil(radius / this.gridCell))
     const r2 = radius * radius
+    // a big radius over a small set (every ant looking for the one nest): checking each agent beats walking a grid of empty cells
+    const n = this.table.size
+    if ((2 * Math.min(axis, reach) + 1) ** 3 > n) {
+      for (let j = 0; j < n; j++) {
+        if (j === skip) continue
+        const ex = c.px[j] - x, ey = c.py[j] - y, ez = c.pz[j] - z
+        if (ex * ex + ey * ey + ez * ez <= r2) visit(j)
+      }
+      return
+    }
     for (let dz = Math.max(0, cz - reach); dz <= Math.min(axis - 1, cz + reach); dz++)
       for (let dy = Math.max(0, cy - reach); dy <= Math.min(axis - 1, cy + reach); dy++)
         for (let dx = Math.max(0, cx - reach); dx <= Math.min(axis - 1, cx + reach); dx++) {

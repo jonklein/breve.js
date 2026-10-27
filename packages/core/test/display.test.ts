@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Sim, parseScene, type ScriptModule } from '../src/index'
+import { looksOfAll } from '../src/display'
 
 const parse = (o: object) => { const r = parseScene(JSON.stringify(o)); assert.ok(r.ok, r.ok ? '' : r.errors.join('\n')); return r.ok ? r.scene : (null as never) }
 const grid = () => parse({ seed: 1, params: {}, bounds: { size: 10 }, entities: [{ name: 'cell', lattice: { size: [4, 4, 1] }, controller: 'x.js' }], metrics: [] })
@@ -57,4 +58,16 @@ test('a display that throws is reported once, not once per entity, and the scene
   const bad = new Sim(grid(), { default: { init, act: () => ({}), displayAll: () => ({ visible: new Float32Array(3) }) } })
   bad.frames()
   assert.match(bad.takeErrors().join(), /one value per entity \(16\), got 3/)
+})
+
+test('displayAll: a single number applies to everyone, and a wrong value says what it got', () => {
+  const errors: unknown[] = []
+  const ok = looksOfAll(4, { opacity: 0.5, scale: 2 }, (e) => errors.push(e))
+  assert.deepEqual([...ok.alpha!], [128, 128, 128, 128])
+  assert.deepEqual([...ok.scale!], [2, 2, 2, 2])
+  const bad = looksOfAll(4, { opacity: { r: 1 } }, (e) => errors.push(e))
+  assert.equal(bad.alpha, null)
+  assert.match(String(errors[0]), /"opacity" must have one value per entity \(4\), got an object \(r\)/)
+  looksOfAll(4, { opacity: new Float32Array(3) }, (e) => errors.push(e))
+  assert.match(String(errors[1]), /got 3 values/)
 })

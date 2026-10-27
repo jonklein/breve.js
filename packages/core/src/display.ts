@@ -45,6 +45,9 @@ function rgbOf(c: unknown): Rgb | null {
 
 const dataOf = (v: Field | ArrayLike<number>): ArrayLike<number> => (v instanceof Field ? v.data : v)
 
+/** What a script handed over, in a few words, for an error message. */
+const describe = (v: unknown): string => (v === null ? 'null' : Array.isArray(v) ? `a list of ${v.length}` : typeof v === 'object' ? `an object (${Object.keys(v as object).slice(0, 4).join(', ') || 'no fields'})` : `${typeof v} ${String(v)}`)
+
 /**
  * The look of `n` entities from a per-entity `display`. The first error stops the pass and is handed to `fail` once, rather than
  * once per entity.
@@ -74,10 +77,13 @@ export function looksOf(n: number, look: (i: number) => Look | void, fail: (e: u
 export function looksOfAll(n: number, result: unknown, fail: (e: unknown) => void): Looks {
   const look = result as LookAll | undefined
   const out: Looks = { ...NONE }
-  const column = (name: string, v: Field | ArrayLike<number>): ArrayLike<number> => {
-    const d = dataOf(v)
-    if (d.length !== n) throw new Error(`displayAll: "${name}" must have one value per entity (${n}), got ${d.length}`)
-    return d
+  const column = (name: string, v: unknown): ArrayLike<number> => {
+    if (typeof v === 'number') return new Float32Array(n).fill(v) // one number is the same value for everyone
+    // a Field (even one from another copy of the library) keeps its values in `data`; a list or typed array is its own values
+    const d = v instanceof Field ? v.data : v && typeof v === 'object' && 'data' in v && !('length' in v) ? (v as { data: ArrayLike<number> }).data : v
+    const values = d && typeof d === 'object' && typeof (d as ArrayLike<number>).length === 'number' ? (d as ArrayLike<number>) : null
+    if (!values || values.length !== n) throw new Error(`displayAll: "${name}" must have one value per entity (${n}), got ${values ? `${values.length} values` : describe(v)}. Give a Field or a list with one number per entity, or one number for all of them.`)
+    return values
   }
   try {
     if (look?.visible !== undefined) {

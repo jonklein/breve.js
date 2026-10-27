@@ -187,6 +187,11 @@ await sim('life-giant')
 await page.waitForTimeout(4000)
 check('a grid too big for the processor explains that it needs WebGPU', /WebGPU/.test((await page.locator('.problems li').allTextContents()).join(' ')), (await page.locator('.problems li').allTextContents()).join(' | ').slice(0, 160))
 
+// physically simulated Braitenberg vehicles: the carts are creatures with wheels, and the wiring in `data` runs with no problems
+await sim('braitenberg')
+await page.waitForTimeout(7000)
+check('the Braitenberg vehicles run', /creatures/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
+
 // a slider move on an untouched example remembers the value, not a frozen copy of the example
 await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('breve:')) localStorage.removeItem(k) })
 await sim('boids')

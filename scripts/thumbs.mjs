@@ -17,10 +17,10 @@ for (const e of examples) {
   await page.goto(`${base}/sim/?embed&quality=${process.env.BREVE_QUALITY ?? 'medium'}#${e.id}`) // software GL is slow: no ambient occlusion unless asked
   // let it run long enough to look like itself; bodies need the physics engine to load first
   // (a software graphics card is slow: the formula lattices need a good while to compile, run and draw the first generations)
-  const wait = { 'life2d-formula': 20000, 'life-giant': 45000 }[e.id] ?? (['creature', 'creature-gltf', 'urdf-bot', 'morphology', 'evolved-creatures'].includes(e.id) ? 7000 : 4500)
+  const wait = { 'life2d-formula': 20000, 'life-giant': 45000 }[e.id] ?? (['creature', 'creature-gltf', 'urdf-bot', 'morphology', 'evolved-creatures', 'braitenberg'].includes(e.id) ? 7000 : 4500)
   await page.waitForTimeout(wait)
   // creatures are small in a big arena: zoom in on the middle of the view
-  if (['creature', 'creature-gltf', 'urdf-bot', 'morphology'].includes(e.id)) { await page.mouse.move(400, 250); await page.mouse.wheel(0, -900); await page.waitForTimeout(800) }
+  if (['creature', 'creature-gltf', 'urdf-bot', 'morphology', 'braitenberg'].includes(e.id)) { await page.mouse.move(400, 250); await page.mouse.wheel(0, e.id === 'braitenberg' ? -1800 : -900); await page.waitForTimeout(800) }
   await page.screenshot({ path: new URL(`../examples/${e.id}/thumb.jpg`, import.meta.url).pathname, type: 'jpeg', quality: 78 })
   console.log('thumb', e.id)
 }

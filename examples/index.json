@@ -242,6 +242,20 @@
     "about": "about.md"
   },
   {
+    "id": "braitenberg",
+    "name": "Braitenberg vehicles",
+    "description": "Two eyes, two wheels and four ways to wire them: carts that flee, charge, love or explore the lights. Real physics.",
+    "scene": "scene.json",
+    "script": "vehicles.js",
+    "tags": [
+      "physics",
+      "vehicles",
+      "emergence"
+    ],
+    "folder": "Creatures & robots",
+    "about": "about.md"
+  },
+  {
     "id": "urdf-bot",
     "name": "Robot from a URDF",
     "description": "A four-legged robot converted from a URDF file (robot.urdf) and walked by a script.",

@@ -30,7 +30,9 @@ The per-entity form is the readable one and suits up to tens of thousands of ent
     "grid": true,
     "boundsColor": "#3a4658",
     "agentColor": "heading",              // "heading" colors by direction, or one hex color
-    "shadows": true                       // cast shadows (default: on for physics scenes with terrain, off otherwise)
+    "shadows": true,                      // cast shadows (default: on for physics scenes with terrain, off otherwise)
+    "markers": [{ "at": [0, 0], "height": 2, "color": "#ff8a3d" }], // poles on the ground to judge distance by (physics scenes; drawn only, nothing collides)
+    "follow": true                        // physics scenes: the camera follows the first creature, keeping the angle you orbit to
   },
   "terrain": { "size": 80, "resolution": 64, "amplitude": 0.6, "frequency": 0.07 },   // creatures only: bumpy ground, see "Entity set: creatures"
   "physics": { "gravity": 9.81, "substeps": 4 },   // creatures only, optional

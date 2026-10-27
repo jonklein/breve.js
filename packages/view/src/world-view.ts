@@ -28,6 +28,8 @@ export interface WorldLook {
   boundsColor?: unknown
   agentColor?: unknown
   shadows?: unknown
+  markers?: unknown
+  follow?: unknown
 }
 
 const DEFAULTS = { top: '#0b1226', horizon: '#2a4a7a', bounds: '#3a4658' }
@@ -51,6 +53,9 @@ export class WorldView {
   /** One layer per entity set, in scene order. */
   private layers: (AgentLayer | CellLayer | GraphLayer | null)[] = []
   private rigid: RigidView
+  private markers: THREE.Group | null = null
+  private followWanted = false
+  private followed = false
   private box: THREE.LineSegments | null = null
   private boxSize = 0
   private sky: THREE.Mesh
@@ -148,7 +153,41 @@ export class WorldView {
     this.rebuildGrid()
     this.shadowsWanted = typeof w?.shadows === 'boolean' ? w.shadows : undefined
     this.applyShadows()
+    this.followWanted = w?.follow === true
+    this.followed = false
+    this.buildMarkers(w?.markers)
     this.fixedColor = typeof w?.agentColor === 'string' && w.agentColor !== 'heading' ? parseColor(w.agentColor, '#ffffff') : null
+  }
+
+  /** Poles at fixed spots on the ground, for judging distance. Anything malformed is skipped. */
+  private buildMarkers(list: unknown): void {
+    if (this.markers) {
+      this.scene.remove(this.markers)
+      this.markers.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose(); (m.material as THREE.Material | undefined)?.dispose() })
+      this.markers = null
+    }
+    if (!Array.isArray(list) || !list.length) return
+    const group = new THREE.Group()
+    for (const m of list as { at?: unknown; height?: unknown; color?: unknown }[]) {
+      if (!m || !Array.isArray(m.at) || typeof m.at[0] !== 'number' || typeof m.at[1] !== 'number') continue
+      const h = typeof m.height === 'number' && m.height > 0 ? m.height : 2
+      const color = parseColor(m.color, '#ff8a3d')
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, h + 0.5, 10), new THREE.MeshLambertMaterial({ color }))
+      pole.position.set(m.at[0], (h - 0.5) / 2, m.at[1]) // sunk a little, so it stands on bumpy ground
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshLambertMaterial({ color }))
+      cap.position.set(m.at[0], h, m.at[1])
+      group.add(pole, cap)
+    }
+    this.markers = group
+    this.scene.add(group)
+  }
+
+  /** Slide the camera and its target along with `to`, so the orbit angle and distance the viewer chose are kept. */
+  private follow(to: THREE.Vector3): void {
+    const d = to.clone().sub(this.controls.target).multiplyScalar(this.followed ? 0.12 : 1)
+    this.followed = true
+    this.controls.target.add(d)
+    this.camera.position.add(d)
   }
 
   /** Shadows default on for physics scenes (there is a ground to catch them) and off elsewhere. */
@@ -215,10 +254,16 @@ export class WorldView {
     if (this.grid) this.grid.visible = !bodies
     if (rigidFrame) {
       for (const l of this.layers) l?.setVisible(false)
-      if (rigidFrame.rigid) this.rigid.update(rigidFrame.rigid, rigidFrame.size)
+      if (rigidFrame.rigid) {
+        this.rigid.update(rigidFrame.rigid, rigidFrame.size)
+        const p = rigidFrame.rigid.poses
+        if (this.followWanted && p.length >= 3) this.follow(new THREE.Vector3(p[0], p[1], p[2]))
+      }
+      if (this.markers) this.markers.visible = true
       this.fitShadow(rigidFrame.size)
       return
     }
+    if (this.markers) this.markers.visible = false
     this.setBounds(Math.max(...frames.map((f) => f.size)))
     frames.forEach((f, i) => {
       const want = f.kind === 'lattice' ? CellLayer : f.kind === 'graph' ? GraphLayer : AgentLayer

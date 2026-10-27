@@ -89,3 +89,13 @@ test('world settings validate, and bad colors get a readable error', async () =>
   assert.match(r.ok ? '' : r.errors.join('\n'), /world\.sky/)
   assert.ok(parseScene(JSON.stringify({ ...scene, world: undefined })).ok, 'world is optional')
 })
+
+test('world markers and follow validate', async () => {
+  const { scene } = await load()
+  assert.ok(parseScene(JSON.stringify({ ...scene, world: { markers: [{ at: [0, 0], height: 2, color: '#ff8a3d' }], follow: true } })).ok)
+  for (const markers of [[{ at: [0] }], [{ at: [0, 0], height: -1 }], [{ height: 2 }]]) {
+    const r = parseScene(JSON.stringify({ ...scene, world: { markers } }))
+    assert.equal(r.ok, false)
+    assert.match(r.ok ? '' : r.errors.join('\n'), /world\.markers/)
+  }
+})

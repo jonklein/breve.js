@@ -131,6 +131,10 @@ export interface WorldDef {
   agentColor?: 'heading' | string
   /** Cast shadows. On by default for physics scenes with terrain, off otherwise. */
   shadows?: boolean
+  /** Poles standing on the ground at fixed spots, so you can see how far things have gone. Drawn only: nothing collides with them. */
+  markers?: { /** Where, on the ground: [x, z]. */ at: [number, number]; /** Pole height in world units. Default 2. */ height?: number; color?: string }[]
+  /** Physics scenes: the camera follows the first body of the first creature, keeping whatever angle and distance you orbit to. Default false. */
+  follow?: boolean
 }
 
 export interface Scene {
@@ -234,6 +238,14 @@ export const sceneSchema = {
         boundsColor: color,
         agentColor: { anyOf: [{ const: 'heading' }, color] },
         shadows: { type: 'boolean' },
+        markers: {
+          type: 'array',
+          items: {
+            type: 'object', required: ['at'], additionalProperties: false,
+            properties: { at: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, height: { type: 'number', exclusiveMinimum: 0 }, color },
+          },
+        },
+        follow: { type: 'boolean' },
       },
     },
     models: {

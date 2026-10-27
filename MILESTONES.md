@@ -222,6 +222,7 @@ Acceptance: every example has a deliberate look from its scene alone; `world.pre
 
 Not started:
 
+- **More example simulations (backlog):** a **hypercycle** (Eigen and Schuster's catalytic cycle of replicators, with and without parasites, on a well-mixed pool and on a spatial grid), and **reaction-diffusion** (Gray-Scott and similar, as a whole-grid `update` rule on a lattice, with the feed and kill rates as sliders and a few presets for spots, stripes and waves). Both should ship with an experiment file and a look from M12.
 - Server-side project storage and accounts; projects live in browser storage only today. This needs a decision from the project owner first (a hosted service, and what to store where), per CLAUDE.md.
 - Sandboxed untrusted sims (QuickJS). Until then, projects opened from a share link are held back until you read the script and press Run (a trust prompt, not a sandbox).
 - ~~Timeline scrubber~~ done: the workbench records a snapshot every 10 ticks (within a 64 MB budget), a slider under the view goes back to any of them and pauses there, and Play carries on from that point as a new branch (the charts rewind too). Works for physics scenes. Not for sweeps. Moments between snapshots cannot be reached, because stepping forward from a snapshot would not match a run driven by a person or a model.

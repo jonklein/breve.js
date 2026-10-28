@@ -4,6 +4,7 @@ import { Defaults, Field, Nums, type NeighborTable } from '@breve/stdlib'
 import { capped } from './limits'
 import { adjacency, makeEdges, type Adjacency, type Edges } from './graph'
 import { layoutNodes } from './layout'
+import { Rng } from './rng'
 import { resolve, type Params, type StateField } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
 import { type Ctx, type FrameData, type Host, type MetricInput, type World } from './world'
@@ -34,6 +35,8 @@ export class NetworkWorld implements World {
   private layout: Float32Array
   /** Bumped when the links change, so a view knows to redraw them. */
   private version = 1
+  /** The layout settings the current positions were made from, to notice when the scene asks for another. */
+  private layoutKey = ''
   /** Rejected trades since the last look: a trade that would overdraw either side is simply not made. */
   trades = { made: 0, refused: 0 }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,6 +69,7 @@ export class NetworkWorld implements World {
       this.adj = adjacency(this.n, this.edges)
       this.layout = layoutNodes(this.n, this.edges, net.layout ?? 'force', net.radius ?? 20, host.rng)
     }
+    this.layoutKey = `${net.layout ?? 'force'}|${net.radius ?? 20}`
     const c = this.table.cols
     for (let i = 0; i < this.n; i++) { c.px[i] = this.layout[i * 3]; c.py[i] = this.layout[i * 3 + 1]; c.pz[i] = this.layout[i * 3 + 2] }
     const { Node, Nodes } = this.makeTypes()
@@ -157,7 +161,16 @@ export class NetworkWorld implements World {
   }
 
   sceneChanged(): void {
-    /* the number of nodes and their links only change on reset; rule params are read live */
+    // the number of nodes and their links only change on reset; rule params are read live. Where nodes are drawn is only for the picture,
+    // so a new `layout` or `radius` applies at once (from the scene's seed alone, so forks and reruns place them the same way)
+    const net = this.host.def.network!
+    const key = `${net.layout ?? 'force'}|${net.radius ?? 20}`
+    if (key === this.layoutKey) return
+    this.layoutKey = key
+    this.layout = layoutNodes(this.n, this.edges, net.layout ?? 'force', net.radius ?? 20, new Rng(this.host.scene.seed))
+    const c = this.table.cols
+    for (let i = 0; i < this.n; i++) { c.px[i] = this.layout[i * 3]; c.py[i] = this.layout[i * 3 + 1]; c.pz[i] = this.layout[i * 3 + 2] }
+    this.version++
   }
 
   /** Linked nodes in the fixed-width table `Field` works on, built when the links change. */

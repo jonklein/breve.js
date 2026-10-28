@@ -1,13 +1,14 @@
 // @ts-expect-error d3-force-3d ships no type declarations
-import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force-3d'
+import { forceSimulation, forceLink, forceManyBody, forceCenter, forceRadial } from 'd3-force-3d'
 import type { Rng } from './rng'
 import type { Edges } from './graph'
 
-export type LayoutKind = 'force' | 'circle' | 'sphere' | 'grid' | 'random' | 'radial'
+export type LayoutKind = 'force' | 'force-sphere' | 'circle' | 'sphere' | 'grid' | 'random' | 'radial'
 
 /**
  * Where to draw each node of a network (display only: nothing in the simulation reads these). `force` spreads
- * linked nodes toward each other and unlinked ones apart (the d3-force-3d library, run to rest once);
+ * linked nodes toward each other and unlinked ones apart (the d3-force-3d library, run to rest once); `force-sphere` is the same but every
+ * node is also pulled onto the surface of a sphere, so linked nodes sit near each other on a shell (a globe of neighborhoods);
  * `circle`, `sphere`, `grid` (a cube lattice) and `random` are plain arrangements; `radial` puts the best-linked node
  * in the middle and each ring is one more link away from it. Positions fill a ball of the given radius, three numbers per node.
  */
@@ -74,11 +75,19 @@ export function layoutNodes(n: number, edges: Edges, kind: LayoutKind, radius: n
     .force('charge', forceManyBody().strength(-Math.max(2, radius / 6)))
     .force('center', forceCenter())
     .stop()
+  if (kind === 'force-sphere') sim.force('shell', forceRadial(radius, 0, 0, 0).strength(0.9))
   const ticks = Math.min(300, 60 + Math.ceil(2000 / Math.max(1, Math.sqrt(n))))
   for (let t = 0; t < ticks; t++) sim.tick()
   let big = 0
   for (const d of nodes) big = Math.max(big, Math.hypot(d.x ?? 0, d.y ?? 0, d.z ?? 0))
   const k = big > 0 ? radius / big : 1
   nodes.forEach((d, i) => { out[i * 3] = (d.x ?? 0) * k; out[i * 3 + 1] = (d.y ?? 0) * k; out[i * 3 + 2] = (d.z ?? 0) * k })
+  if (kind === 'force-sphere') {
+    // the pull leaves nodes near the shell, not on it: settle each exactly onto the sphere
+    for (let i = 0; i < n; i++) {
+      const x = out[i * 3], y = out[i * 3 + 1], z = out[i * 3 + 2], len = Math.hypot(x, y, z) || 1
+      out[i * 3] = (x / len) * radius; out[i * 3 + 1] = (y / len) * radius; out[i * 3 + 2] = (z / len) * radius
+    }
+  }
   return out
 }

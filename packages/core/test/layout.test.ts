@@ -6,7 +6,7 @@ import { Sim, parseScene, type ScriptModule } from '../src/index'
 import { layoutNodes, type LayoutKind } from '../src/layout'
 import { Rng } from '../src/rng'
 
-const KINDS: LayoutKind[] = ['force', 'circle', 'sphere', 'grid', 'random', 'radial']
+const KINDS: LayoutKind[] = ['force', 'force-sphere', 'circle', 'sphere', 'grid', 'random', 'radial']
 // a ring of 12 plus a spoke node and an island, so radial has a root, rings and an unreachable node
 const edges: [number, number][] = [...Array.from({ length: 12 }, (_, i) => [i, (i + 1) % 12] as [number, number]), [0, 12]]
 
@@ -59,4 +59,35 @@ test('controls in a scene are checked', () => {
   assert.ok(ok.ok, ok.ok ? '' : ok.errors.join('\n'))
   assert.ok(!parseScene(JSON.stringify({ ...base, controls: [{ set: 'a.b', options: ['x'] }] })).ok, 'one option is not a choice')
   assert.ok(!parseScene(JSON.stringify({ ...base, controls: [{ options: ['x', 'y'] }] })).ok, 'a control needs a path')
+})
+
+test('force-sphere puts every node on the sphere and keeps linked nodes close together', () => {
+  // a ring of 60: neighbors in the ring should end up next to each other on the shell
+  const n = 60
+  const ring: [number, number][] = Array.from({ length: n }, (_, i) => [i, (i + 1) % n])
+  const radius = 20
+  const forced = layoutNodes(n, ring, 'force-sphere', radius, new Rng(2))
+  for (let i = 0; i < n; i++) assert.ok(Math.abs(Math.hypot(forced[i * 3], forced[i * 3 + 1], forced[i * 3 + 2]) - radius) < 1e-3, `node ${i} is on the shell`)
+  const linked = (p: Float32Array) => ring.reduce((s, [a, b]) => s + Math.hypot(p[a * 3] - p[b * 3], p[a * 3 + 1] - p[b * 3 + 1], p[a * 3 + 2] - p[b * 3 + 2]), 0) / ring.length
+  // the same spiral of points, but with the links scrambled: what an arrangement that ignores the links gives
+  const shuffled = layoutNodes(n, [], 'sphere', radius, new Rng(2))
+  assert.ok(linked(forced) < linked(shuffled) * 0.8, `linked nodes ${linked(forced).toFixed(1)} apart on average, against ${linked(shuffled).toFixed(1)} for an unrelated arrangement`)
+})
+
+test('changing a network\'s layout in the scene moves the nodes at once, and the links are told (a new graph version)', async () => {
+  const p = parseScene(readFileSync(new URL('../../../examples/epidemic/scene.json', import.meta.url), 'utf8'))
+  assert.ok(p.ok, p.ok ? '' : p.errors.join('\n'))
+  const script = (await import(pathToFileURL(new URL('../../../examples/epidemic/contagion.js', import.meta.url).pathname).href)) as ScriptModule
+  const sim = new Sim(structuredClone(p.scene), script)
+  for (let t = 0; t < 5; t++) sim.step()
+  const before = sim.frames()[0]
+  const next = structuredClone(p.scene)
+  next.entities[0].network!.layout = 'circle'
+  sim.setScene(next)
+  const after = sim.frames()[0]
+  assert.ok(after.graph!.version > before.graph!.version, 'links redraw')
+  assert.notDeepEqual([...after.pos.slice(0, 9)], [...before.pos.slice(0, 9)], 'nodes moved')
+  const r = Math.hypot(after.pos[0], after.pos[1], after.pos[2])
+  assert.ok(Math.abs(r - (next.entities[0].network!.radius ?? 20)) < 1e-3, `on the circle of the radius, got ${r}`)
+  assert.equal(sim.takeErrors().length, 0)
 })

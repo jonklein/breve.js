@@ -4,7 +4,7 @@
   "clock": { "rate": 10 },
   "world": { "frame": false, "preset": "night", "camera": { "distance": 2.2, "elevation": 20 }, "grid": false, "fog": false },
   "controls": [
-    { "label": "Layout", "set": "entities.0.network.layout", "options": ["force", "circle", "sphere", "grid", "random", "radial"] },
+    { "label": "Layout", "set": "entities.0.network.layout", "options": ["force", "force-sphere", "circle", "sphere", "grid", "random", "radial"] },
     { "label": "Links", "set": "entities.0.network.topology", "options": ["smallworld", "scalefree", "random", "ring"] }
   ],
   "params": {},

@@ -430,12 +430,23 @@ export class GraphLayer {
     this.mesh.instanceColor!.needsUpdate = true
     this.alpha!.needsUpdate = true
     blend(this.mesh.material as THREE.Material, see)
-    if (g.version !== this.version) this.drawLinks(f)
+    if (g.version !== this.version || !this.linksMatch(f)) this.drawLinks(f)
     if (this.lines) { this.lines.visible = true; this.colorLinks(f) }
+  }
+
+  /** The positions the links were drawn from, to notice when the nodes are somewhere else (a version number alone can repeat across runs). */
+  private linkedAt = new Float32Array(0)
+
+  private linksMatch(f: WorldFrame): boolean {
+    const n = f.count * 3
+    if (!this.lines || this.linkedAt.length !== n) return false
+    for (let i = 0; i < n; i++) if (this.linkedAt[i] !== f.pos[i]) return false
+    return true
   }
 
   private drawLinks(f: WorldFrame): void {
     this.version = f.graph!.version
+    this.linkedAt = f.pos.slice(0, f.count * 3)
     this.disposeLines()
     const e = f.graph!.edges
     const pos = new Float32Array(e.length * 3)

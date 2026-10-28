@@ -76,7 +76,7 @@ export interface NetworkDef {
   /** Explicit links as pairs of node numbers, for topology `edges`. */
   edges?: [number, number][]
   /** How to place nodes for drawing (default `force`). */
-  layout?: 'force' | 'circle' | 'sphere' | 'grid' | 'random' | 'radial'
+  layout?: 'force' | 'force-sphere' | 'circle' | 'sphere' | 'grid' | 'random' | 'radial'
   /** Size of the drawn layout in world units (default 20). */
   radius?: number
   /** How big nodes are drawn, as a multiple of the default. */
@@ -568,7 +568,7 @@ export const sceneSchema = {
               degree: { type: 'number', minimum: 0 },
               rewire: { type: 'number', minimum: 0, maximum: 1 },
               edges: { type: 'array', items: { type: 'array', items: { type: 'integer', minimum: 0 }, minItems: 2, maxItems: 2 } },
-              layout: { enum: ['force', 'circle', 'sphere', 'grid', 'random', 'radial'] },
+              layout: { enum: ['force', 'force-sphere', 'circle', 'sphere', 'grid', 'random', 'radial'] },
               radius: { type: 'number', exclusiveMinimum: 0 },
               size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
             },

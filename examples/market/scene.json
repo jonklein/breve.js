@@ -3,6 +3,9 @@
   "seed": 4,
   "clock": { "rate": 15 },
   "world": { "frame": false, "preset": "dusk", "camera": {"distance": 2.4, "elevation": 12}, "grid": false, "fog": false },
+  "controls": [
+    { "label": "Layout", "set": "entities.0.network.layout", "options": ["force-sphere", "force", "sphere", "circle", "radial"] }
+  ],
   "params": {
     "produceEvery": { "value": 5, "min": 2, "max": 20, "step": 1, "label": "a producer makes a good every n ticks" },
     "consumeEvery": { "value": 14, "min": 2, "max": 20, "step": 1, "label": "everyone uses a good every n ticks" },
@@ -15,7 +18,7 @@
       "name": "traders", "style": {"material": {"roughness": 0.4, "metalness": 0, "glow": 0.45}},
       "count": 80,
       "controller": "market.js",
-      "network": { "topology": "scalefree", "degree": 4, "layout": "force", "radius": 24, "size": 1.2 }
+      "network": { "topology": "scalefree", "degree": 4, "layout": "force-sphere", "radius": 24, "size": 1.2 }
     }
   ],
   "metrics": ["averagePrice", "priceSpread", "averageCash", "unmetNeed"],

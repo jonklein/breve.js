@@ -265,6 +265,59 @@ export function toWgslImage(program: Program, grid: Grid, fields: string[]): Wgs
   }
 }
 
+export interface WgslCellsModule {
+  code: string
+  layout: string[]
+  cells: number
+  /** Same uniform as the picture shader (only the tick, seed and parameters are used). */
+  uniform: { binding: number; size: number; params: string[]; paramsOffset: number }
+  workgroupSize: [number, number, number]
+  dispatch: [number, number, number]
+}
+
+/**
+ * The look of every cell of a (3D) lattice: `pixels` (binding 2) gets one u32 per cell in grid order (x fastest, then y, then z): red in the
+ * lowest byte, then green, blue, and alpha 255 where the program's `visible` is not 0 and 0 where it is. For drawing each cell as an object.
+ */
+export function toWgslCells(program: Program, grid: Grid, fields: string[]): WgslCellsModule {
+  for (const name of program.fields) if (!fields.includes(name)) throw new Error(`the state has no field "${name}" (it has: ${fields.join(', ')})`)
+  const e = emitter(program, grid, fields)
+  const { nx, ny, nz, cells } = e
+  const out = (name: string, fallback: string) => (name in program.out ? `n${program.out[name]}` : fallback)
+  const roots = ['visible', 'r', 'g', 'b'].filter((k) => k in program.out).map((k) => program.out[k])
+  const chan = (v: string) => `u32(clamp(${v}, 0.0, 1.0) * 255.0 + 0.5)`
+  const wg: [number, number, number] = [4, 4, 4]
+  const code = [
+    '// generated from a breve formula (the look of every cell): do not edit',
+    'struct U { tick: u32, seed: u32, width: u32, height: u32, win: vec4<f32>, bg: vec3<f32>, layer: f32, p: array<vec4<f32>, ' + e.paramCount + '> }',
+    '@group(0) @binding(0) var<uniform> u: U;',
+    '@group(0) @binding(1) var<storage, read> src: array<f32>;',
+    '@group(0) @binding(2) var<storage, read_write> pixels: array<u32>;',
+    '',
+    ...PRELUDE,
+    '',
+    ...e.fns,
+    wgs(wg),
+    'fn main(@builtin(global_invocation_id) g: vec3<u32>) {',
+    `  if (g.x >= ${nx}u || g.y >= ${ny}u || g.z >= ${nz}u) { return; }`,
+    '  let c = vec3<i32>(g);',
+    ...e.lines(e.needed(roots), 'c', '  '),
+    `  let shown = ${out('visible', '1.0')} != 0.0;`,
+    `  let a = select(0u, 255u, shown);`,
+    `  pixels[(g.z * ${ny}u + g.y) * ${nx}u + g.x] = ${chan(out('r', '1.0'))} | (${chan(out('g', '1.0'))} << 8u) | (${chan(out('b', '1.0'))} << 16u) | (a << 24u);`,
+    '}',
+    '',
+  ].join('\n')
+  return {
+    code,
+    layout: [...fields],
+    cells,
+    uniform: { binding: 0, size: 48 + 16 * e.paramCount, params: [...program.params], paramsOffset: 48 },
+    workgroupSize: wg,
+    dispatch: [Math.ceil(nx / wg[0]), Math.ceil(ny / wg[1]), Math.ceil(nz / wg[2])],
+  }
+}
+
 /** A shader that totals expressions over the whole grid (metrics): one partial total per workgroup, which the host adds up. */
 export interface WgslReduceModule {
   code: string

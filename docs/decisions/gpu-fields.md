@@ -104,3 +104,9 @@ Checked in this sandbox: headless Chromium with `--enable-unsafe-webgpu` gets a 
 - **Step 4 done: the demo and the viewer.** `examples/life-giant` (4096 x 4096, one field, three formulas) and `examples/life2d-formula` (96 x 96, the small one that also runs without a card). The viewer draws a card lattice as one textured quad seen from straight ahead; scrolling zooms toward the pointer and dragging pans, both only changing the window the card draws (the picture is always about the size of the screen, whatever the grid). A grid over 8,388,608 cells is refused on the processor path with a message that says it needs WebGPU, and the workbench shows it in the problems list. Seen working end to end in headless Chromium on a software WebGPU adapter (about one generation a second at 16.8 million cells there; real hardware is expected to be far faster and has not been measured).
 - Still to do, in the order I would take them: the bit-packed Life kernel and tiled neighbor reads (the "hyper-optimization" passes), `ctx` pieces for formulas (`k.gradient`, trig), `initAll`-style state on the card for non-formula scripts, gray-scott as the second formula example, a stepping-speed control for card lattices, and numbers from a real GPU for `docs/perf.md`.
 
+
+## 3D lattices on the card (progress)
+Stepping already handled `[x, y, z]`; only eligibility (flat grids) and drawing stood in the way. Now `FormulaLattice.looks(program, run)` returns the
+look of every cell (`visible`, `r`, `g`, `b` as RGBA, alpha 0 where hidden) from one compute pass, and `GpuLatticeWorld` turns it into the same
+`lattice` frame the processor's lattice gives, so the existing cube layer draws it. The read-back is 4 bytes a cell per drawn frame; a direct draw
+from the state buffer (no read-back) and slice or projection pictures remain options for grids too big for that. `examples/life3d-gpu`.

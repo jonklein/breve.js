@@ -67,7 +67,7 @@ test('compute "gpu" says why it cannot start; "cpu" and "auto" run anywhere', as
   const lattice = (compute: string, size = [8, 8, 1]) => ({ seed: 1, params: {}, entities: [{ name: 'g', lattice: { size, compute }, controller: 'x' }], metrics: [] })
   const formula: ScriptModule = { default: { initFormula: () => ({ a: 0 }), actFormula: ({ a }: { a: never }) => ({ a }) } as never }
   const parse = (o: object) => { const r = parseScene(JSON.stringify(o)); assert.ok(r.ok, r.ok ? '' : r.errors.join('\n')); return r.ok ? r.scene : (null as never) }
-  await assert.rejects(Sim.create(parse(lattice('gpu', [8, 8, 2])), formula), /needs a flat grid/)
+  await assert.rejects(Sim.create(parse(lattice('gpu', [8, 8, 2])), formula), /no WebGPU/) // a 3D grid is fine now; node has no card
   await assert.rejects(Sim.create(parse(lattice('gpu')), { default: { act: () => ({}) } } as ScriptModule), /initFormula and actFormula/)
   await assert.rejects(Sim.create(parse(lattice('gpu')), formula), /no WebGPU/) // node has none
   for (const c of ['cpu', 'auto']) { const s = await Sim.create(parse(lattice(c)), formula); s.step(); s.dispose() }

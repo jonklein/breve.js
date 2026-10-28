@@ -38,6 +38,8 @@ export class GpuLatticeWorld implements World {
   private view: FieldView = {}
   /** The picture and totals as of the last `refresh`. */
   private picture: { pixels: Uint8Array; width: number; height: number; window: [number, number, number, number] } | null = null
+  /** A 3D grid is drawn cell by cell: the look of every cell as of the last `refresh`, as `show` (1 where visible) and `rgb`. */
+  private cellLook: { show: Uint8Array; rgb: Uint8Array; live: number } | null = null
   private totalsNow: Record<string, number> = {}
   private viewStale = true
   /** The whole state, as of the last `sync` (valid until the next step). */
@@ -61,7 +63,7 @@ export class GpuLatticeWorld implements World {
 
   /** The device-less part of what a world needs to know: is a controller one that can run here? */
   static eligible(def: { lattice?: { size: [number, number, number]; compute?: string } }, ctrl: { actFormula?: unknown; initFormula?: unknown } | undefined): boolean {
-    return !!def.lattice && (def.lattice.compute ?? Defaults.compute) !== 'cpu' && def.lattice.size[2] === 1 && !!ctrl?.actFormula && !!ctrl?.initFormula
+    return !!def.lattice && (def.lattice.compute ?? Defaults.compute) !== 'cpu' && !!ctrl?.actFormula && !!ctrl?.initFormula
   }
 
   private run(tick: number) {
@@ -141,6 +143,7 @@ export class GpuLatticeWorld implements World {
   async refresh(): Promise<void> {
     if (!this.viewStale && this.picture) return
     this.viewStale = false
+    if (this.dims[2] > 1) return this.refreshCells()
     const [nx, ny] = this.dims
     const window = this.view.window ?? [0, 0, nx, ny]
     const w = Math.max(1, Math.round(this.view.width ?? Math.min(nx, MAX_SIDE)))
@@ -149,6 +152,27 @@ export class GpuLatticeWorld implements World {
     try {
       const pixels = await this.lattice.image(this.lookProgram(), { width: w, height: h, window, background: [0.02, 0.03, 0.06] }, run)
       this.picture = { pixels, width: w, height: h, window }
+      const totals = this.totalsProgram()
+      if (totals && Object.keys(totals.reduce ?? {}).length) this.totalsNow = await this.lattice.totals(totals, run)
+    } catch (e) {
+      this.host.fail('display', e)
+    }
+  }
+
+  /** 3D: ask the card for the look of every cell and keep the visible ones' colors (the cost grows with the grid, not the screen). */
+  private async refreshCells(): Promise<void> {
+    const run = this.run(this.host.tick)
+    try {
+      const px = await this.lattice.looks(this.lookProgram(), run)
+      const show = new Uint8Array(this.n), rgb = new Uint8Array(this.n * 3)
+      let live = 0
+      for (let c = 0; c < this.n; c++) {
+        if (px[c * 4 + 3] === 0) continue
+        show[c] = 1; live++
+        rgb[c * 3] = px[c * 4]; rgb[c * 3 + 1] = px[c * 4 + 1]; rgb[c * 3 + 2] = px[c * 4 + 2]
+      }
+      this.cellLook = { show, rgb, live }
+      this.picture ??= { pixels: new Uint8Array(0), width: 0, height: 0, window: [0, 0, this.dims[0], this.dims[1]] } // so `needsRefresh` settles
       const totals = this.totalsProgram()
       if (totals && Object.keys(totals.reduce ?? {}).length) this.totalsNow = await this.lattice.totals(totals, run)
     } catch (e) {
@@ -177,8 +201,21 @@ export class GpuLatticeWorld implements World {
   }
 
   frame(): FrameData {
-    const [nx, ny] = this.dims
-    const sp = this.host.def.lattice!.spacing ?? 1.2
+    const [nx, ny, nz] = this.dims
+    const L = this.host.def.lattice!
+    const sp = L.spacing ?? 1.2
+    if (nz > 1) {
+      const look = this.cellLook
+      return {
+        kind: 'lattice',
+        count: look?.live ?? 0,
+        size: (Math.max(nx, ny, nz) * sp) / 2,
+        unit: sp * 0.9,
+        pos: new Float32Array(0),
+        vel: null,
+        lattice: { dims: [nx, ny, nz], spacing: sp, show: look?.show ?? new Uint8Array(this.n), fade: L.fade ?? 0, thickness: L.thickness, ...(look ? { rgb: look.rgb } : {}) },
+      }
+    }
     const p = this.picture
     return {
       kind: 'field',

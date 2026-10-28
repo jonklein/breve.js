@@ -134,3 +134,45 @@ test('Gray-Scott as written in the example (unary operations, gradient, grid siz
   for (let c = 0; c < 64 * 48; c++) for (const [k, ch] of [['r', 0], ['g', 1], ['b', 2]] as const) off = Math.max(off, Math.abs(got.whole[c * 4 + ch] - byte(want[k][c])))
   assert.ok(off <= 3, `the picture is off by up to ${off} of 255`)
 })
+
+const RUN3 = async (a: { grid: Grid; fields: string[]; init: unknown; step: unknown; look: unknown; params: Record<string, number>; steps: number; seed: number }) => {
+  const backend = await (window as any).breveGpu.loadWebGpu()
+  if (!backend) return { skip: true }
+  const lat = backend.lattice(a.grid, a.fields)
+  const problems = await lat.check([a.init, a.step])
+  const run = (tick: number) => ({ params: a.params, tick, seed: a.seed })
+  lat.init(a.init, run(0))
+  for (let t = 0; t < a.steps; t++) lat.step(a.step, run(t))
+  const looks = await lat.looks(a.look, run(a.steps))
+  lat.dispose()
+  return { problems, looks: Array.from(looks as Uint8Array) }
+}
+
+test('3D Life on the graphics card: the look of every cell matches the CPU interpreter', async (t) => {
+  if (skip(t)) return
+  const grid: Grid = { size: [9, 7, 6], wrap: true }
+  const fields = ['alive', 'age']
+  const step3: Formula = ({ alive, age }) => {
+    const crowd = alive.neighborSum()
+    const born = alive.not().and(crowd.eq(5)), survives = alive.and(crowd.eq(4).or(crowd.eq(5)))
+    return { alive: born.or(survives), age: survives.where(age.add(1), 0) }
+  }
+  const init = trace(lifeInit, [], ['density']), step = trace(step3, fields, ['density']), look = trace(lifeLook, fields, ['density'])
+  const params = { density: 0.3 }, seed = 5, steps = 6
+  const got: any = await page.evaluate(RUN3, { grid, fields, init, step, look, params, steps, seed })
+  if (got.skip) return t.skip('no WebGPU adapter')
+  assert.deepEqual(got.problems, [])
+  let state = interpret(init, grid, { state: {}, params, tick: 0, seed }) as Record<string, Float32Array>
+  for (let tick = 0; tick < steps; tick++) state = interpret(step, grid, { state, params, tick, seed }) as typeof state
+  const want = interpret(look, grid, { state, params, tick: steps, seed })
+  const byte = (v: number) => Math.floor(Math.min(1, Math.max(0, v)) * 255 + 0.5)
+  let live = 0
+  for (let c = 0; c < 9 * 7 * 6; c++) {
+    const g = got.looks.slice(c * 4, c * 4 + 4)
+    if (want.visible[c] === 0) { assert.equal(g[3], 0, `cell ${c} should be hidden`); continue }
+    live++
+    const e = [byte(want.r[c]), byte(want.g[c]), byte(want.b[c]), 255]
+    assert.ok(g.every((v: number, k: number) => Math.abs(v - e[k]) <= 1), `cell ${c}: ${g} vs ${e}`)
+  }
+  assert.ok(live > 0, 'something is alive')
+})

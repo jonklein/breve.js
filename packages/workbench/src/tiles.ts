@@ -34,7 +34,18 @@ const HISTORY = 160
 const turned = (v: THREE.Vector3, a: number): THREE.Vector3 => new THREE.Vector3(v.x * Math.cos(a) + v.z * Math.sin(a), v.y, -v.x * Math.sin(a) + v.z * Math.cos(a))
 
 export class TileGrid {
-  private renderer = new THREE.WebGLRenderer({ antialias: true })
+  private gl: THREE.WebGLRenderer | null = null
+  /** Made the first time tiles are wanted: a second graphics context at page load is cost and flicker for a feature most visits never use. */
+  private get renderer(): THREE.WebGLRenderer {
+    if (!this.gl) {
+      this.gl = new THREE.WebGLRenderer({ antialias: true })
+      this.gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+      this.gl.shadowMap.type = THREE.PCFSoftShadowMap
+      this.gl.setScissorTest(true)
+      this.container.appendChild(this.gl.domElement)
+    }
+    return this.gl
+  }
   private slots = new Map<string, Slot>()
   private metric = ''
   private look: WorldLook | undefined
@@ -42,10 +53,6 @@ export class TileGrid {
   private param = ''
 
   constructor(private container: HTMLElement, private onPick: (name: string) => void) {
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    this.renderer.setScissorTest(true)
-    container.appendChild(this.renderer.domElement)
     new ResizeObserver(() => this.layout()).observe(container)
     const loop = (now: number) => {
       if (this.visible) this.render(now / 1000)

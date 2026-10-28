@@ -84,6 +84,20 @@
     "about": "about.md"
   },
   {
+    "id": "life3d-gpu",
+    "name": "3D Life (GPU)",
+    "description": "The 3D Life rule as formulas: the cube is stepped on the graphics card, so it can be several times larger.",
+    "scene": "scene.json",
+    "script": "life.js",
+    "tags": [
+      "lattice",
+      "formula",
+      "gpu"
+    ],
+    "folder": "Cells & patterns",
+    "about": "about.md"
+  },
+  {
     "id": "life2d",
     "name": "2D Life (fast path)",
     "description": "Conway's Life on a flat grid using whole-grid field operations instead of a per-cell rule.",

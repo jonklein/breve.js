@@ -120,7 +120,7 @@ export class Sim {
     const formulas = scene.entities.some((e, i) => GpuLatticeWorld.eligible(e, scriptControllerOf(script, e))) ? (await loadFormulaBackend()) ?? undefined : undefined
     for (const e of scene.entities) {
       if (e.lattice?.compute !== 'gpu') continue
-      if (!GpuLatticeWorld.eligible(e, scriptControllerOf(script, e))) throw new Error(`"${e.name}" says "compute": "gpu", which needs a flat grid (size [w, h, 1]) and a script with both initFormula and actFormula`)
+      if (!GpuLatticeWorld.eligible(e, scriptControllerOf(script, e))) throw new Error(`"${e.name}" says "compute": "gpu", which needs a script with both initFormula and actFormula`)
       if (!formulas) throw new Error(`"${e.name}" says "compute": "gpu", but this host has no WebGPU (use "auto" to fall back to the processor)`)
     }
     const sim = new Sim(physics ? await resolveMeshes(scene) : scene, script, { physics, formulas }) // a mesh part's shape comes from its model file

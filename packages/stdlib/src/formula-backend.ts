@@ -41,6 +41,8 @@ export interface FormulaLattice {
   totals(program: Program, run: RunArgs): Promise<Record<string, number>>
   /** A picture of the state: the program's `visible`, `r`, `g`, `b` for the cell under each pixel. RGBA, 4 bytes a pixel, row by row from the top. */
   image(program: Program, request: ImageRequest, run: RunArgs): Promise<Uint8Array>
+  /** The look of every cell (3D lattices drawn as objects): the program's `visible`, `r`, `g`, `b` per cell, RGBA in grid order (x fastest, then y, then z); alpha is 255 where the cell is visible and 0 where it is not. */
+  looks(program: Program, run: RunArgs): Promise<Uint8Array>
   dispose(): void
 }
 

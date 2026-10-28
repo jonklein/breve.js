@@ -4,7 +4,7 @@
  * and hands numbers back only when asked. The shaders are written by `@breve/stdlib` (`toWgsl` and friends); this package creates
  * the buffers and pipelines, runs them, and reads results back. See docs/decisions/gpu-fields.md.
  */
-import { toWgsl, toWgslImage, toWgslReduce, type FormulaBackend, type FormulaLattice, type Grid, type ImageRequest, type Program, type RunArgs } from '@breve/stdlib'
+import { toWgsl, toWgslImage, toWgslCells, toWgslReduce, type FormulaBackend, type FormulaLattice, type Grid, type ImageRequest, type Program, type RunArgs } from '@breve/stdlib'
 
 const STORAGE = 0x80 | 0x4 | 0x8 // STORAGE | COPY_SRC | COPY_DST
 const COMPUTE = 4
@@ -49,10 +49,10 @@ class GpuLattice implements FormulaLattice {
   }
 
   /** The compiled pipeline for a program in one role ("step", "image", "reduce"), made once. */
-  private compile(program: Program, role: 'step' | 'image' | 'reduce'): { c: Compiled; module: ReturnType<typeof toWgsl> | ReturnType<typeof toWgslImage> | ReturnType<typeof toWgslReduce> } {
+  private compile(program: Program, role: 'step' | 'image' | 'cells' | 'reduce'): { c: Compiled; module: ReturnType<typeof toWgsl> | ReturnType<typeof toWgslImage> | ReturnType<typeof toWgslCells> | ReturnType<typeof toWgslReduce> } {
     let roles = this.compiled.get(program)
     if (!roles) this.compiled.set(program, (roles = new Map()))
-    const made = role === 'step' ? toWgsl(program, this.grid, this.fields) : role === 'image' ? toWgslImage(program, this.grid, this.fields) : toWgslReduce(program, this.grid, this.fields)
+    const made = role === 'step' ? toWgsl(program, this.grid, this.fields) : role === 'image' ? toWgslImage(program, this.grid, this.fields) : role === 'cells' ? toWgslCells(program, this.grid, this.fields) : toWgslReduce(program, this.grid, this.fields)
     let c = roles.get(role)
     if (!c) {
       const module = this.device.createShaderModule({ code: made.code })
@@ -180,6 +180,17 @@ class GpuLattice implements FormulaLattice {
     this.write(c, head, run)
     this.dispatch(c, this.buf[this.flip], pixels, m.dispatchFor(req.width, req.height))
     const out = new Uint8Array(await this.read(pixels, req.width * req.height * 4))
+    pixels.destroy()
+    return out
+  }
+
+  async looks(program: Program, run: RunArgs): Promise<Uint8Array> {
+    const { c, module } = this.compile(program, 'cells')
+    const m = module as ReturnType<typeof toWgslCells>
+    const pixels = this.device.createBuffer({ size: this.cells * 4, usage: STORAGE })
+    this.write(c, null, run)
+    this.dispatch(c, this.buf[this.flip], pixels, m.dispatch)
+    const out = new Uint8Array(await this.read(pixels, this.cells * 4))
     pixels.destroy()
     return out
   }

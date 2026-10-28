@@ -61,6 +61,17 @@ class CpuLattice implements FormulaLattice {
     return pixels
   }
 
+  async looks(program: Program, run: RunArgs): Promise<Uint8Array> {
+    const out = interpret(program, this.grid, { state: this.state, params: run.params, tick: run.tick, seed: run.seed })
+    const byte = (v: number) => Math.floor(Math.min(1, Math.max(0, v)) * 255 + 0.5)
+    const pixels = new Uint8Array(this.cells * 4)
+    for (let c = 0; c < this.cells; c++) {
+      pixels[c * 4] = byte(out.r ? out.r[c] : 1); pixels[c * 4 + 1] = byte(out.g ? out.g[c] : 1); pixels[c * 4 + 2] = byte(out.b ? out.b[c] : 1)
+      pixels[c * 4 + 3] = out.visible && out.visible[c] === 0 ? 0 : 255
+    }
+    return pixels
+  }
+
   dispose(): void { this.state = {} }
 }
 

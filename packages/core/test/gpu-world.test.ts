@@ -107,3 +107,25 @@ test('a rule that only adds and compares whole numbers is repeatable on any card
   const flagged = await Sim.create(sceneOf([8, 8, 1]), { default: { ...sloppy.default, actFormula: ({ alive }: Record<string, any>) => ({ alive: alive.div(3).ne(0) }) } } as ScriptModule)
   assert.deepEqual(flagged.nondeterministic(), ['cell'])
 })
+
+test('a 3D lattice on the card is drawn cell by cell, and gives the same cells as the processor', async () => {
+  const p = parseScene(readFileSync(new URL('../../../examples/life3d-gpu/scene.json', import.meta.url), 'utf8'))
+  assert.ok(p.ok, p.ok ? '' : p.errors.join('\n'))
+  p.scene.entities[0].lattice!.size = [10, 10, 10]
+  const js = (await import(pathToFileURL(new URL('../../../examples/life3d-gpu/life.js', import.meta.url).pathname).href)) as ScriptModule
+  const card = await Sim.create(structuredClone(p.scene), js)
+  assert.ok(card.worlds[0] instanceof GpuLatticeWorld)
+  const cpu = new Sim(structuredClone(p.scene), js)
+  for (let t = 1; t <= 12; t++) { card.step(); cpu.step() }
+  await card.sync()
+  const a = card.snapshot().worlds[0] as { state: Record<string, Float32Array> }
+  assert.deepEqual(a.state.alive, cols(cpu).alive.slice(0, 1000), 'the cube matches the processor')
+  await card.refresh()
+  const f = card.frames()[0]
+  assert.equal(f.kind, 'lattice')
+  const live = a.state.alive.reduce((s, v) => s + v, 0)
+  assert.equal(f.count, live, 'one cube per living cell')
+  assert.equal(f.lattice!.show.length, 1000)
+  assert.ok(f.lattice!.rgb && f.lattice!.rgb.length === 3000)
+  assert.equal(card.takeErrors().length, 0)
+})

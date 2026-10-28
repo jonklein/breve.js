@@ -930,6 +930,14 @@ image(program: Program, request: ImageRequest, run: RunArgs): Promise<Uint8Array
 
 A picture of the state: the program's `visible`, `r`, `g`, `b` for the cell under each pixel. RGBA, 4 bytes a pixel, row by row from the top.
 
+### `FormulaLattice.looks`
+
+```ts
+looks(program: Program, run: RunArgs): Promise<Uint8Array>
+```
+
+The look of every cell (3D lattices drawn as objects): the program's `visible`, `r`, `g`, `b` per cell, RGBA in grid order (x fastest, then y, then z); alpha is 255 where the cell is visible and 0 where it is not.
+
 ### `FormulaLattice.dispose`
 
 ```ts
@@ -1065,6 +1073,51 @@ Workgroups to dispatch for a picture of this size.
 
 The look of a lattice as a picture: each pixel finds the cell under it and works out `visible`, `r`, `g`, `b` (the program's outputs, colors
 between 0 and 1) there. Zooming and panning only change the window, so a huge grid is drawn at the size of the screen, never cell by cell.
+
+## WgslCellsModule
+
+### `WgslCellsModule.code`
+
+```ts
+code: string
+```
+
+### `WgslCellsModule.layout`
+
+```ts
+layout: string[]
+```
+
+### `WgslCellsModule.cells`
+
+```ts
+cells: number
+```
+
+### `WgslCellsModule.uniform`
+
+```ts
+uniform:
+```
+
+Same uniform as the picture shader (only the tick, seed and parameters are used).
+
+### `WgslCellsModule.workgroupSize`
+
+```ts
+workgroupSize: [number, number, number]
+```
+
+### `WgslCellsModule.dispatch`
+
+```ts
+dispatch: [number, number, number]
+```
+
+## toWgslCells
+
+The look of every cell of a (3D) lattice: `pixels` (binding 2) gets one u32 per cell in grid order (x fastest, then y, then z): red in the
+lowest byte, then green, blue, and alpha 255 where the program's `visible` is not 0 and 0 where it is. For drawing each cell as an object.
 
 ## WgslReduceModule
 

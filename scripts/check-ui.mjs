@@ -212,6 +212,11 @@ else {
   check('dragging a light does not stop the sim', (await page.locator('.problems li').count()) === 0)
 }
 
+// 3D Life as formulas runs (on the processor here: no WebGPU in this browser) and draws cells
+await sim('life3d-gpu')
+await page.waitForTimeout(4000)
+check('3D Life as formulas runs', (await page.locator('.problems li').count()) === 0 && /cells|ticks/.test(await page.textContent('#stats')), `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
+
 // swimmers: forces and the water plane run with no problems
 await sim('swimmers')
 await page.waitForTimeout(7000)

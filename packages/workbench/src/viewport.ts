@@ -197,6 +197,7 @@ export class Viewport {
 
   setWorld(w: WorldLook | undefined): void { this.view.setWorld(w) }
   update(frames: WorldFrame[]): void {
+    if (frames.length) this.container.classList.add('drawn')
     this.view.update(frames) // (this frames the camera for ordinary worlds)
     // `camera.mode: "plane"` in the scene: face a flat grid straight on, no rotation, wheel zooms, drag pans. Nothing here depends on how the grid is computed.
     const plane = this.view.cameraMode === 'plane'

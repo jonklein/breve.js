@@ -183,6 +183,7 @@ main.drawer-resizing #editors, main.drawer-resizing .drawer-handle { transition:
 .embed #right { height: 100vh; }
 
 /* site navigation, shared by every page */
+.site-nav:empty { width: 540px; height: 22px; } /* holds the nav's place until the script fills it in, so the header does not jump */
 .site-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .site-nav a { color: var(--muted); text-decoration: none; padding: 2px 0; border-bottom: 2px solid transparent; }
 .site-nav a:hover { color: var(--text); }
@@ -244,3 +245,7 @@ main.drawer-resizing #editors, main.drawer-resizing .drawer-handle { transition:
 .embed .transport { display: none !important; }
 
 .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 60; max-width: min(640px, 92vw); padding: 10px 16px; border-radius: 10px; background: rgba(20, 26, 38, 0.96); border: 1px solid var(--border); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45); font-size: 13px; line-height: 1.4; }
+
+/* the view fades in once it has drawn a real frame, instead of flashing black then the scene */
+#viewport canvas { opacity: 0; transition: opacity 0.3s ease; }
+#viewport.drawn canvas { opacity: 1; }

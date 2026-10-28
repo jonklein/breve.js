@@ -198,21 +198,43 @@ export class Viewport {
   setWorld(w: WorldLook | undefined): void { this.view.setWorld(w) }
   update(frames: WorldFrame[]): void {
     this.view.update(frames) // (this frames the camera for ordinary worlds)
+    // `camera.mode: "plane"` in the scene: face a flat grid straight on, no rotation, wheel zooms, drag pans. Nothing here depends on how the grid is computed.
+    const plane = this.view.cameraMode === 'plane'
     const i = frames.findIndex((f) => f.kind === 'field' && f.field)
-    const f = i >= 0 ? frames[i].field! : null
+    const f = plane && i >= 0 ? frames[i].field! : null
+    const flat = plane && frames.length > 0
     if (f && (!this.field || this.field.set !== i || this.field.dims[0] !== f.dims[0] || this.field.dims[1] !== f.dims[1])) {
-      // a picture lattice has just appeared: face it from straight ahead, whole grid in view, and let these controls zoom and pan it
+      // a picture lattice has just appeared: whole grid in view, and our own controls zoom and pan the part drawn
       this.field = { set: i, dims: f.dims, spacing: f.spacing, window: [0, 0, f.dims[0], f.dims[1]] }
-      const cam = this.view.camera, fov = (cam.fov * Math.PI) / 360
-      const dist = Math.max((f.dims[1] * f.spacing) / 2 / Math.tan(fov), (f.dims[0] * f.spacing) / 2 / (Math.tan(fov) * cam.aspect)) * 1.06
-      cam.position.set(0, 0, dist)
-      cam.far = Math.max(cam.far, dist * 3) // a big grid is far away: do not clip it
-      cam.updateProjectionMatrix()
-      this.controls.target.set(0, 0, 0)
+      this.faceFlat((f.dims[0] * f.spacing) / 2, (f.dims[1] * f.spacing) / 2)
       this.controls.enableRotate = this.controls.enablePan = this.controls.enableZoom = false
+      this.facing = true
     } else if (!f && this.field) {
       this.field = null
+      this.facing = false
       this.controls.enableRotate = this.controls.enablePan = this.controls.enableZoom = true
     }
+    if (!this.field && flat && !this.facing) {
+      // any other flat world in plane mode: face it, and let the ordinary controls zoom and pan
+      const half = Math.max(...frames.map((fr) => fr.size))
+      this.faceFlat(half, half)
+      this.controls.enableRotate = false
+      this.facing = true
+    } else if (!this.field && !flat && this.facing) {
+      this.facing = false
+      this.controls.enableRotate = true
+    }
+  }
+
+  private facing = false
+
+  /** Put the camera straight in front of a flat grid, `halfW` and `halfH` being half its width and height, so all of it is in view. */
+  private faceFlat(halfW: number, halfH: number): void {
+    const cam = this.view.camera, fov = (cam.fov * Math.PI) / 360
+    const dist = Math.max(halfH / Math.tan(fov), halfW / (Math.tan(fov) * cam.aspect)) * 1.06
+    cam.position.set(0, 0, dist)
+    cam.far = Math.max(cam.far, dist * 3) // a big grid is far away: do not clip it
+    cam.updateProjectionMatrix()
+    this.controls.target.set(0, 0, 0)
   }
 }

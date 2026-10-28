@@ -134,6 +134,9 @@ export class WorldView {
     this.fitShadow(size)
   }
 
+  /** What dragging does, from the scene's `camera.mode`. */
+  get cameraMode(): 'orbit' | 'plane' { return this.look.camera.mode }
+
   /** Put the camera where the scene's `camera` setting says (or the default three-quarter view) for a world of this size. */
   private placeCamera(size: number): void {
     const c = this.look.camera

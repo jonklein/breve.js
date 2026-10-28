@@ -48,7 +48,7 @@ export interface ResolvedLook {
   /** Screen effects. `aoRadius` is a multiple of the world's size. `null` means off. */
   effects: { bloom: { strength: number; radius: number; threshold: number } | null; ao: { radius: number; intensity: number } | null; vignette: number; saturation: number; contrast: number }
   /** Where the camera starts. */
-  camera: { distance: number; elevation: number; azimuth: number; fov: number }
+  camera: { distance: number; elevation: number; azimuth: number; fov: number; mode: 'orbit' | 'plane' }
   /** The ground plane, or null for none. `y` and `size` are null when they should follow the world's size. */
   floor: null | { color: string; texture: ReturnType<typeof normalizeTexture>; y: number | null; size: number | null; roughness: number; metalness: number }
 }
@@ -240,6 +240,7 @@ function resolveCamera(c: unknown): ResolvedLook['camera'] {
     elevation: Math.max(-10, Math.min(89, num(o.elevation, 23))),
     azimuth: num(o.azimuth, 45),
     fov: Math.max(10, Math.min(120, num(o.fov, 55))),
+    mode: o.mode === 'plane' ? 'plane' : 'orbit',
   }
 }
 

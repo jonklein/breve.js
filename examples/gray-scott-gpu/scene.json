@@ -8,7 +8,8 @@
     "preset": "night",
     "grid": false,
     "fog": false,
-    "frame": false
+    "frame": false,
+    "camera": { "mode": "plane" }
   },
   "data": {
     "palette": "aurora"

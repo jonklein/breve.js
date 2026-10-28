@@ -116,3 +116,9 @@ test('world references to data are replaced by what is stored there, and dropped
   assert.deepEqual(resolveWorld({ markers: [{ at: [0, 0] }] }, undefined), { markers: [{ at: [0, 0] }] })
   assert.equal(resolveWorld(undefined, data), undefined)
 })
+
+test('camera mode is orbit unless the scene says plane', () => {
+  assert.equal(resolveLook({}).camera.mode, 'orbit')
+  assert.equal(resolveLook({ camera: { mode: 'plane' } }).camera.mode, 'plane')
+  assert.equal(resolveLook({ camera: { mode: 'sideways' } }).camera.mode, 'orbit')
+})

@@ -2,7 +2,7 @@
   "name": "life2d formula",
   "seed": 7,
   "clock": { "rate": 20 },
-  "world": { "preset": "night", "grid": false, "fog": false, "frame": false },
+  "world": { "preset": "night", "grid": false, "fog": false, "frame": false, "camera": { "mode": "plane" } },
   "params": {
     "density": { "value": 0.3, "min": 0.05, "max": 0.7, "step": 0.01, "label": "starting density" }
   },

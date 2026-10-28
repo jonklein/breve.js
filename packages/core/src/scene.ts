@@ -224,7 +224,7 @@ export interface WorldDef {
     contrast?: number
   }
   /** Where the camera starts (you can still orbit): `distance` as a multiple of the world's size (default 2.5), `elevation` and `azimuth` in degrees (defaults 23 and 45), `fov` field of view in degrees (default 55). */
-  camera?: { distance?: number; elevation?: number; azimuth?: number; fov?: number }
+  camera?: { distance?: number; elevation?: number; azimuth?: number; fov?: number; /** What dragging does. `orbit` (the default): turn the camera around the world. `plane`: face a flat grid straight on, rotation off; the wheel zooms and a drag pans (on a lattice drawn as a picture from the graphics card, that zooms and pans the part of the grid drawn, so you see ever finer detail). */ mode?: 'orbit' | 'plane' }
   /** A ground plane, for scenes without terrain: `{ "texture": "grass" }`, `{ "color": "#222", "y": -1 }`. `false` or leaving it out draws none. */
   floor?: false | FloorDef
   /** A floor grid at the bottom of the bounds. */
@@ -415,7 +415,7 @@ export const sceneSchema = {
             },
           ],
         },
-        camera: { type: 'object', additionalProperties: false, properties: { distance: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, elevation: { type: 'number', minimum: -10, maximum: 89 }, azimuth: { type: 'number' }, fov: { type: 'number', minimum: 10, maximum: 120 } } },
+        camera: { type: 'object', additionalProperties: false, properties: { distance: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, elevation: { type: 'number', minimum: -10, maximum: 89 }, azimuth: { type: 'number' }, fov: { type: 'number', minimum: 10, maximum: 120 }, mode: { enum: ['orbit', 'plane'] } } },
         floor: {
           anyOf: [
             { const: false },

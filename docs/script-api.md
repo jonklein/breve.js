@@ -258,7 +258,7 @@ Everything here is visual only (it never changes what the simulation does) and e
   "shadows": { "softness": 2, "resolution": 2048, "bias": -0.0004 },   // or true / false
   "reflections": 0.4,                                         // how much shiny surfaces mirror the sky, 0 to 2
   "effects": { "bloom": { "strength": 0.3, "threshold": 0.75 }, "ao": true, "vignette": 0.25, "saturation": 1.1, "contrast": 1.08 },   // true/false for the preset's
-  "camera": { "distance": 2.3, "elevation": 13, "azimuth": 45, "fov": 55 },   // where the view starts (distance is a multiple of the world's size)
+  "camera": { "distance": 2.3, "elevation": 13, "azimuth": 45, "fov": 55, "mode": "orbit" },   // where the view starts (distance is a multiple of the world's size); mode "orbit" (default) turns the camera on drag, "plane" faces a flat grid, wheel zooms, drag pans (on a graphics-card lattice that zooms and pans the part of the grid drawn)
   "floor": { "texture": { "kind": "grid", "colors": ["#5a4670", "#1b1328"], "scale": 6, "tile": 30 }, "roughness": 0.9 },   // ground for scenes without terrain
   "frame": false                                              // hide the outline of the world's box
 }

@@ -140,3 +140,11 @@ test('world markers and water may name a key of data, and say what is missing wh
   assert.match(r.ok ? '' : r.errors.join('\n'), /world\.water: "lake" is not a key of the scene's "data" \(it has: lights, pond\)/)
   assert.equal(parseScene(JSON.stringify({ ...scene, world: { water: { opacity: 0.5 } } })).ok, false)
 })
+
+test('camera.mode takes orbit or plane and nothing else', async () => {
+  const { scene } = await load()
+  assert.ok(parseScene(JSON.stringify({ ...scene, world: { camera: { mode: 'plane' } } })).ok)
+  const r = parseScene(JSON.stringify({ ...scene, world: { camera: { mode: 'fly' } } }))
+  assert.equal(r.ok, false)
+  assert.match(r.ok ? '' : r.errors.join('\n'), /world\.camera\.mode/)
+})

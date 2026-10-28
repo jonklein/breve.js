@@ -33,6 +33,18 @@ export interface LimitDefaults {
   nodes: number
 }
 
+/** How a scene's time works when it does not say. */
+export interface TimeDefaults {
+  /** How much simulated time `T` one step advances. 1/60 is a sixtieth of a second for a physical scene; abstract scenes (a generation of Life) usually say 1. */
+  step: number
+  /** How much simulated time to try to run per real second: `"max"` runs as fast as the machine allows. */
+  pace: number | 'max'
+  /** How many times a second the picture is updated: the display's rate, never more than needed. */
+  fps: number
+  /** What `T` is measured in, for labels. */
+  unit: string
+}
+
 /**
  * The assumptions a scene makes when it says nothing, gathered in one place so none is hidden in the engine. The engine reads a
  * setting from the scene first and falls back to these; to change a default for one scene, set it there. Nothing else in the engine
@@ -57,6 +69,9 @@ export class Defaults {
 
   /** Limits on how many of each thing a `count` may ask for. */
   static readonly limits: LimitDefaults = { creatures: 200, agents: 5000, nodes: 100000 }
+
+  /** Time: see `TimeDefaults`. */
+  static readonly time: TimeDefaults = { step: 1 / 60, pace: 'max', fps: 60, unit: 's' }
 
   /** Where a formula lattice runs when its `compute` is not given: `auto` is the graphics card when the host has one and the processor otherwise. */
   static readonly compute: 'auto' | 'cpu' | 'gpu' = 'auto'

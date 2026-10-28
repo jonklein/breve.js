@@ -1,6 +1,7 @@
 {
   "name": "evolved creatures",
   "seed": 5,
+  "time": { "pace": 1 },
   "world": { "preset": "day", "floor": { "texture": { "kind": "grass", "tile": 7 }, "roughness": 0.95 }, "markers": [{ "at": [0, 0], "height": 2.5, "color": "#ff8a3d" }], "follow": true },
   "physics": { "engine": "mujoco", "minGyration": 0.3 },
   "terrain": {"size": 20, "resolution": 32, "amplitude": 0.15, "frequency": 0.08, "texture": {"kind": "grass", "tile": 7}, "shading": "smooth"},

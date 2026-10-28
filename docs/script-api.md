@@ -23,7 +23,7 @@ The per-entity form is the readable one and suits up to tens of thousands of ent
   "name": "boids",
   "seed": 7,                              // required. Same seed + same scene = same run.
   "data": { "genome": { } },             // optional. Plain JSON for scripts, read as ctx.data: what is too structured for a slider (see Parents)
-  "clock": { "rate": 60 },                // optional. Ticks per second (default 60, max 240).
+  "time": { "step": 0.025, "pace": 10, "fps": 60, "unit": "s" },  // optional: see Time below
   "bounds": { "size": 30 },               // free agents only. Half-width of the cube: the drawn box, and `ctx.world.size` in scripts. The engine keeps nothing inside it (see "Keeping entities inside")
   "world": {                              // optional, visual only: see "Look" below. A one-word start: { "preset": "dusk" }
     "preset": "dusk",                     // "day", "dusk", "night", "studio", "space" or "plain"; everything below overrides it
@@ -77,6 +77,8 @@ For full control, the script's `init` runs for each new entity: `init({ index, c
 const hit = ctx.bounds.bounce(self.position, self.velocity, ctx.world.size)
 return { steer: wander.plus(ctx.bounds.soft(self.position, ctx.world.size)), place: hit }
 ```
+
+**Time.** A simulation has one clock, `T`, which is continuous (seconds, for physics) or discrete (generations, days). The scene's `time` block says how it runs: `step` is how much `T` one step advances (default 1/60; a physical scene might say 0.025, which is 40 steps per simulated second; a generation of Life says 1), `pace` is how much `T` to try to run per real second (default `"max"`: as fast as the machine allows; `{ "step": 0.025, "pace": 10 }` runs ten simulated seconds per real second, which is 400 steps; `{ "step": 1, "pace": 100 }` runs 100 generations a second), `fps` caps how often the picture is updated (default 60) and `unit` names what `T` counts. Frames are never dropped: each frame gets only the time left after drawing, so a machine that cannot reach the pace runs fewer steps per frame and the stats line shows the pace it achieved ("3.2× real time" for seconds, "47 generation/s" otherwise). In the workbench, the speed menu is a multiple of the scene's pace (or of one unit of `T` per second when it has none), or Max. The defaults are the stdlib's `Defaults.time`. A script sees `ctx.time`, `ctx.dt` and `ctx.tick`; things measured per step (`think.every`, `every`) count steps.
 
 **Moving an entity yourself.** The engine has no fence, no automatic reset and no notion of "left the world": those are the script's business. Check where an entity is in `act` and move it by returning `place: { position, velocity }` from `act` (either may be left out; its state is kept; it happens at the end of the tick), for example `return { place: Math.abs(self.x) > 30 ? { position: [0, 0, 0] } : undefined }`. Like `steer` and `state`, it is a value `act` returns, not something it does; `undefined` or `null` means no move. Reset its state the same way: return it from `act`.
 
@@ -302,7 +304,7 @@ export const metrics = {
 
 - `p` holds the current param values: `p.cohesion`.
 - `ctx.random()` is a seeded random number in [0, 1). **Never use `Math.random()` or `Date.now()`**: runs must be repeatable.
-- `ctx.tick` is the tick number, `ctx.dt` the time step (1/60), `ctx.vec(x, y, z)` makes a vector.
+- `ctx.time` is simulated time so far, `ctx.dt` how much one step advances it (the scene's `time.step`), `ctx.tick` the number of the step (0, 1, 2, ...), and `ctx.vec(x, y, z)` makes a vector.
 - `act` must not change anything. It reads the world and returns what it wants.
 - If `act` throws, the error is shown and the sim keeps running with the last good behavior for that tick.
 

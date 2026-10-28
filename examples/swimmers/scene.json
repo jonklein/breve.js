@@ -1,6 +1,7 @@
 {
   "name": "swimmers",
   "seed": 5,
+  "time": { "pace": 1 },
   "world": {
     "preset": "day",
     "water": "water",

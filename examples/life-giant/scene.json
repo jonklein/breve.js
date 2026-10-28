@@ -1,7 +1,7 @@
 {
   "name": "giant life",
   "seed": 11,
-  "clock": { "rate": 30 },
+  "time": { "step": 1, "unit": "generation", "pace": 30 },
   "world": { "preset": "night", "grid": false, "fog": false, "frame": false, "camera": { "mode": "plane" } },
   "params": {
     "density": { "value": 0.25, "min": 0.05, "max": 0.6, "step": 0.01, "label": "starting density" }

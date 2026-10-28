@@ -1,7 +1,7 @@
 {
   "name": "layouts",
   "seed": 3,
-  "clock": { "rate": 10 },
+  "time": { "step": 1, "unit": "step", "pace": 10 },
   "world": { "frame": false, "preset": "night", "camera": { "distance": 2.2, "elevation": 20 }, "grid": false, "fog": false },
   "controls": [
     { "label": "Layout", "set": "entities.0.network.layout", "options": ["force", "force-sphere", "circle", "sphere", "grid", "random", "radial"] },

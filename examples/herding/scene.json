@@ -1,6 +1,7 @@
 {
   "name": "herding",
   "seed": 21,
+  "time": { "pace": 1 },
   "bounds": { "size": 24 },
   "world": { "frame": false,"preset": "day", "grid": false, "shadows": true, "floor": {"texture": "grass", "y": -0.6}, "camera": {"distance": 1.25, "elevation": 30}},
   "params": {

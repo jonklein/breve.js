@@ -19,8 +19,12 @@ export interface Message {
 }
 
 export interface Ctx {
+  /** The number of the step (0, 1, 2, ...). */
   tick: number
+  /** How much simulated time one step advances (the scene's `time.step`). */
   dt: number
+  /** Simulated time so far: `tick * dt`. */
+  time: number
   /** Seeded randomness. Scripts must use this, never Math.random. */
   random(): number
   /** A seeded draw from a normal distribution (mean 0, spread 1): `0.7 * ctx.normal()` for a spread of 0.7. */
@@ -199,6 +203,8 @@ export interface Host {
   params: Params
   rng: Rng
   tick: number
+  /** Simulated time per step (the scene's `time.step`). */
+  dt: number
   script: ScriptModule | null
   /** The entity set this world draws its rules from. */
   def: EntityDef

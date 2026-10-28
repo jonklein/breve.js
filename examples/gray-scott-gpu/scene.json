@@ -1,9 +1,7 @@
 {
   "name": "gray-scott gpu",
   "seed": 3,
-  "clock": {
-    "rate": 30
-  },
+  "time": { "step": 1, "unit": "step", "pace": 30 },
   "world": {
     "preset": "night",
     "grid": false,

@@ -1,6 +1,7 @@
 {
   "name": "neural",
   "seed": 11,
+  "time": { "pace": 1 },
   "bounds": { "size": 20 },
   "world": { "frame": false, "preset": "night", "sky": { "top": "#10091f", "horizon": "#3b2a63" }, "fog": { "color": "#2a1f4a" }, "grid": false, "agentColor": "heading", "shadows": true, "camera": { "distance": 1.6, "elevation": 55 }, "floor": { "texture": { "kind": "grid", "colors": ["#4a3a80", "#150d2b"], "scale": 6, "tile": 30 }, "roughness": 0.92 } },
   "params": {

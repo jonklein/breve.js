@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { Sim, parseScene, type ScriptModule } from '@breve/core'
+import { Sim, Pacer, stepsPerSecond, parseScene, type ScriptModule } from '@breve/core'
 import { WorldView, resolveWorld, type WorldFrame, type WorldLook } from '@breve/view'
 
 export interface EmbedOptions {
@@ -8,8 +8,8 @@ export interface EmbedOptions {
   height?: number
   /** Slowly turn the camera around the scene until someone drags it (default true). */
   autoRotate?: boolean
-  /** Simulation speed as a multiple of the scene's own tick rate (default 1: 60 ticks a second unless the scene says otherwise). */
-  speed?: number
+  /** How fast to run: a multiple of the scene's own `time.pace` (default: the scene's pace, or as fast as the page allows when it has none), or `"max"`. */
+  speed?: number | 'max'
   /** How far to zoom in from the default camera, as a multiple (default 1; 1.3 is a little closer). */
   zoom?: number
   /** Start paused (default false). */
@@ -88,11 +88,12 @@ export async function run(target: string | HTMLElement, code: string, config: un
   let visible = true
   let stopped = false
   let last = performance.now()
-  let budget = 0
+  const pacer = new Pacer()
+  const perSecond = () => stepsPerSecond({ step: sim.stepTime, pace: sim.pace }, options.speed ?? null)
   const watch = new IntersectionObserver((e) => { visible = e[0].isIntersecting })
   watch.observe(host)
 
-  const draw = () => view.update(sim.frames().map((f) => ({ ...f, rate: sim.rate }) as WorldFrame))
+  const draw = () => view.update(sim.frames().map((f) => ({ ...f, rate: Number.isFinite(perSecond()) ? perSecond() : 30 }) as WorldFrame))
   draw()
   if (options.zoom && options.zoom !== 1) {
     // the view framed the world on its first draw; move the camera along its line of sight
@@ -105,9 +106,13 @@ export async function run(target: string | HTMLElement, code: string, config: un
     last = now
     if (visible) {
       if (running) {
-        budget = Math.min(budget + dt * sim.rate * (options.speed ?? 1), 8) // never try to catch up on more than a few ticks at once
+        let want = pacer.steps(perSecond(), dt)
         let stepped = false
-        while (budget >= 1) { sim.step(); budget--; stepped = true }
+        const started = performance.now()
+        while (want >= 1) {
+          sim.step(); want--; stepped = true
+          if (performance.now() - started > 8) break // leave the rest of the frame for drawing and for the page
+        }
         if (stepped) draw()
       }
       view.tick(dt)

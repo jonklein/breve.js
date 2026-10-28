@@ -361,6 +361,42 @@ agents: number
 nodes: number
 ```
 
+## TimeDefaults
+
+How a scene's time works when it does not say.
+
+### `TimeDefaults.step`
+
+```ts
+step: number
+```
+
+How much simulated time `T` one step advances. 1/60 is a sixtieth of a second for a physical scene; abstract scenes (a generation of Life) usually say 1.
+
+### `TimeDefaults.pace`
+
+```ts
+pace: number | 'max'
+```
+
+How much simulated time to try to run per real second: `"max"` runs as fast as the machine allows.
+
+### `TimeDefaults.fps`
+
+```ts
+fps: number
+```
+
+How many times a second the picture is updated: the display's rate, never more than needed.
+
+### `TimeDefaults.unit`
+
+```ts
+unit: string
+```
+
+What `T` is measured in, for labels.
+
 ## Defaults
 
 The assumptions a scene makes when it says nothing, gathered in one place so none is hidden in the engine. The engine reads a
@@ -382,6 +418,14 @@ static readonly limits: LimitDefaults =
 ```
 
 Limits on how many of each thing a `count` may ask for.
+
+### `Defaults.time`
+
+```ts
+static readonly time: TimeDefaults =
+```
+
+Time: see `TimeDefaults`.
 
 ### `Defaults.compute`
 

@@ -1,7 +1,7 @@
 import { initResult } from './init-shape'
 import { handleFor, type Model, type ModelHandle } from './inference'
 import { Relations, type RelationsSnapshot } from './relations'
-import { Bounds, Colors, Field, Fluid, Gait, Mlp } from '@breve/stdlib'
+import { Bounds, Colors, Defaults, Field, Fluid, Gait, Mlp } from '@breve/stdlib'
 import { Rng } from './rng'
 import { Vec3 } from '@breve/stdlib'
 import { AgentWorld } from './agent-world'
@@ -34,7 +34,6 @@ export interface SimSnapshot { tick: number; rng: number; worlds: unknown[]; wai
 
 export type { AskOptions, Ctx, Controller, FrameData, Message, MetricInput, ModelRequest, ScriptModule } from './world'
 
-const DT = 1 / 60
 
 /** What one entity set sees of the sim: its own definition and controller, and everything shared. */
 interface ThoughtJob {
@@ -50,6 +49,7 @@ class SetHost implements Host {
   get params() { return this.sim.params }
   get rng() { return this.sim.rng }
   get tick() { return this.sim.tick }
+  get dt() { return this.sim.stepTime }
   get script() { return this.sim.script }
   private fieldsCache: { base: EntityDef; script: ScriptModule | null; fields: StateField[] } | null = null
   get def(): EntityDef { return this.sim.scene.entities[this.index] }
@@ -233,9 +233,29 @@ export class Sim {
     return this.worlds[i].table
   }
 
-  /** Ticks per second the scene asks for. */
-  get rate(): number {
-    return this.scene.clock?.rate ?? 60
+  /** Simulated time one step advances (the scene's `time.step`, else the stdlib's default). */
+  get stepTime(): number {
+    return this.scene.time?.step ?? Defaults.time.step
+  }
+
+  /** Simulated time to try to run per real second, or `"max"` (the scene's `time.pace`). */
+  get pace(): number | 'max' {
+    return this.scene.time?.pace ?? Defaults.time.pace
+  }
+
+  /** How many times a second the picture should be updated (the scene's `time.fps`). */
+  get fps(): number {
+    return this.scene.time?.fps ?? Defaults.time.fps
+  }
+
+  /** What simulated time counts, for labels (`s`, `generation`). */
+  get unit(): string {
+    return this.scene.time?.unit ?? Defaults.time.unit
+  }
+
+  /** Simulated time so far. */
+  get time(): number {
+    return this.tick * this.stepTime
   }
 
   /** Apply an edited scene to a running sim. Seed, grid shape and fill only change on reset. */
@@ -303,7 +323,7 @@ export class Sim {
   }
 
   ctx(): Ctx {
-    return { tick: this.tick, dt: DT, colors: Colors, gait: Gait, fluid: Fluid, bounds: Bounds, world: { size: this.scene.bounds?.size ?? 30 }, data: this.scene.data ?? {}, random: () => this.rng.next(), normal: () => normalDraw(() => this.rng.next()), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), relations: this.relations, inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
+    return { tick: this.tick, dt: this.stepTime, time: this.time, colors: Colors, gait: Gait, fluid: Fluid, bounds: Bounds, world: { size: this.scene.bounds?.size ?? 30 }, data: this.scene.data ?? {}, random: () => this.rng.next(), normal: () => normalDraw(() => this.rng.next()), vec: (x, y, z) => new Vec3(x, y, z), mlp: (sizes) => this.mlp(sizes), relations: this.relations, inbox: this.inbox, input: new Input(this.keys), blend, send: (topic, data) => this.outbox.push({ topic, data: data === undefined ? undefined : structuredClone(data), tick: this.tick }) }
   }
 
   /** What to draw for each entity set, in scene order. */

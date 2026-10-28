@@ -20,7 +20,6 @@ const SCHEMA = {
 
 type Cols = Record<keyof typeof SCHEMA, Float32Array>
 
-const DT = 1 / 60
 const MAX_GRID_AXIS = 32
 const DEFAULT_BOUNDS = { size: 30 }
 
@@ -273,6 +272,7 @@ export class AgentWorld implements World {
     }
 
     // act: integrate steering into velocity, with entity-level limits
+    const DT = this.host.dt
     const maxSpeed = resolve(def.motion?.maxSpeed, p, Infinity)
     const minSpeed = resolve(def.motion?.minSpeed, p, 0)
     const maxAccel = resolve(def.motion?.maxAccel, p, Infinity)

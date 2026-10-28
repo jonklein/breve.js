@@ -1,7 +1,7 @@
 {
   "name": "hypercycle",
   "seed": 5,
-  "clock": { "rate": 24 },
+  "time": { "step": 1, "unit": "step", "pace": 24 },
   "world": {
     "preset": "studio",
     "grid": false,

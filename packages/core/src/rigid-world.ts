@@ -21,7 +21,6 @@ const SCHEMA = {
 
 type Cols = Record<keyof typeof SCHEMA, Float64Array> & Record<string, Float64Array>
 
-const DT = 1 / 60
 const TOUCH_MARGIN = 0.04
 
 /** One part of a creature as a script sees it, with a `parts` sensor: where it is, how it is turned, how fast it moves, and what it is made of. */
@@ -273,7 +272,7 @@ export class RigidWorld implements World {
       kp[j] = resolve(bj[j].motor?.stiffness, p, MOTOR_DEFAULTS.stiffness)
       kd[j] = resolve(bj[j].motor?.damping, p, MOTOR_DEFAULTS.damping)
       maxTorque[j] = resolve(bj[j].motor?.maxTorque, p, Infinity)
-      maxStep[j] = resolve(bj[j].motor?.maxSpeed, p, Infinity) * DT
+      maxStep[j] = resolve(bj[j].motor?.maxSpeed, p, Infinity) * this.host.dt
     }
     this.forces.fill(0) // a push lasts one tick: a script that wants it again asks again
     // act: a script sets motor targets by joint name; any it leaves out go to the joint's rest angle (0)
@@ -328,7 +327,7 @@ export class RigidWorld implements World {
 
     // physics
     const sub = resolvePhysics(scene.physics).substeps
-    for (let s = 0; s < sub; s++) this.physics.step(DT / sub)
+    for (let s = 0; s < sub; s++) this.physics.step(this.host.dt / sub)
 
     // record
     this.record()

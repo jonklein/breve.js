@@ -1,7 +1,7 @@
 {
   "name": "particle life",
   "seed": 3,
-  "clock": { "rate": 40 },
+  "time": { "pace": 0.667 },
   "bounds": { "size": 40 },
   "world": {
     "preset": "night",

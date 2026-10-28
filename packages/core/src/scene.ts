@@ -255,8 +255,12 @@ export interface WorldDef {
 export interface Scene {
   name?: string
   seed: number
-  /** Ticks per second. Defaults to 60. */
-  clock?: { rate: number }
+  /**
+   * Simulated time, and how fast it runs. `step` is how much time `T` one step advances (seconds for a physical scene, 0.025 for 40 steps per
+   * simulated second; 1 for a generation of Life). `pace` is how much `T` to try to run per real second (`"max"`, the default, runs as fast
+   * as the machine allows). `fps` caps how often the picture is updated (default 60). `unit` names what `T` counts. Left out, the stdlib's `Defaults.time`.
+   */
+  time?: { step?: number; pace?: number | 'max'; fps?: number; unit?: string }
   /** The size of the world: the half-width of the box around the origin that is drawn and that scripts read as `ctx.world.size`. The engine keeps nothing inside it. */
   bounds?: { size: number }
   world?: WorldDef
@@ -348,11 +352,15 @@ export const sceneSchema = {
     $schema: { type: 'string' },
     name: { type: 'string' },
     seed: { type: 'integer' },
-    clock: {
+    time: {
       type: 'object',
-      required: ['rate'],
       additionalProperties: false,
-      properties: { rate: { type: 'number', exclusiveMinimum: 0, maximum: 240 } },
+      properties: {
+        step: { type: 'number', exclusiveMinimum: 0 },
+        pace: { anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { const: 'max' }] },
+        fps: { type: 'number', exclusiveMinimum: 0, maximum: 240 },
+        unit: { type: 'string', minLength: 1 },
+      },
     },
     bounds: {
       type: 'object',

@@ -1,6 +1,7 @@
 {
   "name": "creature-gltf",
   "seed": 11,
+  "time": { "pace": 1 },
   "world": { "preset": "day", "floor": { "texture": { "kind": "grass", "tile": 7 }, "roughness": 0.95 } },
   "terrain": {"size": 80, "resolution": 64, "amplitude": 0.6, "frequency": 0.07, "texture": {"kind": "grass", "tile": 7}, "shading": "smooth"},
   "params": {

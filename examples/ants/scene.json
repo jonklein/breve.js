@@ -1,6 +1,7 @@
 {
   "name": "ants",
   "seed": 5,
+  "time": { "pace": 1 },
   "bounds": {
     "size": 20
   },

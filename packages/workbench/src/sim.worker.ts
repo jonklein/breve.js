@@ -1,7 +1,8 @@
 import './engines'
 import { compile } from './script-load'
 import { loadSceneModels } from '@breve/inference'
-import { ParentRun, parentOf, registerAssetReader, Sim, SimGroup, type Parent, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
+import { Defaults } from '@breve/stdlib'
+import { ParentRun, Pacer, stepsPerSecond, type ViewerSpeed, parentOf, registerAssetReader, Sim, SimGroup, type Parent, type SimSnapshot, type Inspected, parseScene, withParams, type RigidFrame, type Scene, type ScriptModule } from '@breve/core'
 import { site } from './site-root'
 
 export type ToWorker =
@@ -10,6 +11,8 @@ export type ToWorker =
   | { type: 'scene'; scene: string }
   | { type: 'script'; script: string }
   | { type: 'play'; running: boolean }
+  /** How fast to run: `null` is the scene's own pace, `"max"` flat out, a number a multiple of the scene's pace. */
+  | { type: 'speed'; value: ViewerSpeed }
   | { type: 'step' }
   | { type: 'reset' }
   /** Zoom and pan a lattice kept on the graphics card: which part of the grid (left, top, right, bottom in cells) to draw, in how many pixels. */
@@ -64,13 +67,13 @@ export type FromWorker =
   | { type: 'population'; on: boolean }
   /** Where you are in a multi-sim setup, root first: `['All runs', 'c04']`. Empty when there is nothing to go back to. */
   | { type: 'crumbs'; trail: string[] }
-  | { type: 'tiles'; epoch: number; tick: number; rate: number; stepMs: number; /** a parent's progress line, when a parent runs the sims */ status?: string; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
+  | { type: 'tiles'; epoch: number; tick: number; time: number; unit: string; rate: number; pace: number; stepMs: number; /** a parent's progress line, when a parent runs the sims */ status?: string; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
   | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
   | { type: 'log'; log: DecisionLog }
   /** The metric samples up to a moment, after a seek: the charts redraw from them. */
   | { type: 'metrics'; samples: Record<string, number>[] }
-  | { type: 'frame'; epoch: number; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean; complete: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; frames: WorldFrameMsg[]; rate: number; metrics: Record<string, number> | null; stepMs: number }
+  | { type: 'frame'; epoch: number; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean; complete: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; frames: WorldFrameMsg[]; /** Simulated time so far, and what it counts. */ time: number; unit: string; /** Steps per real second now, and simulated time per real second now (the achieved pace). */ rate: number; pace: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -260,15 +263,18 @@ function transfers(f: WorldFrameMsg): ArrayBuffer[] {
 }
 
 let groupTick = -1
+let achievedRate = 0 // steps per real second over the last half second
+let windowSteps = 0
+let windowSeconds = 0
 
 function postGroup(): void {
   if (!group) return
   const first = group.sims.values().next().value as Sim | undefined
   if (first && first.tick !== groupTick) {
     groupTick = first.tick
-    const all = first.tick % 4 === 0 || first.rate < 30
+    const all = first.tick % 4 === 0 || achievedRate < 30
     const tiles = [...group.sims].map(([name, s]) => ({ name, params: sweepRuns.get(name) ?? {}, metrics: all ? s.metrics() : null, frames: s.frames() }))
-    postMessage({ type: 'tiles', epoch, tick: population ? population.tick : first.tick, rate: first.rate, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
+    postMessage({ type: 'tiles', epoch, tick: population ? population.tick : first.tick, time: first.time, unit: first.unit, rate: achievedRate, pace: achievedRate * first.stepTime, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
   }
   const runtime = [...new Set([...group.sims.values()].flatMap((s) => s.takeErrors()))]
   const problems = JSON.stringify([sceneErrors, scriptErrors, runtime])
@@ -304,10 +310,10 @@ function post(): void {
     lastPosted = sim.tick
     pictureReady = false
     const frames = sim.frames()
-    const m = sim.tick % 4 === 0 || sim.rate < 30 || card ? sim.metrics() : null // totals from a graphics card are already in hand
+    const m = sim.tick % 4 === 0 || achievedRate < 30 || card ? sim.metrics() : null // totals from a graphics card are already in hand
     if (m) { metricLog.push({ tick: sim.tick, m }); if (metricLog.length > 600) metricLog.shift() }
     const inspected = selection ? sim.inspect(selection.set, selection.row) : null
-    const msg: FromWorker = { type: 'frame', epoch, tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying, complete: sim.decisionLogComplete }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, rate: sim.rate, frames }
+    const msg: FromWorker = { type: 'frame', epoch, tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying, complete: sim.decisionLogComplete }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, time: sim.time, unit: sim.unit, rate: achievedRate, pace: achievedRate * sim.stepTime, frames }
     postMessage(msg, frames.flatMap(transfers))
   }
   const runtime = [...modelProblems, ...sim.takeErrors()]
@@ -318,24 +324,32 @@ function post(): void {
   }
 }
 
-// The clock runs at the scene's tick rate; the page is told about every new tick.
-let budget = 0
-const FRAME_BUDGET_MS = 12 // never spend more than this per frame stepping, so the page stays responsive
-setInterval(() => {
+// The clock: each frame runs as many steps as the scene's pace (and the viewer's speed) call for, within what is left of the frame, and
+// the picture is updated at the scene's frame rate. A machine that cannot keep up runs fewer steps, it never drops frames.
+let viewerSpeed: ViewerSpeed = null
+const pacer = new Pacer()
+let lastFrame = performance.now()
+function frameLoop(): void {
   const driver = group ? group.sims.values().next().value as Sim | undefined : sim
+  const time = { step: driver?.stepTime ?? scene?.time?.step ?? Defaults.time.step, pace: driver?.pace ?? scene?.time?.pace ?? Defaults.time.pace }
+  const fps = driver?.fps ?? scene?.time?.fps ?? Defaults.time.fps
+  const frameStart = performance.now()
+  const seconds = Math.min(0.25, (frameStart - lastFrame) / 1000)
+  lastFrame = frameStart
+  let done = 0
   if (running && (driver || population)) {
-    budget = Math.min(budget + (driver?.rate ?? 60) / 60, 8)
-    const frameStart = performance.now()
-    while (budget >= 1) {
+    let want = pacer.steps(stepsPerSecond(time, viewerSpeed), seconds)
+    const allowed = Math.max(4, 700 / fps) // ms of a frame that stepping may use; the rest is for drawing and for the page
+    while (want >= 1) {
       const t0 = performance.now()
       if (population) {
-        // a parent's step may add sims (a new generation), which takes a moment: one tick at a time
+        // a parent's step may add sims (a new generation), which takes a moment: one step at a time
         if (populationBusy) break
         stepPopulation()
-        budget = Math.min(budget - 1, 1)
+        done++
         break
       } else if (group) group.step()
-      else if (refreshing) break // the card is still working out the picture: do not queue more ticks behind it
+      else if (refreshing) break // the card is still working out the picture: do not queue more steps behind it
       else if (thinkMode === 'lockstep' && sim!.thinks) {
         if (lockBusy) break // the model has not answered yet: the clock waits
         lockBusy = true
@@ -343,17 +357,24 @@ setInterval(() => {
         void s.think().then(() => { s.step(); recordMoment(s); lastPosted = -1 }).finally(() => { lockBusy = false })
       } else { sim!.thinkInBackground(); sim!.step(); recordMoment(sim!) } // slow thoughts (model calls) run beside the clock and land when they arrive
       stepMs = stepMs * 0.8 + (performance.now() - t0) * 0.2
-      budget--
-      if (performance.now() - frameStart > FRAME_BUDGET_MS) { budget = Math.min(budget, 1); break }
+      done++
+      want--
+      if (performance.now() - frameStart > allowed) break
     }
   }
+  // the speed actually reached, over the last half second or so (a single frame's count is noise)
+  windowSteps += done; windowSeconds += seconds
+  if (windowSeconds >= 0.5) { achievedRate = windowSteps / windowSeconds; windowSteps = 0; windowSeconds = 0 }
   post()
-}, 1000 / 60)
+  setTimeout(frameLoop, Math.max(1, 1000 / fps - (performance.now() - frameStart)))
+}
+frameLoop()
 
 self.onmessage = async (ev: MessageEvent<ToWorker>) => {
   const m = ev.data
   switch (m.type) {
     case 'init':
+      viewerSpeed = null
       sim?.dispose()
       sim = null
       script = null
@@ -414,6 +435,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'play':
       running = m.running
+      break
+    case 'speed':
+      viewerSpeed = m.value
       break
     case 'fieldView':
       if (sim) { sim.setFieldView(m.set, { window: m.window, width: m.width, height: m.height }); lastPosted = -1; pictureReady = false } // draw it now, even when paused

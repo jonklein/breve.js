@@ -24,7 +24,8 @@ const sim = async (hash) => {
 // a closed drawer leaves a thin strip on screen to grab, so "closed" means almost none of it is showing
 const drawerShut = async () => { const b = await page.locator('#editors').boundingBox(); return !b || b.x + b.width < 40 }
 const openDrawer = async () => { if (!(await page.locator('main.drawer-open').count())) await page.click('#drawer-toggle'); await page.waitForTimeout(350) }
-const tickOf = async () => Number((await page.textContent('#timeline-label')).match(/t = (\d+)/)[1])
+// the label shows simulated time T; both scenes the timeline checks use step 1/60 s, so a step is T * 60
+const tickOf = async () => Math.round(Number((await page.textContent('#timeline-label')).match(/T = ([\d,.]+)/)[1].replace(/,/g, '')) * 60)
 
 // the front page: a live simulation behind the words, and a way in; the three live demos are on the explore page
 await page.goto(`${base}/`)
@@ -215,7 +216,7 @@ else {
 // 3D Life as formulas runs (on the processor here: no WebGPU in this browser) and draws cells
 await sim('life3d-gpu')
 await page.waitForTimeout(4000)
-check('3D Life as formulas runs', (await page.locator('.problems li').count()) === 0 && /cells|ticks/.test(await page.textContent('#stats')), `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
+check('3D Life as formulas runs', (await page.locator('.problems li').count()) === 0 && /cells|generation/.test(await page.textContent('#stats')), `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
 
 // swimmers: forces and the water plane run with no problems
 await sim('swimmers')

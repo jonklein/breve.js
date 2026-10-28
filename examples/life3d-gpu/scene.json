@@ -1,7 +1,7 @@
 {
   "name": "life3d gpu",
   "seed": 3,
-  "clock": { "rate": 10 },
+  "time": { "step": 1, "unit": "generation", "pace": 10 },
   "world": { "preset": "night", "grid": false, "fog": false, "frame": true, "camera": { "distance": 3.4, "elevation": 28, "mode": "orbit" } },
   "params": {
     "density": { "value": 0.15, "min": 0.02, "max": 0.6, "step": 0.01, "label": "starting density" }

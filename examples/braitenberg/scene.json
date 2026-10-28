@@ -1,6 +1,7 @@
 {
   "name": "braitenberg vehicles",
   "seed": 4,
+  "time": { "pace": 1 },
   "world": {
     "preset": "dusk",
     "markers": "lights"

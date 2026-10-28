@@ -105,6 +105,22 @@ async function main(): Promise<void> {
 
   // `?debug` hands the automated UI checks the view, to find things to drag
   if (new URLSearchParams(location.search).has('debug')) (window as unknown as { breveDebug: unknown }).breveDebug = { viewport }
+  // the speed menu: multiples of the scene's own pace (or of one unit of time a second when it has none), and Max
+  const speedMenu = $('speed') as HTMLSelectElement
+  let speedFor = '\0'
+  const renderSpeed = (pace: unknown) => {
+    const paced = typeof pace === 'number'
+    const key = paced ? String(pace) : 'max'
+    if (key === speedFor) return
+    speedFor = key
+    const stops = [0.25, 0.5, 1, 2, 5, 10, 50]
+    const items = paced
+      ? [...stops.map((x) => ({ v: x === 1 ? '' : String(x), t: x === 1 ? '1× (scene pace)' : `${x}×` })), { v: 'max', t: 'Max' }]
+      : [{ v: '', t: 'Max' }, ...stops.map((x) => ({ v: String(x), t: `${x}×` }))]
+    speedMenu.replaceChildren(...items.map((i) => Object.assign(document.createElement('option'), { value: i.v, textContent: i.t })))
+    speedMenu.value = ''
+  }
+  speedMenu.addEventListener('change', () => send({ type: 'speed', value: speedMenu.value === '' ? null : speedMenu.value === 'max' ? 'max' : Number(speedMenu.value) }))
   let movable: boolean[] = [] // which entity sets a person may drag
   viewport.movable = (set) => movable[set] === true
   viewport.onMoveEntity = (set, row, x, z) => send({ type: 'move', set, row, x, z })
@@ -125,10 +141,11 @@ async function main(): Promise<void> {
   }
   const showScene = (text: string) => {
     try {
-      const scene = JSON.parse(text) as { params?: unknown; controls?: unknown; world?: WorldLook; data?: Record<string, unknown>; entities?: { controller?: string; lattice?: unknown; network?: unknown }[] }
+      const scene = JSON.parse(text) as { params?: unknown; controls?: unknown; world?: WorldLook; data?: Record<string, unknown>; time?: { pace?: unknown }; entities?: { controller?: string; lattice?: unknown; network?: unknown }[] }
       controls.render(scene.controls, (path) => getPath(scene, path))
       params.render(scene.params)
       metrics.setGroups((scene as { charts?: { title?: string; metrics: string[] }[] }).charts)
+      renderSpeed(scene.time?.pace)
       movable = (scene.entities ?? []).map((e) => !e.lattice && !e.network)
       const look = resolveWorld(scene.world, scene.data)
       viewport.setWorld(look)
@@ -350,6 +367,7 @@ async function main(): Promise<void> {
     void fetchAbout(aboutOf ?? ({} as ExampleInfo)).then((md) => { if (current === id) about.show(home ?? id, aboutOf?.name ?? '', md) })
     const assets = `${location.origin}/${home && isExample(home) ? home + '/' : ''}`
     viewport.view.setAssetBase(assets)
+    speedMenu.value = ''
     send({ type: 'init', scene: doc.scene, script: live(doc.script), base: assets, epoch: ++epoch })
   }
 
@@ -544,8 +562,11 @@ async function main(): Promise<void> {
   $('reset').addEventListener('click', () => { metrics.clear(); tiles.resetHistory(); send({ type: 'reset' }) })
 
   // The run's time, in one place: `t = 120`, amber while you are looking at an earlier moment than the latest.
-  const showTime = (t: number, past: boolean) => {
-    $('timeline-label').textContent = `t = ${t}`
+  // how fast time is passing, in words: "6.2x real time" for a scene measured in seconds, "47 generation/s" otherwise
+  const paceText = (m: { pace: number; unit: string }) => (m.unit === 's' ? `${num(m.pace)}× real time` : `${num(m.pace)} ${m.unit}/s`)
+  const num = (x: number) => (x >= 100 ? Math.round(x).toLocaleString() : String(Number(x.toPrecision(3))))
+  const showTime = (time: number, unit: string, past: boolean) => {
+    $('timeline-label').textContent = `T = ${Number(time.toPrecision(5)).toLocaleString('en', { maximumFractionDigits: 4 })} ${unit}`
     $('timeline-label').classList.toggle('past', past)
   }
 
@@ -588,7 +609,6 @@ async function main(): Promise<void> {
     URL.revokeObjectURL(a.href)
   }
 
-  let lastTick = 0
   let lastTime = performance.now()
   worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     const m = ev.data
@@ -611,16 +631,14 @@ async function main(): Promise<void> {
         slider.min = String(m.timeline.first); slider.max = String(m.timeline.last); slider.step = String(m.timeline.step)
         if (!scrubbing) slider.value = String(Math.min(m.tick, m.timeline.last))
       }
-      showTime(m.tick, !!m.timeline && m.tick < m.timeline.last)
+      showTime(m.time, m.unit, !!m.timeline && m.tick < m.timeline.last)
       viewport.update(m.frames.map((f) => ({ ...f, rate: m.rate })))
       if (inspecting) { if (m.inspected) inspector.update(m.inspected); else stopInspecting() }
       if (m.metrics) metrics.push(m.metrics)
       const now = performance.now()
       if (now - lastTime > 500) {
-        const tps = Math.max(0, ((m.tick - lastTick) * 1000) / (now - lastTime))
-        lastTick = m.tick
         lastTime = now
-        $('stats').textContent = `${m.frames.map((f) => `${f.count.toLocaleString()} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'field' ? 'cells on the graphics card' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick`
+        $('stats').textContent = `${m.frames.map((f) => `${f.count.toLocaleString()} ${m.frames.length > 1 && f.name ? f.name : f.kind === 'lattice' ? 'live cells' : f.kind === 'field' ? 'cells on the graphics card' : f.kind === 'bodies' ? 'creatures' : f.kind === 'graph' ? 'nodes' : 'agents'}`).join(', ')} · ${paceText(m)} · ${m.stepMs.toFixed(1)} ms/step`
       }
     } else if (m.type === 'crumbs') {
       // a trail like "All runs › c04": every step but the last goes back to that level
@@ -637,13 +655,11 @@ async function main(): Promise<void> {
       $('sweepbar').classList.toggle('hidden', true)
     } else if (m.type === 'tiles') {
       if (sweeping) tiles.update(m.tiles, '')
-      showTime(m.tick, false)
+      showTime(m.time, m.unit, false)
       const now = performance.now()
       if (now - lastTime > 500) {
-        const tps = Math.max(0, ((m.tick - lastTick) * 1000) / (now - lastTime))
-        lastTick = m.tick
         lastTime = now
-        $('stats').textContent = `${m.status ? m.status + ' · ' : ''}${m.tiles.length} runs · ${tps.toFixed(0)} ticks/s · ${m.stepMs.toFixed(1)} ms/tick (all runs)`
+        $('stats').textContent = `${m.status ? m.status + ' · ' : ''}${m.tiles.length} runs · ${paceText(m)} · ${m.stepMs.toFixed(1)} ms/step (all runs)`
       }
     } else if (m.type === 'metrics') {
       metrics.clear()

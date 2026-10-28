@@ -81,6 +81,8 @@ export interface NetworkDef {
   radius?: number
   /** How big nodes are drawn, as a multiple of the default. */
   size?: number
+  /** How the links are drawn (display only). `opacity` (0 to 1, default 0.55) and `brightness` (how much of each end node's color a link takes, 0 to 2, default 0.45): lower both and the nodes stand out from a faint web. */
+  links?: { opacity?: number; brightness?: number }
 }
 
 /**
@@ -571,6 +573,7 @@ export const sceneSchema = {
               layout: { enum: ['force', 'force-sphere', 'circle', 'sphere', 'grid', 'random', 'radial'] },
               radius: { type: 'number', exclusiveMinimum: 0 },
               size: { type: 'number', exclusiveMinimum: 0, maximum: 20 },
+              links: { type: 'object', additionalProperties: false, properties: { opacity: { type: 'number', minimum: 0, maximum: 1 }, brightness: { type: 'number', minimum: 0, maximum: 2 } } },
             },
           },
           lattice: {

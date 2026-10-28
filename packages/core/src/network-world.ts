@@ -315,7 +315,7 @@ export class NetworkWorld implements World {
       pos: this.layout.slice(),
       vel: null,
       look,
-      graph: { edges, version: this.version, nodeSize: net.size ?? 1 },
+      graph: { edges, version: this.version, nodeSize: net.size ?? 1, linkOpacity: net.links?.opacity ?? 0.55, linkBrightness: net.links?.brightness ?? 0.45 },
     }
   }
 

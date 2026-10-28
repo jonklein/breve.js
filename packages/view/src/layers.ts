@@ -430,12 +430,13 @@ export class GraphLayer {
     this.mesh.instanceColor!.needsUpdate = true
     this.alpha!.needsUpdate = true
     blend(this.mesh.material as THREE.Material, see)
-    if (g.version !== this.version || !this.linksMatch(f)) this.drawLinks(f)
+    if (g.version !== this.version || !this.linksMatch(f) || g.linkOpacity !== this.linkOpacity) this.drawLinks(f)
     if (this.lines) { this.lines.visible = true; this.colorLinks(f) }
   }
 
   /** The positions the links were drawn from, to notice when the nodes are somewhere else (a version number alone can repeat across runs). */
   private linkedAt = new Float32Array(0)
+  private linkOpacity = -1
 
   private linksMatch(f: WorldFrame): boolean {
     const n = f.count * 3
@@ -446,6 +447,7 @@ export class GraphLayer {
 
   private drawLinks(f: WorldFrame): void {
     this.version = f.graph!.version
+    this.linkOpacity = f.graph!.linkOpacity
     this.linkedAt = f.pos.slice(0, f.count * 3)
     this.disposeLines()
     const e = f.graph!.edges
@@ -455,7 +457,7 @@ export class GraphLayer {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(e.length * 3), 3).setUsage(THREE.DynamicDrawUsage))
     // links glow softly in the colors of the nodes they join (additive, so they never hide what is behind them)
-    this.lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }))
+    this.lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: f.graph!.linkOpacity, blending: THREE.AdditiveBlending, depthWrite: false }))
     this.lines.frustumCulled = false
     this.scene.add(this.lines)
   }
@@ -465,11 +467,12 @@ export class GraphLayer {
     const e = f.graph!.edges
     const col = this.lines!.geometry.attributes.color as THREE.BufferAttribute
     const src = this.mesh!.instanceColor!.array
+    const b = f.graph!.linkBrightness
     for (let i = 0; i < e.length; i++) {
       const k = e[i] * 3
-      col.array[i * 3] = src[k] * 0.45
-      col.array[i * 3 + 1] = src[k + 1] * 0.45
-      col.array[i * 3 + 2] = src[k + 2] * 0.45
+      col.array[i * 3] = src[k] * b
+      col.array[i * 3 + 1] = src[k + 1] * b
+      col.array[i * 3 + 2] = src[k + 2] * b
     }
     col.needsUpdate = true
   }

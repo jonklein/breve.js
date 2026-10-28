@@ -152,6 +152,8 @@ Starting state is the script's `init` (a node at a time) or `initAll` (all at on
 
 A node's `neighbors` are the nodes it is linked to. `act` works exactly as it does for lattice cells: it reads `self` and `neighbors` (`neighbors.status` is a list of numbers) and returns the node's **new state**, applied for everyone at once. That is why one script can run on a grid and on a graph (see `examples/epidemic` and `examples/epidemic-grid`). `self.degree` is the number of links. Positions come from the layout and are only for drawing.
 
+**Links** are drawn in the colors of the nodes they join: `network.links` sets `opacity` (default 0.55) and `brightness` (default 0.45); lower both for a faint web behind bright nodes. For colors that stay vivid in a dark scene, use `style.material.glow` around 0.4 to 0.8, `world.light.toneMapping: "neutral"` (the default `aces` pales bright colors) and `world.effects.saturation` above 1 (see `examples/epidemic`).
+
 **Layouts** (display only). `force` is the d3-force-3d library run to rest: linked nodes pull together, others push apart, so clusters show. `force-sphere` is the same with every node also pulled onto the surface of a sphere of `radius`, so linked nodes sit near each other on a shell (the epidemic and market examples use it). `circle` and `sphere` spread nodes evenly, `grid` fills a cube lattice, `random` scatters them through a ball, and `radial` puts the best-linked node in the middle with one ring per link of distance from it. `examples/layouts` has a button for each.
 
 ### About: a description over the simulation

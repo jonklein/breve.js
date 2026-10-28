@@ -2,7 +2,7 @@
   "name": "market",
   "seed": 4,
   "clock": { "rate": 15 },
-  "world": { "frame": false, "preset": "dusk", "camera": {"distance": 2.4, "elevation": 12}, "grid": false, "fog": false },
+  "world": { "frame": false, "preset": "night", "light": { "toneMapping": "neutral" }, "effects": { "bloom": { "strength": 0.1 }, "saturation": 1.4 }, "camera": {"distance": 2.4, "elevation": 12}, "grid": false, "fog": false },
   "controls": [
     { "label": "Layout", "set": "entities.0.network.layout", "options": ["force-sphere", "force", "sphere", "circle", "radial"] }
   ],
@@ -18,7 +18,7 @@
       "name": "traders", "style": {"material": {"roughness": 0.4, "metalness": 0, "glow": 0.45}},
       "count": 80,
       "controller": "market.js",
-      "network": { "topology": "scalefree", "degree": 4, "layout": "force-sphere", "radius": 24, "size": 1.2 }
+      "network": { "topology": "scalefree", "degree": 4, "layout": "force-sphere", "radius": 24, "size": 1.2, "links": { "opacity": 0.3, "brightness": 0.35 } }
     }
   ],
   "metrics": ["averagePrice", "priceSpread", "averageCash", "unmetNeed"],

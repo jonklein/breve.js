@@ -240,7 +240,7 @@ export interface FrameData {
   /** Lattices send every cell (1 = drawn), so the renderer can animate cells coming and going. */
   lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; thickness?: number; /** from `display`: red, green, blue (0 to 255), opacity (0 to 255) and a size multiplier per cell */ rgb?: Uint8Array; alpha?: Uint8Array; sizes?: Float32Array }
   /** Networks (`kind: 'graph'`): the links as pairs of node numbers (redrawn when `version` changes), and how to color and size nodes. `pos` holds the layout. */
-  graph?: { edges: Uint32Array; version: number; nodeSize: number }
+  graph?: { edges: Uint32Array; version: number; nodeSize: number; linkOpacity: number; linkBrightness: number }
   /** Physics bodies (`kind: 'bodies'`): one pose per part, plus the terrain on the first frame. */
   rigid?: RigidFrame
   /**

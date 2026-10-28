@@ -20,7 +20,7 @@ export interface WorldFrame {
   /** What the script's `display` said per agent or node: red, green, blue (0 to 255), 1 to draw, opacity (0 to 255), size multiplier. */
   look?: { rgb: Uint8Array | null; visible: Uint8Array | null; alpha: Uint8Array | null; scale: Float32Array | null }
   lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; thickness?: number; rgb?: Uint8Array; alpha?: Uint8Array; sizes?: Float32Array }
-  graph?: { edges: Uint32Array; version: number; nodeSize: number }
+  graph?: { edges: Uint32Array; version: number; nodeSize: number; linkOpacity: number; linkBrightness: number }
   /** A lattice on a graphics card, as a picture of the part of the grid in `window` (see FrameData in the core). */
   field?: { dims: [number, number]; spacing: number; width: number; height: number; pixels: Uint8Array; window: [number, number, number, number] }
   /** Per-set color for free agents. */

@@ -56,7 +56,7 @@ export interface WorldFrameMsg {
   look?: { rgb: Uint8Array | null; visible: Uint8Array | null; alpha: Uint8Array | null; scale: Float32Array | null }
   lattice?: { dims: [number, number, number]; spacing: number; show: Uint8Array; fade: number; thickness?: number; rgb?: Uint8Array; alpha?: Uint8Array; sizes?: Float32Array }
   rigid?: RigidFrame
-  graph?: { edges: Uint32Array; version: number; nodeSize: number }
+  graph?: { edges: Uint32Array; version: number; nodeSize: number; linkOpacity: number; linkBrightness: number }
   field?: { dims: [number, number]; spacing: number; width: number; height: number; pixels: Uint8Array; window: [number, number, number, number] }
 }
 

@@ -8,7 +8,7 @@ interface Demo { id: string; title: string; blurb: string; scene: string; script
 const DEMOS: Demo[] = [
   { id: 'boids', title: 'Boids', blurb: 'Three rules (stay close, line up, keep apart) and a flock appears.', scene: '/boids/scene.json', script: '/boids/flock.js' },
   { id: 'ants', title: 'Ants', blurb: 'Foragers leave a trail that fades. The colony finds the food without a plan.', scene: '/ants/scene.json', script: '/ants/ants.js' },
-  { id: 'epidemic', title: 'Epidemic', blurb: 'A disease on a small-world network. Change the contact rate and watch it burn out or take hold.', scene: '/epidemic/scene.json', script: '/epidemic/contagion.js' },
+  { id: 'swimmers', title: 'Swimmers', blurb: 'Fish that swim by bending, in water made from buoyancy and drag. Nothing pushes them forward but the wave down their bodies.', scene: '/swimmers/scene.json', script: '/swimmers/swimmer.js' },
 ]
 
 const host = document.getElementById('demos')!
@@ -38,7 +38,8 @@ async function start(d: Demo, stage: HTMLElement): Promise<void> {
       fetch(site(d.script)).then((r) => r.text()),
     ])
     stage.replaceChildren()
-    await run(stage, script, scene, { height: stage.clientHeight || 260 })
+    // a scene's relative files (the ants' picture) start in its own folder, not in this page's
+    await run(stage, script, scene, { height: stage.clientHeight || 260, zoom: d.zoom, assetBase: site(d.scene.replace(/[^/]*$/, '').replace(/^\//, '')) })
   } catch (e) {
     stage.textContent = `could not start this demo: ${e instanceof Error ? e.message : String(e)}`
   }

@@ -239,6 +239,158 @@ static gradientField(stops: string[], t: Field | ArrayLike<number>):
 
 `gradient` for a whole field at once: a color for every cell, for `displayAll`.
 
+## PhysicsDefaults
+
+The physics settings a scene gets when it does not say. Every one can be set in the scene's `physics` block (or the terrain's, or a part's own).
+
+### `PhysicsDefaults.gravity`
+
+```ts
+gravity: number
+```
+
+Meters per second squared, pulling down.
+
+### `PhysicsDefaults.substeps`
+
+```ts
+substeps: number
+```
+
+Physics steps per tick.
+
+### `PhysicsDefaults.linearDamping`
+
+```ts
+linearDamping: number
+```
+
+How strongly every body is slowed just for moving (per second, as a fraction of its speed). 0 is none.
+
+### `PhysicsDefaults.angularDamping`
+
+```ts
+angularDamping: number
+```
+
+The same for spinning.
+
+### `PhysicsDefaults.friction`
+
+```ts
+friction: number
+```
+
+Friction of the ground. A part's own `friction` sets its side of the contact.
+
+### `PhysicsDefaults.restitution`
+
+```ts
+restitution: number
+```
+
+How bouncy contacts are, 0 (dead) to 1 (perfect).
+
+### `PhysicsDefaults.solverIterations`
+
+```ts
+solverIterations: number
+```
+
+Iterations of the contact and joint solver per step: more is stiffer and slower.
+
+### `PhysicsDefaults.sleep`
+
+```ts
+sleep: boolean
+```
+
+Whether a body that has stopped moving may be put to sleep. Off, a resting creature still responds the instant a script pushes it.
+
+### `PhysicsDefaults.spawnArea`
+
+```ts
+spawnArea: number
+```
+
+Where creatures start when a set gives no `spawn`: scattered over this fraction of the terrain's width, centered.
+
+### `PhysicsDefaults.collide`
+
+```ts
+collide: boolean
+```
+
+Creatures bump into each other (never into their own parts).
+
+### `PhysicsDefaults.minGyration`
+
+```ts
+minGyration: number
+```
+
+A floor on how hard each part is to spin: its rotational inertia is at least mass times this many metres squared. 0 is off.
+
+### `PhysicsDefaults.spawnLift`
+
+```ts
+spawnLift: number
+```
+
+Meters above the highest ground under a creature that a new body is dropped from, so no foot starts buried.
+
+## LimitDefaults
+
+The most the engine will make from a `count` before it says so. Raise them in the scene's `limits` when the machine can take it.
+
+### `LimitDefaults.creatures`
+
+```ts
+creatures: number
+```
+
+### `LimitDefaults.agents`
+
+```ts
+agents: number
+```
+
+### `LimitDefaults.nodes`
+
+```ts
+nodes: number
+```
+
+## Defaults
+
+The assumptions a scene makes when it says nothing, gathered in one place so none is hidden in the engine. The engine reads a
+setting from the scene first and falls back to these; to change a default for one scene, set it there. Nothing else in the engine
+has a built-in preference about physics, spawning, limits or where a rule runs.
+
+### `Defaults.physics`
+
+```ts
+static readonly physics: PhysicsDefaults =
+```
+
+Physics: see `PhysicsDefaults`. These are the values every creature scene has had so far.
+
+### `Defaults.limits`
+
+```ts
+static readonly limits: LimitDefaults =
+```
+
+Limits on how many of each thing a `count` may ask for.
+
+### `Defaults.compute`
+
+```ts
+static readonly compute: 'auto' | 'cpu' | 'gpu' = 'auto'
+```
+
+Where a formula lattice runs when its `compute` is not given: `auto` is the graphics card when the host has one and the processor otherwise.
+
 ## NeighborTable
 
 For each cell, the rows of its neighbors: `count[row]` of them, starting at `start[row]` in `nbr` (a network, where degrees

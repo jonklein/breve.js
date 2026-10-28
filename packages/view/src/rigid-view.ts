@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { PartShape, RigidFrame, TerrainMesh } from '@breve/core'
 
-const MAX_CREATURES = 256
+const START_CAPACITY = 64 // instances each part's mesh has room for at first; it grows to fit however many creatures a scene makes
 const DEFAULT_TERRAIN = '#4f7a46'
 
 type Model = NonNullable<RigidFrame['model']>
@@ -21,6 +21,8 @@ export class RigidView {
   private one = new THREE.Vector3(1, 1, 1)
   private tmpC = new THREE.Color()
   private framed = 0
+  private model: Model | null = null
+  private capacity = START_CAPACITY
   private shadows = false
   /** Where a part's relative `visual.gltf` path starts (a URL ending in `/`). */
   assetBase = ''
@@ -56,7 +58,8 @@ export class RigidView {
   update(r: RigidFrame, halfSize: number): void {
     if (r.model) this.build(r.model, halfSize)
     const per = r.partCount * 7
-    const n = Math.min(MAX_CREATURES, per ? r.poses.length / per : 0)
+    const n = per ? Math.floor(r.poses.length / per) : 0
+    if (n > this.capacity && this.model) { this.capacity = Math.max(n, this.capacity * 2); this.makeMeshes(this.model) }
     const p = r.poses
     this.meshes.forEach((mesh, part) => {
       mesh.count = n
@@ -72,10 +75,7 @@ export class RigidView {
   }
 
   private build(model: Model, halfSize: number): void {
-    for (const m of this.meshes) { this.group.remove(m); m.geometry.dispose(); (m.material as THREE.Material).dispose(); m.dispose() }
-    this.meshes = model.parts.map((part, k) => this.partMesh(part, k))
-    model.parts.forEach((part, k) => { if (part.visual) void this.useVisual(part.visual, this.meshes[k]) })
-    this.meshes.forEach((m) => this.group.add(m))
+    this.makeMeshes(model)
     this.buildTerrain(model.terrain)
     // frame the arena from a corner, a little above, but leave the camera alone when only a body was edited
     if (halfSize !== this.framed) {
@@ -83,6 +83,15 @@ export class RigidView {
       this.controls.target.set(0, 0, 0)
       this.camera.position.set(0.9, 0.6, 0.9).multiplyScalar(halfSize * 0.5)
     }
+  }
+
+  /** One instanced mesh per part, with room for `capacity` creatures. */
+  private makeMeshes(model: Model): void {
+    this.model = model
+    for (const m of this.meshes) { this.group.remove(m); m.geometry.dispose(); (m.material as THREE.Material).dispose(); m.dispose() }
+    this.meshes = model.parts.map((part, k) => this.partMesh(part, k))
+    model.parts.forEach((part, k) => { if (part.visual) void this.useVisual(part.visual, this.meshes[k]) })
+    this.meshes.forEach((m) => this.group.add(m))
   }
 
   /** Swap a part's primitive for its glTF model once it has loaded; until then (or if it never loads) the primitive shows. */
@@ -114,11 +123,11 @@ export class RigidView {
   }
 
   private partMesh(part: PartShape, k: number): THREE.InstancedMesh {
-    const mesh = new THREE.InstancedMesh(geometryFor(part), new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.08 }), MAX_CREATURES)
+    const mesh = new THREE.InstancedMesh(geometryFor(part), new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.08 }), this.capacity)
     mesh.frustumCulled = false
     mesh.castShadow = this.shadows
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CREATURES * 3), 3)
-    for (let i = 0; i < MAX_CREATURES; i++) {
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.capacity * 3), 3)
+    for (let i = 0; i < this.capacity; i++) {
       // parts without a color take a hue from their creature, so you can tell individuals apart
       if (part.color) this.tmpC.set(part.color)
       else this.tmpC.setHSL((i * 0.618034) % 1, 0.55, k === 0 ? 0.55 : 0.4)

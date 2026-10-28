@@ -124,6 +124,7 @@
       "name": "cell",
       "controller": "gray-scott.js",
       "lattice": {
+        "compute": "auto",
         "size": [
           1024,
           1024,

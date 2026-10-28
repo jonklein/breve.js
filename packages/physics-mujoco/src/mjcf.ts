@@ -1,4 +1,4 @@
-import { flooredInertia, quatFromEuler, type BodyDef, type HeightfieldDef, type JointDef, type PartDef } from '@breve/core'
+import { flooredInertia, quatFromEuler, resolvePhysics, type PhysicsSettings, type BodyDef, type HeightfieldDef, type JointDef, type PartDef } from '@breve/core'
 
 /**
  * Our body format as MuJoCo's XML (MJCF). Pure text in, text out: nothing here touches MuJoCo, so it is testable without the wasm.
@@ -15,12 +15,14 @@ export interface MjcfOptions {
   /** The standing-pose body is turned by `yaw` about y and its origin placed at (x, y, z). */
   at: { x: number; y: number; z: number; yaw: number }
   terrain: HeightfieldDef | null
+  /** The scene's other physics settings (damping, ground friction, solver iterations); left out, the stdlib's defaults. MuJoCo has no restitution or sleeping of this kind, so those are not used. */
+  settings?: Partial<PhysicsSettings>
 }
 
 /** Defaults that stand in for Rapier's own body damping and a motor's rotor: tuned in one place. */
 export const TUNING = {
-  /** Damping on the free root joint (Rapier bodies carry linear damping 0.05 and angular 0.3). */
-  rootDamping: 0.1,
+  /** The free root joint has one damping number for moving and turning (force per speed, not a fraction per second like Rapier's `linearDamping`): this many times `physics.linearDamping`. 2 gives 0.1 for the default 0.05. */
+  rootDampingPerLinear: 2,
   /** Passive damping on every hinge, torque per radian per second. */
   hingeDamping: 0.1,
   /** Rotor inertia added to every hinge (kg m^2): it steadies the solver for light limbs. */
@@ -77,7 +79,7 @@ function geomXml(p: PartDef, minGyration: number, meshes: string[]): string {
 }
 
 /** Heightfield as an MJCF asset and the geom that stands it in our y-up world. */
-function terrainXml(t: HeightfieldDef): { asset: string; geom: string } {
+function terrainXml(t: HeightfieldDef, friction: number): { asset: string; geom: string } {
   const m = t.n + 1
   let lo = Infinity, hi = -Infinity
   for (const h of t.heights) { lo = Math.min(lo, h); hi = Math.max(hi, h) }
@@ -89,12 +91,13 @@ function terrainXml(t: HeightfieldDef): { asset: string; geom: string } {
   for (let r = 0; r < m; r++) for (let c = 0; c < m; c++) elevation[r * m + c] = +((t.heights[c * m + r] - lo) / span).toFixed(6)
   return {
     asset: `<hfield name="ground" nrow="${m}" ncol="${m}" size="${t.size / 2} ${t.size / 2} ${span} 1" elevation="${elevation.join(' ')}"/>`,
-    geom: `<geom name="ground" type="hfield" hfield="ground" pos="0 ${+lo.toFixed(7)} 0" quat="${f(fromXyzw([-Math.SQRT1_2, 0, 0, Math.SQRT1_2]))}" contype="1" conaffinity="2" friction="1 0.005 0.0001" solref="${TUNING.contactSolref.join(' ')}"/>`,
+    geom: `<geom name="ground" type="hfield" hfield="ground" pos="0 ${+lo.toFixed(7)} 0" quat="${f(fromXyzw([-Math.SQRT1_2, 0, 0, Math.SQRT1_2]))}" contype="1" conaffinity="2" friction="${friction} 0.005 0.0001" solref="${TUNING.contactSolref.join(' ')}"/>`,
   }
 }
 
 /** Build the MJCF for one creature (and the terrain it stands on). Each creature is its own MuJoCo world, so adding and removing creatures never rebuilds the others. */
 export function buildMjcf(body: BodyDef, opts: MjcfOptions): Mjcf {
+  const cfg = resolvePhysics({ gravity: opts.gravity, minGyration: opts.minGyration, ...opts.settings })
   const parts = body.parts
   const joints = body.joints ?? []
   const byName = new Map(parts.map((p, i) => [p.name, i]))
@@ -122,7 +125,7 @@ export function buildMjcf(body: BodyDef, opts: MjcfOptions): Mjcf {
       const [px, py, pz] = p.position
       pos = [opts.at.x + px * cosY + pz * sinY, opts.at.y + py, opts.at.z - px * sinY + pz * cosY]
       quat = [c, 0, s, 0]
-      joint = `<joint name="root" type="free" damping="${TUNING.rootDamping}"/>`
+      joint = `<joint name="root" type="free" damping="${+(cfg.linearDamping * TUNING.rootDampingPerLinear).toFixed(6)}"/>`
     } else {
       const parent = parts[byName.get(inbound.parent)!]
       pos = p.position.map((v, k) => v - parent.position[k])
@@ -138,14 +141,14 @@ export function buildMjcf(body: BodyDef, opts: MjcfOptions): Mjcf {
     return `<body name="${partName[i]}" pos="${f(pos)}" quat="${f(quat)}">${joint}${geomXml(p, opts.minGyration, meshes)}${kids.get(i)!.map((j) => walk(byName.get(j.child)!, j)).join('')}</body>`
   }
 
-  const ground = opts.terrain ? terrainXml(opts.terrain) : null
+  const ground = opts.terrain ? terrainXml(opts.terrain, cfg.friction) : null
   const actuator = joints
     .map((j, i) => (actuators[i] >= 0 ? `<position name="a${i}" joint="${jointName[i]}" kp="100" kv="8" forcelimited="true" forcerange="${-TUNING.noLimit} ${TUNING.noLimit}"/>` : ''))
     .join('')
   const tree = walk(0, null) // building the tree collects the mesh assets, so it goes before the assets are written
   const assets = (ground ? ground.asset : '') + meshes.join('')
   const xml = `<mujoco model="creature"><compiler angle="radian"/>`
-    + `<option timestep="${1 / 240}" integrator="implicitfast" gravity="0 ${-opts.gravity} 0"/>`
+    + `<option timestep="${1 / 240}" integrator="implicitfast" iterations="${cfg.solverIterations}" gravity="0 ${-opts.gravity} 0"/>`
     + `${assets ? `<asset>${assets}</asset>` : ''}`
     + `<worldbody>${ground?.geom ?? ''}${tree}</worldbody>`
     + `${actuator ? `<actuator>${actuator}</actuator>` : ''}</mujoco>`

@@ -6,8 +6,10 @@ import { resolve, type StateField } from './scene'
 import { spawnPosition } from './spawn'
 import { Table, type ColumnType, type TableSnapshot } from './store'
 import { Terrain } from './terrain'
-import { Nums, Vec3, Vecs, toVec } from '@breve/stdlib'
+import { capped } from './limits'
+import { Defaults, Nums, Vec3, Vecs, toVec } from '@breve/stdlib'
 import type { Articulation, PhysicsEngine, PhysicsWorld } from './physics/types'
+import { resolvePhysics } from './physics/settings'
 import type { RigidFrame } from './rigid-frame'
 import { type FrameData, type Host, type MetricInput, type World } from './world'
 
@@ -20,8 +22,6 @@ const SCHEMA = {
 type Cols = Record<keyof typeof SCHEMA, Float64Array> & Record<string, Float64Array>
 
 const DT = 1 / 60
-const MAX_CREATURES = 200
-const DEFAULT_PHYSICS = { gravity: 9.81, substeps: 4 }
 const TOUCH_MARGIN = 0.04
 
 /** One part of a creature as a script sees it, with a `parts` sensor: where it is, how it is turned, how fast it moves, and what it is made of. */
@@ -184,7 +184,7 @@ export class RigidWorld implements World {
   private build(): void {
     this.physics?.dispose()
     const { scene } = this.host
-    this.physics = this.engine.createWorld({ gravity: scene.physics?.gravity ?? DEFAULT_PHYSICS.gravity, collide: scene.physics?.collide ?? true, minGyration: scene.physics?.minGyration })
+    this.physics = this.engine.createWorld(resolvePhysics(scene.physics))
     this.terrain = new Terrain(scene.terrain, scene.seed)
     this.physics.setTerrain({ size: this.terrain.size, n: this.terrain.n, heights: this.terrain.heights })
     this.key = this.structureKey()
@@ -206,7 +206,7 @@ export class RigidWorld implements World {
     if (this.host.def.body) this.lastBody = this.body
     if (!fresh && this.structureKey() !== this.key) return this.build()
     const def = this.host.def
-    const target = Math.max(0, Math.min(MAX_CREATURES, Math.round(resolve(def.count, this.host.params, 0))))
+    const target = capped(this.host, 'creatures', Math.max(0, Math.round(resolve(def.count, this.host.params, 0))), Defaults.limits.creatures)
     while (this.table.size > target) {
       this.table.despawn(this.table.idAt(this.table.size - 1))
       this.physics.removeArticulation(this.arts.pop()!)
@@ -238,13 +238,17 @@ export class RigidWorld implements World {
 
   private spawnPoint(): { x: number; y: number; z: number; yaw: number } {
     const { rng } = this.host
-    const half = this.terrain.size / 2
-    const x = rng.range(-1, 1) * half * 0.6
-    const z = rng.range(-1, 1) * half * 0.6
-    const yaw = rng.range(0, Math.PI * 2)
-    const set = spawnPosition(this.host.def.spawn, rng)
-    if (set) return { x: set[0], y: this.groundAt(set[0], set[2]) + 0.05, z: set[2], yaw }
-    return { x, y: this.groundAt(x, z) + 0.05, z, yaw }
+    const sp = this.host.def.spawn
+    const half = (this.terrain.size / 2) * Defaults.physics.spawnArea
+    const x = rng.range(-1, 1) * half
+    const z = rng.range(-1, 1) * half
+    const heading = rng.range(0, Math.PI * 2) // drawn either way, so naming a yaw does not change what the rest of the run draws
+    const yaw = sp?.yaw ?? heading
+    const set = spawnPosition(sp, rng)
+    const lift = sp?.lift ?? Defaults.physics.spawnLift
+    // the y of a spawn point is height above the ground here (a creature stands on the terrain, so it cannot start under it)
+    if (set) return { x: set[0], y: this.groundAt(set[0], set[2]) + lift + Math.max(0, set[1]), z: set[2], yaw }
+    return { x, y: this.groundAt(x, z) + lift, z, yaw }
   }
 
   private spawn(): void {
@@ -323,7 +327,7 @@ export class RigidWorld implements World {
     }
 
     // physics
-    const sub = Math.max(1, Math.round(scene.physics?.substeps ?? DEFAULT_PHYSICS.substeps))
+    const sub = resolvePhysics(scene.physics).substeps
     for (let s = 0; s < sub; s++) this.physics.step(DT / sub)
 
     // record
@@ -372,7 +376,7 @@ export class RigidWorld implements World {
     for (const [i, at] of [...this.places].sort((a, b) => a[0] - b[0])) {
       if (i >= this.table.size) continue
       this.physics.removeArticulation(this.arts[i])
-      this.arts[i] = this.physics.addArticulation(this.body, { x: at.x, y: this.groundAt(at.x, at.z) + 0.05, z: at.z, yaw: at.yaw })
+      this.arts[i] = this.physics.addArticulation(this.body, { x: at.x, y: this.groundAt(at.x, at.z) + (this.host.def.spawn?.lift ?? Defaults.physics.spawnLift), z: at.z, yaw: at.yaw })
       this.arts[i].readPoses(this.poses, i * this.body.parts.length * 7)
       this.cols.px[i] = at.x; this.cols.pz[i] = at.z
       this.appliedReady = false // new joints start from where they are

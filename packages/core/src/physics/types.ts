@@ -5,12 +5,14 @@ import type { BodyDef } from '../body'
  * a heightfield) so an engine can be swapped (Rapier today, MuJoCo WASM possibly later) without
  * touching worlds or scripts. Everything here is headless: no DOM, no renderer.
  */
+import type { PhysicsSettings } from './settings'
+
 export interface PhysicsEngine {
   readonly name: string
   /** What this engine cannot do, so a scene that asks for it can be told plainly. Anything not listed works. */
   readonly limits?: { /** Creatures never touch each other, whatever the scene's `collide` says. */ creatureCollisions?: false }
-  /** `collide`: creatures bump into each other (never into their own parts). */
-  createWorld(opts: { gravity: number; collide: boolean; minGyration?: number }): PhysicsWorld
+  /** Settings left out take the stdlib's `Defaults.physics` (see `resolvePhysics`). `collide`: creatures bump into each other (never into their own parts). */
+  createWorld(opts: Partial<PhysicsSettings>): PhysicsWorld
 }
 
 /** A square heightfield centered on the origin: `heights[ix * (n + 1) + iz]`, `n` cells per side. */

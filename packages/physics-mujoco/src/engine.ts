@@ -1,5 +1,5 @@
 import load_mujoco from '@mujoco/mujoco'
-import type { Articulation, BodyDef, HeightfieldDef, PhysicsEngine, PhysicsWorld } from '@breve/core'
+import { resolvePhysics, type Articulation, type BodyDef, type HeightfieldDef, type PhysicsEngine, type PhysicsSettings, type PhysicsWorld } from '@breve/core'
 import { buildMjcf, TUNING, type Mjcf } from './mjcf'
 
 // MuJoCo behind the engine-neutral adapter in @breve/core. This file and mjcf.ts are the only places that know MuJoCo exists.
@@ -23,7 +23,7 @@ function makeEngine(mj: Mj): PhysicsEngine {
   return {
     name: 'mujoco-wasm',
     limits: { creatureCollisions: false },
-    createWorld: ({ gravity, minGyration }) => new MujocoWorld(mj, gravity, minGyration ?? 0),
+    createWorld: (opts) => new MujocoWorld(mj, resolvePhysics(opts)),
   }
 }
 
@@ -35,7 +35,7 @@ class MujocoWorld implements PhysicsWorld {
   private arts = new Set<MujocoArticulation>()
   private dt = 0
 
-  constructor(private mj: Mj, private gravity: number, private minGyration: number) {}
+  constructor(private mj: Mj, private cfg: PhysicsSettings) {}
 
   setTerrain(t: HeightfieldDef | null): void {
     if (this.arts.size) throw new Error('mujoco: set the terrain before adding creatures')
@@ -43,7 +43,7 @@ class MujocoWorld implements PhysicsWorld {
   }
 
   addArticulation(body: BodyDef, at: { x: number; y: number; z: number; yaw: number }): Articulation {
-    const built = buildMjcf(body, { gravity: this.gravity, minGyration: this.minGyration, at, terrain: this.terrain })
+    const built = buildMjcf(body, { gravity: this.cfg.gravity, minGyration: this.cfg.minGyration, settings: this.cfg, at, terrain: this.terrain })
     let model: Mj
     try {
       model = this.mj.MjModel.from_xml_string(built.xml)

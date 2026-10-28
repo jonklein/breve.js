@@ -4,10 +4,11 @@ import { looksOf, looksOfAll } from './display'
 import { initResult } from './init-shape'
 import { writeState } from './state-columns'
 import type { Controller } from './world'
+import { capped } from './limits'
 import { Agents, Field, type NeighborTable } from '@breve/stdlib'
 import { resolve, type StateField } from './scene'
 import { Table, type ColumnType, type TableSnapshot } from './store'
-import { Nums, toVec } from '@breve/stdlib'
+import { Defaults, Nums, toVec } from '@breve/stdlib'
 import { spawnPosition } from './spawn'
 import type { Ctx, FrameData, Host, MetricInput, World } from './world'
 
@@ -86,7 +87,7 @@ export class AgentWorld implements World {
     const def = this.host.def
     if (def.count === undefined) return
     const { params } = this.host
-    const target = Math.max(0, Math.min(5000, Math.round(resolve(def.count, params, 0))))
+    const target = capped(this.host, 'agents', Math.max(0, Math.round(resolve(def.count, params, 0))), Defaults.limits.agents)
     const c = this.cols
     while (this.table.size > target) this.table.despawn(this.table.idAt(this.table.size - 1))
     const from = this.table.size

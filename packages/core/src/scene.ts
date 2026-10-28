@@ -49,10 +49,11 @@ export interface LatticeDef {
   edges?: 'dead' | 'wrap'
   neighborhood?: 'moore' | 'von-neumann'
   /**
-   * Where a rule written as formulas (`actFormula`) runs: `auto` (the default) keeps the cells on the graphics card when there is one
-   * (a flat grid, and a host that provides one) and uses the processor otherwise; `cpu` always uses the processor.
+   * Where a rule written as formulas (`actFormula`) runs: `cpu` always uses the processor; `gpu` keeps the cells on the graphics card and
+   * refuses to start (saying why) if the grid is not flat, the script lacks `initFormula` or `actFormula`, or the host has no card;
+   * `auto` uses the card when all that holds and the processor otherwise. Left out, the stdlib's `Defaults.compute` (`auto`).
    */
-  compute?: 'auto' | 'cpu'
+  compute?: 'auto' | 'cpu' | 'gpu'
   /** Formula rules (`actFormula`) only: how many times to run the rule in one tick (a number or a parameter, 1 to 256; default 1). Slow processes, like diffusion, need many small steps per frame. */
   substeps?: NumOrParam
   /** For a flat grid (size 1 on one axis): how thick the drawn cells are along that axis, as a fraction of their width. Default 1. */
@@ -91,6 +92,10 @@ export interface SpawnDef {
   spread?: number
   box?: [[number, number, number], [number, number, number]]
   velocity?: [number, number, number]
+  /** Creatures: meters above the highest ground under the spot that the body is dropped from (default 0.05, `Defaults.physics.spawnLift`). The y of `at` and `box` adds to it. */
+  lift?: number
+  /** Creatures: the heading they start with, in radians (default random). */
+  yaw?: number
 }
 
 export interface EntityDef {
@@ -255,8 +260,13 @@ export interface Scene {
   world?: WorldDef
   /** Bumpy ground for creatures to walk on (needs an entity with a `body`). Shape changes apply on reset or respawn the creatures. */
   terrain?: TerrainDef
+  /** The most each kind of thing a `count` may ask for (defaults: the stdlib's `Defaults.limits`). Asking for more is reported as a problem and capped; raise a limit here when the machine can take it. */
+  limits?: { creatures?: number; agents?: number; nodes?: number }
   /** Physics settings for scenes with a `body`. */
   physics?: { /** Which physics engine runs the creatures: `rapier` (the default, deterministic everywhere) or another registered by the host, such as `mujoco`. */ engine?: string; gravity?: number; substeps?: number; /** A floor on how hard each part is to spin: its rotational inertia is at least mass times this many metres squared. Thin, light parts joined to heavy ones can otherwise be whipped around by the joint solver and throw the whole creature. Default 0 (off); 0.3 steadies random blocky bodies. */ minGyration?: number; /** Creatures bump into each other (default true). */ collide?: boolean
+    /** How strongly every body is slowed just for moving, per second (default 0.05, `Defaults.physics.linearDamping`). 0 is none; use the stdlib's `Fluid` for a medium that matters. */ linearDamping?: number; /** The same for spinning (default 0.3). */ angularDamping?: number
+    /** Friction of the ground (default 1). A part's own `friction` is its side of the contact. */ friction?: number; /** Bounciness of contacts, 0 to 1 (default 0). */ restitution?: number
+    /** Solver iterations per step: more is stiffer and slower (default 8). */ solverIterations?: number; /** Let a body that has stopped be put to sleep (default false). */ sleep?: boolean
   }
   params: Record<string, number | ParamDef>
   /**
@@ -365,6 +375,7 @@ export const sceneSchema = {
         shading: { enum: ['smooth', 'flat'] },
       },
     },
+    limits: { type: 'object', additionalProperties: false, properties: { creatures: { type: 'integer', minimum: 1 }, agents: { type: 'integer', minimum: 1 }, nodes: { type: 'integer', minimum: 1 } } },
     physics: {
       type: 'object',
       additionalProperties: false,
@@ -374,6 +385,12 @@ export const sceneSchema = {
         substeps: { type: 'integer', minimum: 1, maximum: 16 },
         minGyration: { type: 'number', minimum: 0, maximum: 2 },
         collide: { type: 'boolean' },
+        linearDamping: { type: 'number', minimum: 0 },
+        angularDamping: { type: 'number', minimum: 0 },
+        friction: { type: 'number', minimum: 0 },
+        restitution: { type: 'number', minimum: 0, maximum: 1 },
+        solverIterations: { type: 'integer', minimum: 1, maximum: 64 },
+        sleep: { type: 'boolean' },
       },
     },
     world: {
@@ -515,6 +532,8 @@ export const sceneSchema = {
               spread: { type: 'number', minimum: 0 },
               box: { type: 'array', items: vec3, minItems: 2, maxItems: 2 },
               velocity: vec3,
+              lift: { type: 'number', minimum: 0 },
+              yaw: { type: 'number' },
             },
           },
           think: { type: 'object', additionalProperties: false, properties: { every: { type: 'integer', minimum: 1 } } },
@@ -563,7 +582,7 @@ export const sceneSchema = {
               spacing: { type: 'number', exclusiveMinimum: 0 },
               edges: { enum: ['dead', 'wrap'] },
               neighborhood: { enum: ['moore', 'von-neumann'] },
-              compute: { enum: ['auto', 'cpu'] },
+              compute: { enum: ['auto', 'cpu', 'gpu'] },
               substeps: numOrParam,
               thickness: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
               fade: { type: 'number', minimum: 0, maximum: 1 },

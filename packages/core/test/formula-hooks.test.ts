@@ -74,13 +74,13 @@ test('a grid too big for the processor path is refused with a reason, and the gi
   await assert.rejects(Sim.create(scene, script), /graphics card with WebGPU/)
 })
 
-test('lattice compute accepts auto and cpu and rejects anything else', async () => {
+test('lattice compute accepts auto, cpu and gpu and rejects anything else', async () => {
   const scene = sceneOf('life2d-formula')
-  for (const compute of ['auto', 'cpu']) {
+  for (const compute of ['auto', 'cpu', 'gpu']) {
     const s = structuredClone(scene); s.entities[0].lattice!.compute = compute as 'auto'
     assert.ok(parseScene(JSON.stringify(s)).ok, compute)
   }
-  const bad = structuredClone(scene); (bad.entities[0].lattice as { compute?: string }).compute = 'gpu'
+  const bad = structuredClone(scene); (bad.entities[0].lattice as { compute?: string }).compute = 'tpu'
   const r = parseScene(JSON.stringify(bad))
   assert.equal(r.ok, false)
   assert.match(r.ok ? '' : r.errors.join('\n'), /lattice\.compute/)

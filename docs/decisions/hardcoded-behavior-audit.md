@@ -11,6 +11,17 @@ surprises a person. Each entry says where it is, what happens now, and the setti
 - **Camera controls switched by implementation detail** (`workbench/src/viewport.ts`). Now `world.camera.mode: "orbit" | "plane"`,
   default `orbit`; it behaves the same with or without WebGPU. The three GPU-lattice examples say `"plane"`.
 
+## Decision: assumptions live in the stdlib, not the engine
+Where a default is needed, it is a named value in `@breve/stdlib` (`Defaults`, documented in `docs/stdlib.md`), the engine reads the
+scene first and the stdlib second, and nothing else in core holds a preference. Defaults keep today's numbers, so no existing scene
+changes behavior; the point is that they are visible, in one place, and overridable per scene.
+
+Done: A1 (`lattice.compute: auto | cpu | gpu`, `gpu` refuses loudly), A2 and A3 (`physics.linearDamping`, `angularDamping`, `friction`,
+`restitution`, `solverIterations`, `sleep`, plus `gravity`, `substeps`, `collide`, `minGyration` now resolved by `resolvePhysics`; the
+MuJoCo adapter takes them too, its own tuning table is now a function of them), A4 (`spawn.lift`, `spawn.yaw`, the y of `at`/`box`,
+and the 0.6 scatter fraction is `Defaults.physics.spawnArea`), A5 (`limits`, loud when exceeded, and the views grow to any count).
+Still open: A6 (`clock.dt`) and A7, and sections B to D.
+
 ## A. Silent magic that changes results (fix first)
 1. **GPU or CPU is chosen by the environment** (`core/src/lattice-world.ts`, `gpu-lattice-world.ts`). A flat formula lattice runs on
    the card when WebGPU exists and on the processor otherwise; the only override is `"compute": "cpu"`. Results can differ in the last

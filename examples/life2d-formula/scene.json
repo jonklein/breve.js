@@ -9,7 +9,7 @@
   "entities": [
     {
       "name": "cell",
-      "lattice": { "size": [96, 96, 1], "spacing": 1, "edges": "wrap" },
+      "lattice": { "size": [96, 96, 1], "spacing": 1, "edges": "wrap", "compute": "auto" },
       "controller": "life.js"
     }
   ],

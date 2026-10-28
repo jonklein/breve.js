@@ -10,7 +10,7 @@
 import { programOf } from './formula-run'
 import { resolve } from './scene'
 import type { FormulaLattice, Grid, Program } from '@breve/stdlib'
-import { trace, traceMetrics } from '@breve/stdlib'
+import { Defaults, trace, traceMetrics } from '@breve/stdlib'
 import type { Table } from './store'
 import type { Formula } from '@breve/stdlib'
 import type { FrameData, Host, MetricInput, World } from './world'
@@ -61,7 +61,7 @@ export class GpuLatticeWorld implements World {
 
   /** The device-less part of what a world needs to know: is a controller one that can run here? */
   static eligible(def: { lattice?: { size: [number, number, number]; compute?: string } }, ctrl: { actFormula?: unknown; initFormula?: unknown } | undefined): boolean {
-    return !!def.lattice && def.lattice.compute !== 'cpu' && def.lattice.size[2] === 1 && !!ctrl?.actFormula && !!ctrl?.initFormula
+    return !!def.lattice && (def.lattice.compute ?? Defaults.compute) !== 'cpu' && def.lattice.size[2] === 1 && !!ctrl?.actFormula && !!ctrl?.initFormula
   }
 
   private run(tick: number) {

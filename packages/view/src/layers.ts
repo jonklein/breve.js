@@ -5,7 +5,7 @@ import { applyMaterial, shapeGeometry, type Fallback } from './style'
 import { groundSquare, loadSprite, spriteMaterial } from './sprite'
 import { Trails } from './trails'
 
-const MAX_INSTANCES = 5000
+const START_INSTANCES = 1024 // room for this many agents at first; the mesh grows to fit however many a scene makes
 const MAX_CUBES = 200000
 const DEFAULT_CELL = '#4f86f7'
 const DEFAULT_NODE = '#4dff88'
@@ -39,14 +39,36 @@ export class AgentLayer {
     const geo = new THREE.ConeGeometry(0.32, 1.3, 20, 1) // enough sides that the cone reads as round
     geo.rotateX(Math.PI / 2)
     this.lit = alphaMaterial()
-    this.mesh = new THREE.InstancedMesh(geo, this.lit, MAX_INSTANCES)
+    this.mesh = new THREE.InstancedMesh(geo, this.lit, START_INSTANCES)
     this.mesh.castShadow = shadowsOn
-    this.alpha = withAlpha(this.mesh, MAX_INSTANCES)
-    this.dir = new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES * 3), 3)
-    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES * 3), 3)
+    this.alpha = withAlpha(this.mesh, START_INSTANCES)
+    this.dir = new THREE.InstancedBufferAttribute(new Float32Array(START_INSTANCES * 3), 3)
+    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(START_INSTANCES * 3), 3)
     this.mesh.frustumCulled = false
     this.mesh.count = 0
     scene.add(this.mesh)
+  }
+
+  private capacity = START_INSTANCES
+
+  /** Make room for `n` agents: a bigger mesh with the same shape and material, in place of the old one. */
+  private reserve(n: number): void {
+    if (n <= this.capacity) return
+    const cap = Math.max(n, this.capacity * 2)
+    const old = this.mesh
+    const mesh = new THREE.InstancedMesh(old.geometry, old.material, cap)
+    mesh.castShadow = old.castShadow
+    mesh.frustumCulled = false
+    mesh.visible = old.visible
+    this.alpha = withAlpha(mesh, cap)
+    this.dir = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3)
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3)
+    this.scene.remove(old)
+    old.dispose() // frees its instance buffers; the shape and material live on in the new mesh
+    this.scene.add(mesh)
+    this.mesh = mesh
+    this.capacity = cap
+    this.styleKey = '' // sprites read the new direction buffer: set the shape up again
   }
 
   get object(): THREE.InstancedMesh { return this.mesh }
@@ -93,11 +115,12 @@ export class AgentLayer {
   }
 
   update(f: WorldFrame, fixed: THREE.Color | null): void {
+    this.reserve(f.count)
     this.mesh.visible = true
     this.restyle(f.style)
     const own = f.color ? color(f.color) : fixed
     const sc = f.scale ?? 1
-    const n = Math.min(f.count, MAX_INSTANCES)
+    const n = f.count
     this.mesh.count = n
     const colors = this.mesh.instanceColor!
     const { pos, vel } = f

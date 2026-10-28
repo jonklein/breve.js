@@ -1,6 +1,7 @@
 import { looksOfAll, looksOf, type Looks } from './display'
 import { initResult } from './init-shape'
-import { Field, Nums, type NeighborTable } from '@breve/stdlib'
+import { Defaults, Field, Nums, type NeighborTable } from '@breve/stdlib'
+import { capped } from './limits'
 import { adjacency, makeEdges, type Adjacency, type Edges } from './graph'
 import { layoutNodes } from './layout'
 import { resolve, type Params, type StateField } from './scene'
@@ -45,7 +46,7 @@ export class NetworkWorld implements World {
   constructor(private host: Host, from?: NetworkWorld) {
     const def = host.def
     const net = def.network!
-    this.n = Math.max(0, Math.min(100000, Math.round(resolve(def.count, host.params, 0))))
+    this.n = capped(host, 'nodes', Math.max(0, Math.round(resolve(def.count, host.params, 0))), Defaults.limits.nodes)
     this.fields = host.fields
     for (const f of this.fields) {
       if (RESERVED.has(f.name)) throw new Error(`"${f.name}" cannot be a state field of a network (it is a reserved name)`)

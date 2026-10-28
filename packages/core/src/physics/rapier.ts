@@ -3,6 +3,7 @@ import { quatFromEuler } from '../rot'
 import RAPIER from '@dimforge/rapier3d-deterministic-compat'
 import type { BodyDef, JointDef, PartDef } from '../body'
 import type { Articulation, HeightfieldDef, PhysicsEngine, PhysicsWorld } from './types'
+import { resolvePhysics, type PhysicsSettings } from './settings'
 
 // The deterministic build of Rapier: same inputs give bit-identical results on every machine and browser.
 // The wasm is embedded in the JS file (the "compat" build), so Vite and node need no wasm setup.
@@ -24,7 +25,7 @@ const WITH_CREATURES = (CREATURE << 16) | TERRAIN | CREATURE
 
 const engine: PhysicsEngine = {
   name: 'rapier3d-deterministic',
-  createWorld: ({ gravity, collide, minGyration }) => new RapierWorld(gravity, collide, minGyration ?? 0),
+  createWorld: (opts) => new RapierWorld(resolvePhysics(opts)),
 }
 
 class RapierWorld implements PhysicsWorld {
@@ -38,9 +39,9 @@ class RapierWorld implements PhysicsWorld {
   private events = new RAPIER.EventQueue(false)
   private hooks: RAPIER.PhysicsHooks
 
-  constructor(gravity: number, private collide: boolean, private minGyration: number) {
-    this.world = new RAPIER.World({ x: 0, y: -gravity, z: 0 })
-    this.world.integrationParameters.numSolverIterations = 8
+  constructor(private cfg: PhysicsSettings) {
+    this.world = new RAPIER.World({ x: 0, y: -cfg.gravity, z: 0 })
+    this.world.integrationParameters.numSolverIterations = cfg.solverIterations
     const owner = this.owner
     this.hooks = {
       filterContactPair: (_c1, _c2, b1, b2) => {
@@ -55,7 +56,7 @@ class RapierWorld implements PhysicsWorld {
     if (this.terrain) this.world.removeCollider(this.terrain, false)
     this.terrain = null
     if (!t) return
-    const desc = RAPIER.ColliderDesc.heightfield(t.n, t.n, t.heights, { x: t.size, y: 1, z: t.size }).setFriction(1)
+    const desc = RAPIER.ColliderDesc.heightfield(t.n, t.n, t.heights, { x: t.size, y: 1, z: t.size }).setFriction(this.cfg.friction).setRestitution(this.cfg.restitution)
     this.terrain = this.world.createCollider(desc)
   }
 
@@ -70,9 +71,9 @@ class RapierWorld implements PhysicsWorld {
       const x = at.x + px * cosY + pz * sinY
       const z = at.z - px * sinY + pz * cosY
       const rb = this.world.createRigidBody(
-        RAPIER.RigidBodyDesc.dynamic().setTranslation(x, at.y + py, z).setRotation(rot).setCanSleep(false).setLinearDamping(0.05).setAngularDamping(0.3),
+        RAPIER.RigidBodyDesc.dynamic().setTranslation(x, at.y + py, z).setRotation(rot).setCanSleep(this.cfg.sleep).setLinearDamping(this.cfg.linearDamping).setAngularDamping(this.cfg.angularDamping),
       )
-      this.world.createCollider(colliderFor(p, this.collide ? WITH_CREATURES : WITH_TERRAIN, this.minGyration), rb)
+      this.world.createCollider(colliderFor(p, this.cfg.collide ? WITH_CREATURES : WITH_TERRAIN, this.cfg.minGyration, this.cfg.restitution), rb)
       this.owner.set(rb.handle, id)
       this.bodies.push(rb)
       return rb
@@ -255,7 +256,7 @@ class RapierArticulation implements Articulation {
   }
 }
 
-function colliderFor(p: PartDef, groups: number, minGyration: number): RAPIER.ColliderDesc {
+function colliderFor(p: PartDef, groups: number, minGyration: number, restitution: number): RAPIER.ColliderDesc {
   const s = p.size
   let d: RAPIER.ColliderDesc
   switch (p.shape) {
@@ -276,7 +277,7 @@ function colliderFor(p: PartDef, groups: number, minGyration: number): RAPIER.Co
     const [x, y, z] = flooredInertia(p, minGyration)
     d.setMassProperties(p.mass, { x: 0, y: 0, z: 0 }, { x, y, z }, { x: 0, y: 0, z: 0, w: 1 })
   } else d.setMass(p.mass)
-  return d.setFriction(p.friction ?? 1).setRestitution(0).setCollisionGroups(groups).setActiveHooks(RAPIER.ActiveHooks.FILTER_CONTACT_PAIRS)
+  return d.setFriction(p.friction ?? 1).setRestitution(restitution).setCollisionGroups(groups).setActiveHooks(RAPIER.ActiveHooks.FILTER_CONTACT_PAIRS)
 }
 
 function unit(v: [number, number, number]): [number, number, number] {

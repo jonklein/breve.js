@@ -72,16 +72,16 @@ test('a sphere and a rounded nose slip through the water far better than a flat 
 })
 
 test('added mass: a plate pushed face-on carries a lot of water, a plate pushed edge-on almost none, and the force opposes the acceleration', () => {
-  // a 1 x 1 x 0.1 m plate of 100 kg, accelerating from rest to 0.5 m/s in one tick, with nothing remembered but that it was still
-  const still = [1, 0, 0, 0, 0, 0, 0]
-  const part = (v: { x: number; y: number; z: number }) => box({ size: [1, 1, 0.1], mass: 100, velocity: v })
+  // a 1 x 1 x 0.1 m plate of 100 kg, accelerating from rest to 0.5 m/s in one tick, that was still a tick ago
+  const still = { velocity: { x: 0, y: 0, z: 0 }, added: { x: 0, y: 0, z: 0 } }
+  const part = (v: { x: number; y: number; z: number }, previous: FluidPart['previous']) => box({ size: [1, 1, 0.1], mass: 100, velocity: v, previous })
   const calm = { level: 0, gravity: 0, drag: 0, skinFriction: 0 }
-  const face = Fluid.forces({ plate: part({ x: 0, y: 0, z: 0.5 }) }, calm, still).plate
+  const face = Fluid.forces({ plate: part({ x: 0, y: 0, z: 0.5 }, still) }, calm).plate
   const heavy = ((Math.PI / 4) * 1000 * 1 * 1) / (1 + (2 * 0.1) / 1) // the textbook plate, a little reduced for its thickness
   const other = (100 * 0.5) * 60
   assert.ok(Math.abs(face.added[2] + (heavy / (100 + heavy)) * other) < 1e-6, `${face.added}`)
-  const edge = Fluid.forces({ plate: part({ x: 0.5, y: 0, z: 0 }) }, calm, still).plate
+  const edge = Fluid.forces({ plate: part({ x: 0.5, y: 0, z: 0 }, still) }, calm).plate
   assert.ok(Math.abs(edge.added[0]) < 0.4 * Math.abs(face.added[2]), `edge-on ${edge.added[0]}, face-on ${face.added[2]}`)
-  assert.equal(Fluid.forces({ plate: part({ x: 0, y: 0, z: 0.5 }) }, calm).plate.added[2], 0, 'with nothing remembered there is nothing to go on')
-  assert.deepEqual(Fluid.remember({ plate: part({ x: 1, y: 2, z: 3 }) }, { plate: { force: [0, 0, 0], torque: [0, 0, 0], added: [4, 5, 6] } }), [1, 1, 2, 3, 4, 5, 6])
+  assert.equal(Fluid.forces({ plate: part({ x: 0, y: 0, z: 0.5 }, null) }, calm).plate.added[2], 0, 'with no past to look back on there is nothing to go on')
+  assert.equal(Fluid.forces({ plate: part({ x: 0, y: 0, z: 0.5 }, still) }, { ...calm, addedMass: 0 }).plate.added[2], 0, 'and addedMass 0 turns it off')
 })

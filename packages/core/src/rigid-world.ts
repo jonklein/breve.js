@@ -37,6 +37,8 @@ export interface PartState {
   /** Linear velocity of its center, and its angular velocity, both in the world frame. */
   velocity: Vec3
   angularVelocity: Vec3
+  /** What it was doing one tick ago, for forces that depend on acceleration (a fluid's added mass): its linear velocity then, and the `added` part of the force the script pushed it with then. Null for the first tick. */
+  previous: { velocity: Vec3; added: Vec3 } | null
 }
 
 const qmul = (a: number[], b: number[]): number[] => [
@@ -122,6 +124,11 @@ export class RigidWorld implements World {
   /** 6 numbers per part per creature: the push a script asked for this tick (force then torque), and whether each creature was pushed last tick (so it can be cleared). */
   private forces = new Float32Array(0)
   private pushed: boolean[] = []
+  /** 3 numbers per part per creature: the linear velocity one tick before `partVel`, the `added` force the script pushed with last tick, the one being collected this tick, and how many times each creature has been recorded (the first velocities have no past). */
+  private prevVel = new Float32Array(0)
+  private lastAdded = new Float32Array(0)
+  private addedNow = new Float32Array(0)
+  private recorded = new Int32Array(0)
   private partRot: number[][] = []
   private angles = new Float32Array(0)
   /** What the script asked each motor to do this tick, `jointCount` numbers per creature (0 unless it said). */
@@ -218,6 +225,7 @@ export class RigidWorld implements World {
     if (this.poses.length !== n * parts * 7) this.poses = new Float32Array(n * parts * 7)
     if (this.partVel.length !== n * parts * 6) this.partVel = new Float32Array(n * parts * 6)
     if (this.forces.length !== n * parts * 6) { this.forces = new Float32Array(n * parts * 6); this.pushed = [] }
+    if (this.prevVel.length !== n * parts * 3) { this.prevVel = new Float32Array(n * parts * 3); this.lastAdded = new Float32Array(n * parts * 3); this.addedNow = new Float32Array(n * parts * 3); this.recorded = new Int32Array(n) }
     this.partRot = this.body.parts.map((p) => (p.rotation ? quatFromEuler(p.rotation) : [0, 0, 0, 1]))
     if (this.angles.length !== n * J) {
       this.angles = new Float32Array(n * J)
@@ -275,6 +283,7 @@ export class RigidWorld implements World {
       maxStep[j] = resolve(bj[j].motor?.maxSpeed, p, Infinity) * this.host.dt
     }
     this.forces.fill(0) // a push lasts one tick: a script that wants it again asks again
+    this.addedNow.fill(0)
     // act: a script sets motor targets by joint name; any it leaves out go to the joint's rest angle (0)
     for (let j = 0; j < J; j++) { const rest = this.clampToLimits(j, 0); for (let i = 0; i < n; i++) this.targets[i * J + j] = rest }
     const writes: { row: number; state: Record<string, unknown> }[] = []
@@ -285,7 +294,7 @@ export class RigidWorld implements World {
       const none = new this.GroupClass()
       for (let i = 0; i < n; i++) {
         try {
-          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number>; state?: Record<string, unknown>; place?: { x: number; z: number; yaw?: number }; forces?: Record<string, { force?: unknown; torque?: unknown }> } | void
+          const out = act({ self: this.handles[i], neighbors: none }, p, ctx) as { joints?: Record<string, number>; state?: Record<string, unknown>; place?: { x: number; z: number; yaw?: number }; forces?: Record<string, { force?: unknown; torque?: unknown; added?: unknown }> } | void
           if (out?.forces && typeof out.forces === 'object') this.collectForces(i, out.forces)
           if (out?.place && typeof out.place === 'object') this.queuePlace(i, out.place) // stand it somewhere new at the end of the tick
           if (out && out.state && typeof out.state === 'object') writes.push({ row: i, state: out.state })
@@ -352,8 +361,13 @@ export class RigidWorld implements World {
       c.qx[i] = this.poses[o + 3]; c.qy[i] = this.poses[o + 4]; c.qz[i] = this.poses[o + 5]; c.qw[i] = this.poses[o + 6]
       this.arts[i].readRootVelocity(v, 0)
       c.vx[i] = v[0]; c.vy[i] = v[1]; c.vz[i] = v[2]
-      if (this.declares('parts')) this.arts[i].readVelocities(this.partVel, i * P * 6)
+      if (this.declares('parts')) {
+        for (let k = 0; k < P; k++) { const w = (i * P + k) * 6, q = (i * P + k) * 3; this.prevVel[q] = this.partVel[w]; this.prevVel[q + 1] = this.partVel[w + 1]; this.prevVel[q + 2] = this.partVel[w + 2] }
+        this.arts[i].readVelocities(this.partVel, i * P * 6)
+        this.recorded[i]++
+      }
     }
+    this.lastAdded.set(this.addedNow)
   }
 
   private places = new Map<number, { x: number; z: number; yaw: number }>()
@@ -378,6 +392,7 @@ export class RigidWorld implements World {
       this.arts[i] = this.physics.addArticulation(this.body, { x: at.x, y: this.groundAt(at.x, at.z) + (this.host.def.spawn?.lift ?? Defaults.physics.spawnLift), z: at.z, yaw: at.yaw })
       this.arts[i].readPoses(this.poses, i * this.body.parts.length * 7)
       this.cols.px[i] = at.x; this.cols.pz[i] = at.z
+      this.recorded[i] = 0 // a fresh body has no past to look back on
       this.appliedReady = false // new joints start from where they are
     }
     this.places.clear()
@@ -409,7 +424,7 @@ export class RigidWorld implements World {
   // ---- sensors, read by Creature handles ----
 
   /** Take a script's `forces` for one creature: `{ tail: { force: [fx, fy, fz], torque: [tx, ty, tz] } }`, in the world frame, acting at the part's center. Forces on the same part add up. */
-  private collectForces(row: number, forces: Record<string, { force?: unknown; torque?: unknown }>): void {
+  private collectForces(row: number, forces: Record<string, { force?: unknown; torque?: unknown; added?: unknown }>): void {
     const P = this.body.parts.length
     for (const [name, push] of Object.entries(forces)) {
       const k = this.body.parts.findIndex((p) => p.name === name)
@@ -423,6 +438,11 @@ export class RigidWorld implements World {
       }
       take(push.force, 0)
       take(push.torque, 3)
+      // `added` says how much of the force is inertial (the water's added mass): it is given back next tick as the part's `previous.added`
+      if (push.added !== undefined && push.added !== null) {
+        const a = toVec(push.added as Parameters<typeof toVec>[0])
+        if ([a.x, a.y, a.z].every(Number.isFinite)) { const q = (row * P + k) * 3; this.addedNow[q] += a.x; this.addedNow[q + 1] += a.y; this.addedNow[q + 2] += a.z }
+      }
     }
   }
 
@@ -441,6 +461,7 @@ export class RigidWorld implements World {
         rotation: { x, y, z, w: qw },
         velocity: new Vec3(this.partVel[w], this.partVel[w + 1], this.partVel[w + 2]),
         angularVelocity: new Vec3(this.partVel[w + 3], this.partVel[w + 4], this.partVel[w + 5]),
+        previous: this.recorded[row] >= 2 ? { velocity: new Vec3(this.prevVel[(row * P + k) * 3], this.prevVel[(row * P + k) * 3 + 1], this.prevVel[(row * P + k) * 3 + 2]), added: new Vec3(this.lastAdded[(row * P + k) * 3], this.lastAdded[(row * P + k) * 3 + 1], this.lastAdded[(row * P + k) * 3 + 2]) } : null,
       }
     })
     return out
@@ -504,16 +525,18 @@ export class RigidWorld implements World {
   }
 
   snapshot(): unknown {
-    return { count: this.arts.length, table: this.table.snapshot(), physics: this.physics.snapshot(this.arts), applied: this.applied.slice(), appliedReady: this.appliedReady }
+    return { count: this.arts.length, table: this.table.snapshot(), physics: this.physics.snapshot(this.arts), applied: this.applied.slice(), appliedReady: this.appliedReady, prevVel: this.prevVel.slice(), lastAdded: this.lastAdded.slice(), recorded: this.recorded.slice(), partVel: this.partVel.slice() }
   }
 
   restore(s: unknown): void {
-    const x = s as { count: number; table: TableSnapshot; physics: unknown; applied?: Float32Array; appliedReady?: boolean }
+    const x = s as { count: number; table: TableSnapshot; physics: unknown; applied?: Float32Array; appliedReady?: boolean; prevVel?: Float32Array; lastAdded?: Float32Array; recorded?: Int32Array; partVel?: Float32Array }
     if (x.count !== this.arts.length) throw new Error(`cannot restore: the snapshot has ${x.count} creatures and this sim has ${this.arts.length}`)
     this.table.restore(x.table)
     this.physics.restore(x.physics, this.arts)
     if (x.applied && x.applied.length === this.applied.length) { this.applied.set(x.applied); this.appliedReady = !!x.appliedReady }
     this.record() // refresh the pose buffers the renderer reads
+    // what a force that depends on acceleration needs from the tick before (record() just moved the velocities along: put the snapshot's back)
+    if (x.prevVel?.length === this.prevVel.length && x.partVel?.length === this.partVel.length && x.lastAdded && x.recorded) { this.prevVel.set(x.prevVel); this.lastAdded.set(x.lastAdded); this.recorded.set(x.recorded); this.partVel.set(x.partVel) }
   }
 
   dispose(): void {

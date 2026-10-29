@@ -14,6 +14,8 @@ export interface FluidPart {
   /** Linear velocity of the part's center, and its angular velocity, in the world frame. */
   velocity: { x: number; y: number; z: number }
   angularVelocity: { x: number; y: number; z: number }
+  /** One tick ago (a creature's `self.parts` has this): the part's velocity then, and the `added` force it was pushed with. Needed for added mass; null on the first tick. */
+  previous?: { velocity: { x: number; y: number; z: number }; added: { x: number; y: number; z: number } } | null
 }
 
 /** The water and the air around a creature. Every field is optional. */
@@ -30,7 +32,7 @@ export interface FluidMedium {
   drag?: number
   /** The same for spinning. Default 1. */
   angularDrag?: number
-  /** How much of the water's added mass to count, 0 (none) to 1 (all of it, the default). Only matters when the script passes the previous tick's `memory` to `Fluid.forces`. */
+  /** How much of the water's added mass to count, 0 (none) to 1 (all of it, the default). */
   addedMass?: number
   /** Skin friction coefficient: the drag along the surfaces the flow slides over, `1/2 * density * Cf * wetted area * speed^2`. About 0.003 to 0.01 for a smooth body at the speeds of fish; default 0.005. */
   skinFriction?: number
@@ -46,7 +48,7 @@ export interface FluidMedium {
 export interface FluidPush {
   force: [number, number, number]
   torque: [number, number, number]
-  /** The part of `force` that is added mass (the water the part has to accelerate with it); `Fluid.remember` keeps it for the next tick. */
+  /** The part of `force` that is added mass (the water the part has to accelerate with it). Return it in `forces` with the rest and it comes back as the part's `previous.added` next tick. */
   added: [number, number, number]
 }
 
@@ -117,32 +119,19 @@ function addedMass(shape: string, size: number[], extent: V, density: number): V
  * Moving through the fluid costs a force against the motion, quadratic in speed, different along each of the part's own axes: pressure drag on
  * the area facing the flow (a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim) plus skin friction on
  * the surface the flow slides over (what a streamlined body mostly pays). Fluid above the surface
- * is air with its own, thin, density. Added mass (the water a part must push along as it speeds up) is included when the script passes the previous tick's `memory` (see `Fluid.remember`). Simplified on purpose: no waves, buoyancy acts at the center of the part, and added mass is for moving, not for turning.
+ * is air with its own, thin, density. Added mass (the water a part must push along as it speeds up) is included for parts that know how they moved one tick ago, as a creature's `self.parts` do; the `added` part of each push is given back to the part next tick, so there is nothing for the script to keep. Simplified on purpose: no waves, buoyancy acts at the center of the part, and added mass is for moving, not for turning.
  */
 export class Fluid {
   /** The push on every part, by part name: `{ torso: { force, torque }, tail: { ... } }`. */
-  static forces(parts: Record<string, FluidPart>, medium: FluidMedium = {}, memory?: ArrayLike<number>): Record<string, FluidPush> {
+  static forces(parts: Record<string, FluidPart>, medium: FluidMedium = {}): Record<string, FluidPush> {
     const out: Record<string, FluidPush> = {}
-    Object.entries(parts).forEach(([name, p], k) => {
-      const last = memory && memory.length >= 1 + 6 * (k + 1) && memory[0] === 1 ? { velocity: [memory[1 + 6 * k], memory[2 + 6 * k], memory[3 + 6 * k]] as V, added: [memory[4 + 6 * k], memory[5 + 6 * k], memory[6 + 6 * k]] as V } : undefined
-      out[name] = Fluid.push(p, medium, last)
-    })
-    return out
-  }
-
-  /**
-   * What to keep from this tick for the next one, so that added mass can be worked out: store it as part of the entity's state
-   * (`state: { wake: Fluid.remember(self.parts, forces) }`) and give it back as `memory` next tick. Its length is `1 + 6 * (number of parts)`;
-   * start it as that many zeros (the leading 0 says there is nothing to go on yet).
-   */
-  static remember(parts: Record<string, FluidPart>, forces: Record<string, FluidPush>): number[] {
-    const out = [1]
-    for (const [name, p] of Object.entries(parts)) out.push(p.velocity.x, p.velocity.y, p.velocity.z, ...(forces[name]?.added ?? [0, 0, 0]))
+    for (const [name, p] of Object.entries(parts)) out[name] = Fluid.push(p, medium)
     return out
   }
 
   /** The push on one part. */
-  static push(p: FluidPart, medium: FluidMedium = {}, last?: { velocity: V; added: V }): FluidPush {
+  static push(p: FluidPart, medium: FluidMedium = {}): FluidPush {
+    const last = p.previous ? { velocity: [p.previous.velocity.x, p.previous.velocity.y, p.previous.velocity.z] as V, added: [p.previous.added.x, p.previous.added.y, p.previous.added.z] as V } : undefined
     const level = medium.level ?? 0, rho = medium.density ?? 1000, rhoAir = medium.airDensity ?? 1.2
     const cf = medium.skinFriction ?? 0.005, g = medium.gravity ?? 9.81, scale = medium.drag ?? 1, cdAng = medium.angularDrag ?? 1, dt = medium.dt ?? 1 / 60
     const { half, volume, area, cd, wetted, extent } = measure(p.shape, p.size)

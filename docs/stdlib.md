@@ -738,6 +738,14 @@ Linear velocity of the part's center, and its angular velocity, in the world fra
 angularVelocity:
 ```
 
+### `FluidPart.previous`
+
+```ts
+previous?:
+```
+
+One tick ago (a creature's `self.parts` has this): the part's velocity then, and the `added` force it was pushed with. Needed for added mass; null on the first tick.
+
 ## FluidMedium
 
 The water and the air around a creature. Every field is optional.
@@ -796,7 +804,7 @@ The same for spinning. Default 1.
 addedMass?: number
 ```
 
-How much of the water's added mass to count, 0 (none) to 1 (all of it, the default). Only matters when the script passes the previous tick's `memory` to `Fluid.forces`.
+How much of the water's added mass to count, 0 (none) to 1 (all of it, the default).
 
 ### `FluidMedium.skinFriction`
 
@@ -852,7 +860,7 @@ torque: [number, number, number]
 added: [number, number, number]
 ```
 
-The part of `force` that is added mass (the water the part has to accelerate with it); `Fluid.remember` keeps it for the next tick.
+The part of `force` that is added mass (the water the part has to accelerate with it). Return it in `forces` with the rest and it comes back as the part's `previous.added` next tick.
 
 ## Fluid
 
@@ -865,7 +873,7 @@ height in the world, so a tilted box is handled); with a mass of `density * volu
 Moving through the fluid costs a force against the motion, quadratic in speed, different along each of the part's own axes: pressure drag on
 the area facing the flow (a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim) plus skin friction on
 the surface the flow slides over (what a streamlined body mostly pays). Fluid above the surface
-is air with its own, thin, density. Added mass (the water a part must push along as it speeds up) is included when the script passes the previous tick's `memory` (see `Fluid.remember`). Simplified on purpose: no waves, buoyancy acts at the center of the part, and added mass is for moving, not for turning.
+is air with its own, thin, density. Added mass (the water a part must push along as it speeds up) is included for parts that know how they moved one tick ago, as a creature's `self.parts` do; the `added` part of each push is given back to the part next tick, so there is nothing for the script to keep. Simplified on purpose: no waves, buoyancy acts at the center of the part, and added mass is for moving, not for turning.
 
 ### `Fluid.forces`
 
@@ -874,16 +882,6 @@ static forces(parts: Record<string, FluidPart>, medium: FluidMedium =
 ```
 
 The push on every part, by part name: `{ torso: { force, torque }, tail: { ... } }`.
-
-### `Fluid.remember`
-
-```ts
-static remember(parts: Record<string, FluidPart>, forces: Record<string, FluidPush>): number[]
-```
-
-What to keep from this tick for the next one, so that added mass can be worked out: store it as part of the entity's state
-(`state: { wake: Fluid.remember(self.parts, forces) }`) and give it back as `memory` next tick. Its length is `1 + 6 * (number of parts)`;
-start it as that many zeros (the leading 0 says there is nothing to go on yet).
 
 ### `Fluid.push`
 

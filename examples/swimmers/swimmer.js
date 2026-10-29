@@ -22,10 +22,9 @@ const MAX_PITCH = 0.55 // the steepest it tilts, radians
 const SURFACE = 0.7 // and how close to the surface it rises
 
 /** One kind of fish: how fast it beats its tail, how far its body swings, how many body curves it shows at once, and how far it dives. */
-function fish({ beat, swing, curves, dive, parts }) {
+function fish({ beat, swing, curves, dive }) {
   return {
-    // `wake` is what the water needs remembered from one tick to the next (each part's velocity and the added-mass force on it), for added mass
-    init: () => ({ cycle: 0, travelled: 0, height: 0, lastX: 0, lastZ: 0, started: false, wake: new Array(1 + 6 * parts).fill(0) }),
+    init: () => ({ cycle: 0, travelled: 0, height: 0, lastX: 0, lastZ: 0, started: false }),
 
     act({ self }, p, ctx) {
       const water = ctx.data.water
@@ -71,7 +70,7 @@ function fish({ beat, swing, curves, dive, parts }) {
       // what the water does to every part, this tick, and the tilting couple added to it
       const forces = ctx.fluid.forces(self.parts, {
         level: water.level, gravity: 9.81 * p.buoyancy, drag: p.drag, buoyancyHeight: 0.03, addedMass: p.addedMass, current: [p.current, 0, 0], dt: ctx.dt,
-      }, self.wake)
+      })
       for (const [name, q] of Object.entries(self.parts)) {
         const share = (couple * q.mass) / mass
         const roll = (rollCouple * q.mass) / mass
@@ -86,7 +85,6 @@ function fish({ beat, swing, curves, dive, parts }) {
         state: {
           cycle: ctx.gait.advance(self.cycle, p.frequency * beat, ctx.dt),
           started: true,
-          wake: ctx.fluid.remember(self.parts, forces),
           height: self.y,
           travelled: self.travelled + (self.started ? Math.hypot(self.x - self.lastX, self.z - self.lastZ) : 0),
           lastX: self.x,
@@ -97,9 +95,9 @@ function fish({ beat, swing, curves, dive, parts }) {
   }
 }
 
-export const minnow = fish({ beat: 1.1, swing: 1, curves: 1, dive: 1, parts: 5 })
-export const tuna = fish({ beat: 0.85, swing: 0.9, curves: 1, dive: 0.6, parts: 5 })
-export const eel = fish({ beat: 0.8, swing: 1.1, curves: 1.6, dive: 0.8, parts: 9 })
+export const minnow = fish({ beat: 1.1, swing: 1, curves: 1, dive: 1 })
+export const tuna = fish({ beat: 0.85, swing: 0.9, curves: 1, dive: 0.6 })
+export const eel = fish({ beat: 0.8, swing: 1.1, curves: 1.6, dive: 0.8 })
 
 // the numbers over all fish of all kinds
 const mean = (sets, field) => {

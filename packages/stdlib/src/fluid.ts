@@ -30,8 +30,8 @@ export interface FluidMedium {
   drag?: number
   /** The same for spinning. Default 1. */
   angularDrag?: number
-  /** How much of the usual drag a part keeps when it moves along its own length (a box's x, a capsule's or cylinder's y): 1 (the default) treats every direction alike, 0.2 is a streamlined body that slips through the water head first but still pushes against it sideways. */
-  lengthwise?: number
+  /** Skin friction coefficient: the drag along the surfaces the flow slides over, `1/2 * density * Cf * wetted area * speed^2`. About 0.003 to 0.01 for a smooth body at the speeds of fish; default 0.005. */
+  skinFriction?: number
   /** The velocity of the water itself (a current), as a vector or a function of position. Default still water. Air is taken to be still. */
   current?: VecLike | ((p: { x: number; y: number; z: number }) => VecLike)
   /** Meters above a part's center, along the part's own up (local y), where its lift acts. A positive number makes a creature right itself like a boat with its weight low; 0 (the default) lifts at the center, so it never rights itself. */
@@ -57,19 +57,25 @@ function axes(q: { x: number; y: number; z: number; w: number }): [V, V, V] {
 
 const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
-/** Half the shape's size along its own x, y and z; its volume; and the area it shows when seen along each of those axes. */
-function measure(shape: string, s: number[]): { half: V; volume: number; area: V } {
+/**
+ * What a shape presents to the flow. For each of its own axes: the area seen looking along it (`area`) and the pressure drag coefficient for
+ * flow along it (`cd`: about 1.1 for a flat face, 0.47 for a sphere, 0.35 for a rounded nose, 1.1 for a cylinder across the flow); and `wetted`,
+ * the whole outer surface, which skin friction acts on (for flow along an axis, the surfaces that are not facing it).
+ */
+function measure(shape: string, s: number[]): { half: V; volume: number; area: V; cd: V; wetted: number } {
   switch (shape) {
-    case 'sphere': { const r = s[0]; return { half: [r, r, r], volume: (4 / 3) * Math.PI * r ** 3, area: [Math.PI * r * r, Math.PI * r * r, Math.PI * r * r] } }
+    case 'sphere': { const r = s[0], a = Math.PI * r * r; return { half: [r, r, r], volume: (4 / 3) * Math.PI * r ** 3, area: [a, a, a], cd: [0.47, 0.47, 0.47], wetted: 4 * Math.PI * r * r } }
     case 'capsule': case 'cylinder': {
-      const L = s[0], r = s[1], cap = shape === 'capsule' ? r : 0
+      const L = s[0], r = s[1], round = shape === 'capsule', side = 2 * r * (L + (round ? 2 * r : 0))
       return {
-        half: [r, L / 2 + cap, r],
-        volume: Math.PI * r * r * L + (shape === 'capsule' ? (4 / 3) * Math.PI * r ** 3 : 0),
-        area: [2 * r * (L + 2 * cap), Math.PI * r * r, 2 * r * (L + 2 * cap)],
+        half: [r, L / 2 + (round ? r : 0), r],
+        volume: Math.PI * r * r * L + (round ? (4 / 3) * Math.PI * r ** 3 : 0),
+        area: [side, Math.PI * r * r, side],
+        cd: [1.1, round ? 0.35 : 1.15, 1.1],
+        wetted: 2 * Math.PI * r * L + (round ? 4 : 2) * Math.PI * r * r,
       }
     }
-    default: { const [w, h, d] = s; return { half: [w / 2, h / 2, d / 2], volume: w * h * d, area: [h * d, w * d, w * h] } }
+    default: { const [w, h, d] = s; return { half: [w / 2, h / 2, d / 2], volume: w * h * d, area: [h * d, w * d, w * h], cd: [1.05, 1.05, 1.05], wetted: 2 * (w * h + w * d + h * d) } }
   }
 }
 
@@ -80,8 +86,9 @@ function measure(shape: string, s: number[]): { half: V; volume: number; area: V
  *
  * A part below `level` floats with a force of `density * gravity * volume`, scaled by how much of it is under (judged from its
  * height in the world, so a tilted box is handled); with a mass of `density * volume` it hangs in the water, lighter floats, denser sinks.
- * Moving through the fluid costs a force against the motion, quadratic in speed and different along each of the part's own axes
- * (a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim). Fluid above the surface
+ * Moving through the fluid costs a force against the motion, quadratic in speed, different along each of the part's own axes: pressure drag on
+ * the area facing the flow (a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim) plus skin friction on
+ * the surface the flow slides over (what a streamlined body mostly pays). Fluid above the surface
  * is air with its own, thin, density. Simplified on purpose: no waves, no added mass, buoyancy acts at the center of the part.
  */
 export class Fluid {
@@ -95,8 +102,8 @@ export class Fluid {
   /** The push on one part. */
   static push(p: FluidPart, medium: FluidMedium = {}): FluidPush {
     const level = medium.level ?? 0, rho = medium.density ?? 1000, rhoAir = medium.airDensity ?? 1.2
-    const length = medium.lengthwise ?? 1, g = medium.gravity ?? 9.81, cd = 1 * (medium.drag ?? 1), cdAng = medium.angularDrag ?? 1, dt = medium.dt ?? 1 / 60
-    const { half, volume, area } = measure(p.shape, p.size)
+    const cf = medium.skinFriction ?? 0.005, g = medium.gravity ?? 9.81, scale = medium.drag ?? 1, cdAng = medium.angularDrag ?? 1, dt = medium.dt ?? 1 / 60
+    const { half, volume, area, cd, wetted } = measure(p.shape, p.size)
     const ax = axes(p.rotation)
 
     // how much of the part is under the surface: its height range in the world is its center plus or minus the shadow of its shape on up
@@ -116,12 +123,13 @@ export class Fluid {
       torque[0] += -arm * a[2] * lift
       torque[2] += arm * a[0] * lift
     }
-    // drag along each of the part's own axes, then turned back to the world; capped at what stops the motion in one tick
-    const longAxis = p.shape === 'capsule' || p.shape === 'cylinder' ? 1 : 0
+    // drag along each of the part's own axes, then turned back to the world: pressure drag on the area facing the flow plus skin friction on the
+    // surface it slides over. Capped at what would stop the part within one tick, so a light fin cannot be pushed backward by its own drag.
     for (let i = 0; i < 3; i++) {
       const v = dot(rel, ax[i])
       if (v === 0) continue
-      const push = -Math.sign(v) * Math.min(0.5 * medDensity * cd * (i === longAxis ? length : 1) * area[i] * v * v, (p.mass * Math.abs(v)) / dt / 1.5)
+      const sliding = Math.max(0, wetted - 2 * area[i])
+      const push = -Math.sign(v) * Math.min(0.5 * medDensity * scale * (cd[i] * area[i] + cf * sliding) * v * v, (p.mass * Math.abs(v)) / dt)
       for (let k = 0; k < 3; k++) force[k] += push * ax[i][k]
     }
 
@@ -133,7 +141,7 @@ export class Fluid {
       const w = dot(spin, ax[i])
       if (w === 0) continue
       const other = half[(i + 1) % 3] * half[(i + 2) % 3] * (half[(i + 1) % 3] ** 2 + half[(i + 2) % 3] ** 2) // the extent it sweeps while turning about this axis
-      const push = -Math.sign(w) * Math.min(0.5 * medDensity * cdAng * other * 2 * Math.abs(w) * Math.abs(w), (inertia * Math.abs(w)) / dt / 1.5)
+      const push = -Math.sign(w) * Math.min(0.5 * medDensity * cdAng * other * 2 * Math.abs(w) * Math.abs(w), (inertia * Math.abs(w)) / dt)
       for (let k = 0; k < 3; k++) torque[k] += push * ax[i][k]
     }
     return { force, torque }

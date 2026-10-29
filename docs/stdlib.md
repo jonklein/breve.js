@@ -790,13 +790,13 @@ angularDrag?: number
 
 The same for spinning. Default 1.
 
-### `FluidMedium.lengthwise`
+### `FluidMedium.skinFriction`
 
 ```ts
-lengthwise?: number
+skinFriction?: number
 ```
 
-How much of the usual drag a part keeps when it moves along its own length (a box's x, a capsule's or cylinder's y): 1 (the default) treats every direction alike, 0.2 is a streamlined body that slips through the water head first but still pushes against it sideways.
+Skin friction coefficient: the drag along the surfaces the flow slides over, `1/2 * density * Cf * wetted area * speed^2`. About 0.003 to 0.01 for a smooth body at the speeds of fish; default 0.005.
 
 ### `FluidMedium.current`
 
@@ -834,8 +834,9 @@ part, and a script returns it from `act` as `forces` (the push lasts one tick, s
 
 A part below `level` floats with a force of `density * gravity * volume`, scaled by how much of it is under (judged from its
 height in the world, so a tilted box is handled); with a mass of `density * volume` it hangs in the water, lighter floats, denser sinks.
-Moving through the fluid costs a force against the motion, quadratic in speed and different along each of the part's own axes
-(a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim). Fluid above the surface
+Moving through the fluid costs a force against the motion, quadratic in speed, different along each of the part's own axes: pressure drag on
+the area facing the flow (a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim) plus skin friction on
+the surface the flow slides over (what a streamlined body mostly pays). Fluid above the surface
 is air with its own, thin, density. Simplified on purpose: no waves, no added mass, buoyancy acts at the center of the part.
 
 ### `Fluid.forces`

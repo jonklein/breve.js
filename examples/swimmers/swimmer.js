@@ -68,7 +68,7 @@ function fish({ beat, swing, curves, dive }) {
 
       // what the water does to every part, this tick, and the tilting couple added to it
       const forces = ctx.fluid.forces(self.parts, {
-        level: water.level, gravity: 9.81 * p.buoyancy, drag: p.drag, buoyancyHeight: 0.03, lengthwise: p.streamlining, current: [p.current, 0, 0], dt: ctx.dt,
+        level: water.level, gravity: 9.81 * p.buoyancy, drag: p.drag, buoyancyHeight: 0.03, current: [p.current, 0, 0], dt: ctx.dt,
       })
       for (const [name, q] of Object.entries(self.parts)) {
         const share = (couple * q.mass) / mass

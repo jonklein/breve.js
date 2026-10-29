@@ -5,6 +5,6 @@ Nothing pushes a fish forward. It bends in a wave from head to tail; each segmen
 ### What to try
 - **drag** at 0: the fish waggle in place.
 - **buoyancy** under 1: they sink toward the floor.
-- Change the **body wave**, **tail beat** and **body swing**, how **streamlined** they are, or add a **current**.
+- Change the **body wave**, **tail beat** and **body swing**, or add a **current**.
 - **how much they rise and dive** at 0: they hold their depth.
 - The water's height is `data.water.level`; the surface is drawn from the same entry.

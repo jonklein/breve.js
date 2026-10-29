@@ -28,7 +28,7 @@ test('drag opposes motion, grows with speed squared, and is larger across a flat
 test('drag never reverses a part in one tick, however fast it moves', () => {
   const m = 1, v = 1000
   const { force } = Fluid.push(box({ mass: m, velocity: { x: v, y: 0, z: 0 } }), { level: 0, gravity: 0, dt: 1 / 60 })
-  assert.ok(Math.abs(force[0] * (1 / 60) / m) < v)
+  assert.ok(Math.abs(force[0] * (1 / 60) / m) <= v + 1e-9) // at most enough to stop it
 })
 
 test('a current carries a part along with it', () => {
@@ -57,10 +57,16 @@ test('lift above the center rights a tilted part; at the center it does not', ()
   assert.equal(centered[0], 0)
 })
 
-test('lengthwise streamlining cuts drag along a part\'s length and leaves the drag across it alone', () => {
-  const moving = (v: { x: number; y: number; z: number }) => box({ size: [2, 0.5, 0.5], mass: 5000, velocity: v })
-  const along = (k: number) => Fluid.push(moving({ x: 1, y: 0, z: 0 }), { level: 0, gravity: 0, lengthwise: k }).force[0]
-  const across = (k: number) => Fluid.push(moving({ x: 0, y: 0, z: 1 }), { level: 0, gravity: 0, lengthwise: k }).force[2]
-  assert.ok(Math.abs(along(0.2) / along(1) - 0.2) < 1e-6, 'a fifth of the drag head-on')
-  assert.equal(across(0.2), across(1), 'sideways is unchanged')
+test('skin friction acts on the surfaces the flow slides over: a long thin part pays more head-on than a short one of the same frontal area', () => {
+  const head = (size: [number, number, number], cf: number) => Fluid.push(box({ size, mass: 5000, velocity: { x: 1, y: 0, z: 0 } }), { level: 0, gravity: 0, skinFriction: cf }).force[0]
+  const frictionless = head([2, 0.5, 0.5], 0), withFriction = head([2, 0.5, 0.5], 0.01)
+  assert.ok(withFriction < frictionless, 'more drag (more negative) with friction')
+  const long = head([4, 0.5, 0.5], 0.01) - head([4, 0.5, 0.5], 0), short = head([1, 0.5, 0.5], 0.01) - head([1, 0.5, 0.5], 0)
+  assert.ok(long < 3 * short && long < short, `the longer part gains more friction drag (${long.toFixed(1)} vs ${short.toFixed(1)})`)
+})
+
+test('a sphere and a rounded nose slip through the water far better than a flat face of the same size', () => {
+  const sphere = Fluid.push({ ...box(), shape: 'sphere', size: [0.5], mass: 5000, velocity: { x: 1, y: 0, z: 0 } }, { level: 0, gravity: 0, skinFriction: 0 }).force[0]
+  const plate = Fluid.push({ ...box({ size: [0.05, 1, 1], mass: 5000, velocity: { x: 1, y: 0, z: 0 } }) }, { level: 0, gravity: 0, skinFriction: 0 }).force[0]
+  assert.ok(Math.abs(sphere) < Math.abs(plate) * 0.5, `${sphere} vs ${plate}`)
 })

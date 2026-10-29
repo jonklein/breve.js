@@ -64,28 +64,28 @@
       "label": "eels"
     },
     "frequency": {
-      "value": 3,
+      "value": 1.2,
       "min": 0.3,
-      "max": 5,
+      "max": 4,
       "step": 0.1,
       "label": "tail beat (Hz)"
     },
     "amplitude": {
-      "value": 0.5,
+      "value": 0.7,
       "min": 0,
-      "max": 0.9,
+      "max": 1,
       "step": 0.05,
       "label": "body swing (rad)"
     },
     "wave": {
-      "value": 0.2,
+      "value": 0.6,
       "min": 0,
       "max": 0.5,
       "step": 0.02,
-      "label": "wave lag per joint (cycles)"
+      "label": "body wave (cycles along the body)"
     },
     "strength": {
-      "value": 1200,
+      "value": 1500,
       "min": 100,
       "max": 3000,
       "step": 10,
@@ -137,6 +137,13 @@
       "max": 1.5,
       "step": 0.1,
       "label": "current (m/s)"
+    },
+    "streamlining": {
+      "value": 0.15,
+      "min": 0.05,
+      "max": 1,
+      "step": 0.05,
+      "label": "streamlining (drag along the body)"
     }
   },
   "physics": {
@@ -234,13 +241,13 @@
             "name": "tail",
             "shape": "box",
             "size": [
-              0.195,
-              0.35750000000000004,
+              0.4,
+              0.95,
               0.026000000000000002
             ],
-            "mass": 1.81,
+            "mass": 9.88,
             "position": [
-              -1.04,
+              -1.143,
               0,
               0
             ]
@@ -430,13 +437,13 @@
             "name": "tail",
             "shape": "box",
             "size": [
-              0.36,
-              0.7,
+              0.5,
+              1.2,
               0.04
             ],
-            "mass": 10.08,
+            "mass": 24.0,
             "position": [
-              -1.61,
+              -1.68,
               0,
               0
             ]
@@ -686,13 +693,13 @@
             "name": "tail",
             "shape": "box",
             "size": [
-              0.22,
-              0.2,
+              0.3,
+              0.35,
               0.03
             ],
-            "mass": 1.32,
+            "mass": 3.15,
             "position": [
-              -2.22,
+              -2.26,
               0,
               0
             ]

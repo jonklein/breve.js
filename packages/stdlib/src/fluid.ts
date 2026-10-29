@@ -30,6 +30,8 @@ export interface FluidMedium {
   drag?: number
   /** The same for spinning. Default 1. */
   angularDrag?: number
+  /** How much of the usual drag a part keeps when it moves along its own length (a box's x, a capsule's or cylinder's y): 1 (the default) treats every direction alike, 0.2 is a streamlined body that slips through the water head first but still pushes against it sideways. */
+  lengthwise?: number
   /** The velocity of the water itself (a current), as a vector or a function of position. Default still water. Air is taken to be still. */
   current?: VecLike | ((p: { x: number; y: number; z: number }) => VecLike)
   /** Meters above a part's center, along the part's own up (local y), where its lift acts. A positive number makes a creature right itself like a boat with its weight low; 0 (the default) lifts at the center, so it never rights itself. */
@@ -93,7 +95,7 @@ export class Fluid {
   /** The push on one part. */
   static push(p: FluidPart, medium: FluidMedium = {}): FluidPush {
     const level = medium.level ?? 0, rho = medium.density ?? 1000, rhoAir = medium.airDensity ?? 1.2
-    const g = medium.gravity ?? 9.81, cd = 1 * (medium.drag ?? 1), cdAng = medium.angularDrag ?? 1, dt = medium.dt ?? 1 / 60
+    const length = medium.lengthwise ?? 1, g = medium.gravity ?? 9.81, cd = 1 * (medium.drag ?? 1), cdAng = medium.angularDrag ?? 1, dt = medium.dt ?? 1 / 60
     const { half, volume, area } = measure(p.shape, p.size)
     const ax = axes(p.rotation)
 
@@ -115,10 +117,11 @@ export class Fluid {
       torque[2] += arm * a[0] * lift
     }
     // drag along each of the part's own axes, then turned back to the world; capped at what stops the motion in one tick
+    const longAxis = p.shape === 'capsule' || p.shape === 'cylinder' ? 1 : 0
     for (let i = 0; i < 3; i++) {
       const v = dot(rel, ax[i])
       if (v === 0) continue
-      const push = -Math.sign(v) * Math.min(0.5 * medDensity * cd * area[i] * v * v, (p.mass * Math.abs(v)) / dt / 3)
+      const push = -Math.sign(v) * Math.min(0.5 * medDensity * cd * (i === longAxis ? length : 1) * area[i] * v * v, (p.mass * Math.abs(v)) / dt / 1.5)
       for (let k = 0; k < 3; k++) force[k] += push * ax[i][k]
     }
 
@@ -130,7 +133,7 @@ export class Fluid {
       const w = dot(spin, ax[i])
       if (w === 0) continue
       const other = half[(i + 1) % 3] * half[(i + 2) % 3] * (half[(i + 1) % 3] ** 2 + half[(i + 2) % 3] ** 2) // the extent it sweeps while turning about this axis
-      const push = -Math.sign(w) * Math.min(0.5 * medDensity * cdAng * other * 2 * Math.abs(w) * Math.abs(w), (inertia * Math.abs(w)) / dt / 3)
+      const push = -Math.sign(w) * Math.min(0.5 * medDensity * cdAng * other * 2 * Math.abs(w) * Math.abs(w), (inertia * Math.abs(w)) / dt / 1.5)
       for (let k = 0; k < 3; k++) torque[k] += push * ax[i][k]
     }
     return { force, torque }

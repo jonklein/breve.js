@@ -6,7 +6,7 @@
 // to tail: every segment, as it swings sideways, pushes water back, and the water pushes it forward. A broad tail pushes more water.
 //
 //   wave     each joint bends a little after the one in front of it; the swing grows toward the tail
-//   steer    bend the whole body one way and the fish turns that way
+//   steer    bend the neck one way and the fish turns that way; the wave behind it stays symmetric
 //   depth    a fish tilts its nose up or down to rise or dive, and its own thrust carries it that way, toward a depth that drifts slowly with time
 //   water    `data.water` says where the surface is (the picture reads it too, so there is one place to change it)
 //
@@ -15,7 +15,7 @@
 //
 // Try: buoyancy a little under 1 (they sink and crawl along the bottom), drag at 0 (nothing to push against, so no swimming),
 // the wave at 0 (the body just waggles), or a current.
-const TURN_GAIN = 0.5 // radians of steady bend per unit of turn
+const TURN_GAIN = 0.45 // radians the neck bends toward the way it wants to turn (the rest of the wave stays symmetric)
 const FLOOR = 0.5 // how close to the bottom a fish dives, metres
 const MAX_PITCH = 0.55 // the steepest it tilts, radians
 const SURFACE = 0.7 // and how close to the surface it rises
@@ -39,7 +39,7 @@ function fish({ beat, swing, curves, dive }) {
       const targets = {}
       joints.forEach((name, i) => {
         const along = (i + 1) / joints.length
-        targets[name] = ctx.gait.wave(self.cycle, { amplitude: p.amplitude * swing * (0.45 + along), phase: -(p.wave * curves) / joints.length * (i + 1), offset: turn * TURN_GAIN * along })
+        targets[name] = ctx.gait.wave(self.cycle, { amplitude: p.amplitude * swing * (0.45 + along), phase: -(p.wave * curves) / joints.length * (i + 1), offset: i === 0 ? turn * TURN_GAIN : 0 })
       })
 
       // the depth this fish is after drifts between the bottom and the surface, a different way for each fish; fins gets it there
@@ -68,7 +68,7 @@ function fish({ beat, swing, curves, dive }) {
 
       // what the water does to every part, this tick, and the tilting couple added to it
       const forces = ctx.fluid.forces(self.parts, {
-        level: water.level, gravity: 9.81 * p.buoyancy, drag: p.drag, buoyancyHeight: 0.03, current: [p.current, 0, 0], dt: ctx.dt,
+        level: water.level, gravity: 9.81 * p.buoyancy, drag: p.drag, buoyancyHeight: 0.03, lengthwise: p.streamlining, current: [p.current, 0, 0], dt: ctx.dt,
       })
       for (const [name, q] of Object.entries(self.parts)) {
         const share = (couple * q.mass) / mass
@@ -94,9 +94,9 @@ function fish({ beat, swing, curves, dive }) {
   }
 }
 
-export const minnow = fish({ beat: 1.3, swing: 1, curves: 1, dive: 1 })
-export const tuna = fish({ beat: 1, swing: 0.9, curves: 0.8, dive: 0.6 })
-export const eel = fish({ beat: 0.42, swing: 0.8, curves: 2.2, dive: 0.8 })
+export const minnow = fish({ beat: 1.1, swing: 1, curves: 1, dive: 1 })
+export const tuna = fish({ beat: 0.85, swing: 0.9, curves: 1, dive: 0.6 })
+export const eel = fish({ beat: 0.8, swing: 1.1, curves: 1.6, dive: 0.8 })
 
 // the numbers over all fish of all kinds
 const mean = (sets, field) => {

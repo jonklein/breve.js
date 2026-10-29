@@ -790,6 +790,14 @@ angularDrag?: number
 
 The same for spinning. Default 1.
 
+### `FluidMedium.lengthwise`
+
+```ts
+lengthwise?: number
+```
+
+How much of the usual drag a part keeps when it moves along its own length (a box's x, a capsule's or cylinder's y): 1 (the default) treats every direction alike, 0.2 is a streamlined body that slips through the water head first but still pushes against it sideways.
+
 ### `FluidMedium.current`
 
 ```ts

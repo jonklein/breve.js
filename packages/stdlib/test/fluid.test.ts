@@ -56,3 +56,11 @@ test('lift above the center rights a tilted part; at the center it does not', ()
   assert.ok(Math.abs(high[0]) > 100, `${high}`)
   assert.equal(centered[0], 0)
 })
+
+test('lengthwise streamlining cuts drag along a part\'s length and leaves the drag across it alone', () => {
+  const moving = (v: { x: number; y: number; z: number }) => box({ size: [2, 0.5, 0.5], mass: 5000, velocity: v })
+  const along = (k: number) => Fluid.push(moving({ x: 1, y: 0, z: 0 }), { level: 0, gravity: 0, lengthwise: k }).force[0]
+  const across = (k: number) => Fluid.push(moving({ x: 0, y: 0, z: 1 }), { level: 0, gravity: 0, lengthwise: k }).force[2]
+  assert.ok(Math.abs(along(0.2) / along(1) - 0.2) < 1e-6, 'a fifth of the drag head-on')
+  assert.equal(across(0.2), across(1), 'sideways is unchanged')
+})

@@ -8,7 +8,7 @@ const stub = fileURLToPath(new URL('./stubs/no-physics.ts', import.meta.url))
 const noPhysics = {
   name: 'no-physics',
   setup(b) {
-    b.onResolve({ filter: /physics\/rapier$/ }, () => ({ path: stub }))
+    b.onResolve({ filter: /(physics\/rapier|^\.\/rapier)$/ }, () => ({ path: stub }))
   },
 }
 const common = { entryPoints: ['src/index.ts'], bundle: true, format: 'iife', globalName: 'breve', minify: true, target: 'es2022', logLevel: 'warning' }

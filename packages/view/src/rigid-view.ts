@@ -131,7 +131,7 @@ export class RigidView {
     for (let i = 0; i < this.capacity; i++) {
       // parts without a color take a hue from their creature, so you can tell individuals apart
       if (part.color) this.tmpC.set(part.color)
-      else this.tmpC.setHSL((i * 0.618034) % 1, 0.55, k === 0 ? 0.55 : 0.4)
+      else this.tmpC.setHSL((i * 0.618034) % 1, 0.85, k === 0 ? 0.52 : 0.42, THREE.SRGBColorSpace) // (HSL is an sRGB idea: read as linear it comes out pale)
       mesh.instanceColor.setXYZ(i, this.tmpC.r, this.tmpC.g, this.tmpC.b)
     }
     mesh.count = 0

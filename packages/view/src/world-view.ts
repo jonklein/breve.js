@@ -178,12 +178,13 @@ export class WorldView {
       ;(this.water.material as THREE.Material).dispose()
       this.water = null
     }
-    const w = def as { level?: unknown; color?: unknown; opacity?: unknown } | null | undefined
+    const w = def as { level?: unknown; color?: unknown; opacity?: unknown; shine?: unknown } | null | undefined
     if (!w || typeof w !== 'object' || typeof w.level !== 'number' || !Number.isFinite(w.level)) return
     let color = new THREE.Color('#2f7fb8')
     try { if (typeof w.color === 'string') color = new THREE.Color(w.color) } catch { /* keep the default */ }
     const opacity = typeof w.opacity === 'number' ? Math.min(1, Math.max(0, w.opacity)) : 0.45
-    const mat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity, roughness: 0.15, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false })
+    const shine = typeof w.shine === 'number' ? Math.min(1, Math.max(0, w.shine)) : 0.3 // a glassy surface mirrors the sky and washes out what is under it
+    const mat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity, roughness: 1 - 0.85 * shine, metalness: 0, envMapIntensity: shine, side: THREE.DoubleSide, depthWrite: false })
     this.water = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), mat)
     this.water.rotation.x = -Math.PI / 2
     this.water.position.y = w.level

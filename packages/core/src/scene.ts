@@ -247,7 +247,7 @@ export interface WorldDef {
   /** Poles standing on the ground at fixed spots, so you can see how far things have gone. Drawn only: nothing collides with them. Instead of the list, a string names a key of the scene's `data` that holds it (`"markers": "lights"`), so the script and the picture read one list and dragging a pole edits it. */
   markers?: string | { /** Where, on the ground: [x, z]. */ at: [number, number]; /** Pole height in world units. Default 2. */ height?: number; color?: string }[]
   /** A water surface at height `level`, drawn translucent so creatures show through. Drawn only: use the stdlib's `Fluid` in the script for what water does to bodies. Instead of the object, a string names a key of the scene's `data` that holds it, so one place says where the water is for both the picture and the script. */
-  water?: string | { level: number; color?: string; opacity?: number }
+  water?: string | { level: number; color?: string; opacity?: number; /** How much the surface mirrors the sky and sun, 0 (matte: a plain tint, the colors below stay true) to 1 (glassy). Default 0.3. */ shine?: number }
   /** Physics scenes: the camera follows the first body of the first creature, keeping whatever angle and distance you orbit to. Default false. */
   follow?: boolean
 }
@@ -491,7 +491,7 @@ export const sceneSchema = {
         water: {
           anyOf: [
             { type: 'string', minLength: 1 },
-            { type: 'object', required: ['level'], additionalProperties: false, properties: { level: { type: 'number' }, color, opacity: { type: 'number', minimum: 0, maximum: 1 } } },
+            { type: 'object', required: ['level'], additionalProperties: false, properties: { level: { type: 'number' }, color, opacity: { type: 'number', minimum: 0, maximum: 1 }, shine: { type: 'number', minimum: 0, maximum: 1 } } },
           ],
         },
         follow: { type: 'boolean' },

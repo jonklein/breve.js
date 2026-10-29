@@ -30,7 +30,7 @@ The per-entity form is the readable one and suits up to tens of thousands of ent
     "agentColor": "heading",              // "heading" colors by direction, or one hex color
     "shadows": true,                      // cast shadows (default: on for physics scenes with terrain, off otherwise)
     "markers": [{ "at": [0, 0], "height": 2, "color": "#ff8a3d" }], // poles on the ground to judge distance by (physics scenes; drawn only, nothing collides). Or a string naming a key of `data` that holds the list (`"markers": "lights"`), so the script and the picture read one list
-    "water": { "level": 3, "color": "#2f7fb8", "opacity": 0.4 }, // a translucent surface at that height (drawn only; Fluid in the script is what makes it act like water). Or a string naming a `data` key
+    "water": { "level": 3, "color": "#2f7fb8", "opacity": 0.4, "shine": 0.3 }, // a translucent surface at that height (`shine` 0 is a matte tint that keeps the colors below true, 1 is glassy; drawn only; Fluid in the script is what makes it act like water). Or a string naming a `data` key
     "follow": true                        // physics scenes: the camera follows the first creature, keeping the angle you orbit to
   },
   "terrain": { "size": 80, "resolution": 64, "amplitude": 0.6, "frequency": 0.07 },   // creatures only: bumpy ground, see "Entity set: creatures"

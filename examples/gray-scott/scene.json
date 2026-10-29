@@ -86,14 +86,14 @@
   ],
   "params": {
     "supply": {
-      "value": 0.037,
+      "value": 0.022,
       "min": 0.01,
       "max": 0.1,
       "step": 0.0005,
       "label": "supply (how fast u is topped up)"
     },
     "decay": {
-      "value": 0.065,
+      "value": 0.056,
       "min": 0.04,
       "max": 0.075,
       "step": 0.0002,

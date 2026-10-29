@@ -34,7 +34,7 @@ export default {
   },
 
   // one fixed picture: v is red, u is a dim blue, and where both are present they add (purple) on a dark ground
-  displayFormula: ({ u, v }) => ({ r: v.mul(4).clamp(0, 1), g: v.mul(0.15).clamp(0, 1), b: u.mul(0.2) }),
+  displayFormula: ({ u, v }) => ({ r: v.mul(2.4).clamp(0, 1), g: v.mul(0.1).clamp(0, 1), b: u.mul(0.55) }),
 }
 
 export const metrics = {

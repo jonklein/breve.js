@@ -40,7 +40,7 @@ export default {
 
   // every cell is drawn: red is v, blue is u (dim, so the ground is dark), and where both are present they add
   displayAll({ u, v }) {
-    return { visible: v.ge(-1), color: { r: v.mul(4).clamp(0, 1), g: v.mul(0.15).clamp(0, 1), b: u.mul(0.2) } }
+    return { visible: v.ge(-1), color: { r: v.mul(2.4).clamp(0, 1), g: v.mul(0.1).clamp(0, 1), b: u.mul(0.55) } }
   },
 
   actAll({ u, v }, p) {

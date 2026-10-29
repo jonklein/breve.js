@@ -30,6 +30,8 @@ export interface FluidMedium {
   drag?: number
   /** The same for spinning. Default 1. */
   angularDrag?: number
+  /** How much of the water's added mass to count, 0 (none) to 1 (all of it, the default). Only matters when the script passes the previous tick's `memory` to `Fluid.forces`. */
+  addedMass?: number
   /** Skin friction coefficient: the drag along the surfaces the flow slides over, `1/2 * density * Cf * wetted area * speed^2`. About 0.003 to 0.01 for a smooth body at the speeds of fish; default 0.005. */
   skinFriction?: number
   /** The velocity of the water itself (a current), as a vector or a function of position. Default still water. Air is taken to be still. */
@@ -41,7 +43,12 @@ export interface FluidMedium {
 }
 
 /** The force and torque on one part, in the world frame, ready to return from `act` as `{ forces }`. */
-export interface FluidPush { force: [number, number, number]; torque: [number, number, number] }
+export interface FluidPush {
+  force: [number, number, number]
+  torque: [number, number, number]
+  /** The part of `force` that is added mass (the water the part has to accelerate with it); `Fluid.remember` keeps it for the next tick. */
+  added: [number, number, number]
+}
 
 type V = [number, number, number]
 
@@ -62,9 +69,9 @@ const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
  * flow along it (`cd`: about 1.1 for a flat face, 0.47 for a sphere, 0.35 for a rounded nose, 1.1 for a cylinder across the flow); and `wetted`,
  * the whole outer surface, which skin friction acts on (for flow along an axis, the surfaces that are not facing it).
  */
-function measure(shape: string, s: number[]): { half: V; volume: number; area: V; cd: V; wetted: number } {
+function measure(shape: string, s: number[]): { half: V; volume: number; area: V; cd: V; wetted: number; extent: V } {
   switch (shape) {
-    case 'sphere': { const r = s[0], a = Math.PI * r * r; return { half: [r, r, r], volume: (4 / 3) * Math.PI * r ** 3, area: [a, a, a], cd: [0.47, 0.47, 0.47], wetted: 4 * Math.PI * r * r } }
+    case 'sphere': { const r = s[0], a = Math.PI * r * r; return { half: [r, r, r], volume: (4 / 3) * Math.PI * r ** 3, area: [a, a, a], cd: [0.47, 0.47, 0.47], wetted: 4 * Math.PI * r * r, extent: [2 * r, 2 * r, 2 * r] } }
     case 'capsule': case 'cylinder': {
       const L = s[0], r = s[1], round = shape === 'capsule', side = 2 * r * (L + (round ? 2 * r : 0))
       return {
@@ -73,10 +80,31 @@ function measure(shape: string, s: number[]): { half: V; volume: number; area: V
         area: [side, Math.PI * r * r, side],
         cd: [1.1, round ? 0.35 : 1.15, 1.1],
         wetted: 2 * Math.PI * r * L + (round ? 4 : 2) * Math.PI * r * r,
+        extent: [2 * r, L + (round ? 2 * r : 0), 2 * r],
       }
     }
-    default: { const [w, h, d] = s; return { half: [w / 2, h / 2, d / 2], volume: w * h * d, area: [h * d, w * d, w * h], cd: [1.05, 1.05, 1.05], wetted: 2 * (w * h + w * d + h * d) } }
+    default: { const [w, h, d] = s; return { half: [w / 2, h / 2, d / 2], volume: w * h * d, area: [h * d, w * d, w * h], cd: [1.05, 1.05, 1.05], wetted: 2 * (w * h + w * d + h * d), extent: [w, h, d] } }
   }
+}
+
+/**
+ * The mass of fluid a part has to push along when it speeds up in each of its own directions (its "added mass"), for fluid of this density.
+ * From the textbook cases: a sphere carries half the fluid it displaces; a flat plate moving face-on carries the fluid in a cylinder as wide as
+ * the plate's shorter side, `pi/4 * density * short^2 * long`; a part that is thick in the direction of motion carries less, which the
+ * `1 / (1 + 2 * thickness / short)` factor gives (it comes to a third for a cube, the sphere's value, and to 1 for a thin plate). A cylinder
+ * across the flow carries what it displaces. See Lamb's Hydrodynamics, or Newman's Marine Hydrodynamics.
+ */
+function addedMass(shape: string, size: number[], extent: V, density: number): V {
+  if (shape === 'sphere') { const m = 0.5 * density * (4 / 3) * Math.PI * size[0] ** 3; return [m, m, m] }
+  if (shape === 'capsule' || shape === 'cylinder') {
+    const L = size[0], r = size[1], across = density * Math.PI * r * r * (L + (shape === 'capsule' ? (4 / 3) * r : 0)) // what the part displaces
+    const along = shape === 'capsule' ? 0.5 * density * (4 / 3) * Math.PI * r ** 3 : (8 / 3) * density * r ** 3 // two caps; a disc
+    return [across, along, across]
+  }
+  return [0, 1, 2].map((i) => {
+    const a = extent[(i + 1) % 3], b = extent[(i + 2) % 3], short = Math.min(a, b), long = Math.max(a, b)
+    return short < 1e-9 ? 0 : ((Math.PI / 4) * density * short * short * long) / (1 + (2 * extent[i]) / short)
+  }) as V
 }
 
 /**
@@ -89,21 +117,35 @@ function measure(shape: string, s: number[]): { half: V; volume: number; area: V
  * Moving through the fluid costs a force against the motion, quadratic in speed, different along each of the part's own axes: pressure drag on
  * the area facing the flow (a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim) plus skin friction on
  * the surface the flow slides over (what a streamlined body mostly pays). Fluid above the surface
- * is air with its own, thin, density. Simplified on purpose: no waves, no added mass, buoyancy acts at the center of the part.
+ * is air with its own, thin, density. Added mass (the water a part must push along as it speeds up) is included when the script passes the previous tick's `memory` (see `Fluid.remember`). Simplified on purpose: no waves, buoyancy acts at the center of the part, and added mass is for moving, not for turning.
  */
 export class Fluid {
   /** The push on every part, by part name: `{ torso: { force, torque }, tail: { ... } }`. */
-  static forces(parts: Record<string, FluidPart>, medium: FluidMedium = {}): Record<string, FluidPush> {
+  static forces(parts: Record<string, FluidPart>, medium: FluidMedium = {}, memory?: ArrayLike<number>): Record<string, FluidPush> {
     const out: Record<string, FluidPush> = {}
-    for (const [name, p] of Object.entries(parts)) out[name] = Fluid.push(p, medium)
+    Object.entries(parts).forEach(([name, p], k) => {
+      const last = memory && memory.length >= 1 + 6 * (k + 1) && memory[0] === 1 ? { velocity: [memory[1 + 6 * k], memory[2 + 6 * k], memory[3 + 6 * k]] as V, added: [memory[4 + 6 * k], memory[5 + 6 * k], memory[6 + 6 * k]] as V } : undefined
+      out[name] = Fluid.push(p, medium, last)
+    })
+    return out
+  }
+
+  /**
+   * What to keep from this tick for the next one, so that added mass can be worked out: store it as part of the entity's state
+   * (`state: { wake: Fluid.remember(self.parts, forces) }`) and give it back as `memory` next tick. Its length is `1 + 6 * (number of parts)`;
+   * start it as that many zeros (the leading 0 says there is nothing to go on yet).
+   */
+  static remember(parts: Record<string, FluidPart>, forces: Record<string, FluidPush>): number[] {
+    const out = [1]
+    for (const [name, p] of Object.entries(parts)) out.push(p.velocity.x, p.velocity.y, p.velocity.z, ...(forces[name]?.added ?? [0, 0, 0]))
     return out
   }
 
   /** The push on one part. */
-  static push(p: FluidPart, medium: FluidMedium = {}): FluidPush {
+  static push(p: FluidPart, medium: FluidMedium = {}, last?: { velocity: V; added: V }): FluidPush {
     const level = medium.level ?? 0, rho = medium.density ?? 1000, rhoAir = medium.airDensity ?? 1.2
     const cf = medium.skinFriction ?? 0.005, g = medium.gravity ?? 9.81, scale = medium.drag ?? 1, cdAng = medium.angularDrag ?? 1, dt = medium.dt ?? 1 / 60
-    const { half, volume, area, cd, wetted } = measure(p.shape, p.size)
+    const { half, volume, area, cd, wetted, extent } = measure(p.shape, p.size)
     const ax = axes(p.rotation)
 
     // how much of the part is under the surface: its height range in the world is its center plus or minus the shadow of its shape on up
@@ -144,6 +186,25 @@ export class Fluid {
       const push = -Math.sign(w) * Math.min(0.5 * medDensity * cdAng * other * 2 * Math.abs(w) * Math.abs(w), (inertia * Math.abs(w)) / dt)
       for (let k = 0; k < 3; k++) torque[k] += push * ax[i][k]
     }
-    return { force, torque }
+
+    // Added mass. A part that speeds up must speed up the water around it too, so it behaves as if heavier in each direction by the mass
+    // of that water. Given how it accelerated last tick (from its velocities) and the added-mass force applied then, everything else that
+    // acted on it was `m * a - added`; with the water's share, that same push gives it only `m / (m + added)` of the acceleration, so the
+    // correction is `-added / (m + added)` of the other force, along each of its own axes. (Stable however heavy the water is.)
+    const added: V = [0, 0, 0]
+    if (last && p.mass > 0 && medDensity * under > 0) {
+      const heavy = addedMass(p.shape, p.size, extent, medDensity * under * (medium.addedMass ?? 1))
+      const other: V = [
+        (p.mass * (p.velocity.x - last.velocity[0])) / dt - last.added[0],
+        (p.mass * (p.velocity.y - last.velocity[1])) / dt - last.added[1],
+        (p.mass * (p.velocity.z - last.velocity[2])) / dt - last.added[2],
+      ]
+      for (let i = 0; i < 3; i++) {
+        const push = (-heavy[i] / (p.mass + heavy[i])) * dot(other, ax[i])
+        for (let k = 0; k < 3; k++) added[k] += push * ax[i][k]
+      }
+      for (let k = 0; k < 3; k++) force[k] += added[k]
+    }
+    return { force, torque, added }
   }
 }

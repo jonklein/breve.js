@@ -790,6 +790,14 @@ angularDrag?: number
 
 The same for spinning. Default 1.
 
+### `FluidMedium.addedMass`
+
+```ts
+addedMass?: number
+```
+
+How much of the water's added mass to count, 0 (none) to 1 (all of it, the default). Only matters when the script passes the previous tick's `memory` to `Fluid.forces`.
+
 ### `FluidMedium.skinFriction`
 
 ```ts
@@ -826,6 +834,26 @@ Seconds per tick; drag is capped so a step can slow a part to rest but never rev
 
 The force and torque on one part, in the world frame, ready to return from `act` as `{ forces }`.
 
+### `FluidPush.force`
+
+```ts
+force: [number, number, number]
+```
+
+### `FluidPush.torque`
+
+```ts
+torque: [number, number, number]
+```
+
+### `FluidPush.added`
+
+```ts
+added: [number, number, number]
+```
+
+The part of `force` that is added mass (the water the part has to accelerate with it); `Fluid.remember` keeps it for the next tick.
+
 ## Fluid
 
 Buoyancy and drag for creatures in water and air. The engine has no fluid; this works out the push a fluid would give each
@@ -837,7 +865,7 @@ height in the world, so a tilted box is handled); with a mass of `density * volu
 Moving through the fluid costs a force against the motion, quadratic in speed, different along each of the part's own axes: pressure drag on
 the area facing the flow (a flat paddle pushed face-on resists far more than edge-on, which is what makes fins and tails swim) plus skin friction on
 the surface the flow slides over (what a streamlined body mostly pays). Fluid above the surface
-is air with its own, thin, density. Simplified on purpose: no waves, no added mass, buoyancy acts at the center of the part.
+is air with its own, thin, density. Added mass (the water a part must push along as it speeds up) is included when the script passes the previous tick's `memory` (see `Fluid.remember`). Simplified on purpose: no waves, buoyancy acts at the center of the part, and added mass is for moving, not for turning.
 
 ### `Fluid.forces`
 
@@ -846,6 +874,16 @@ static forces(parts: Record<string, FluidPart>, medium: FluidMedium =
 ```
 
 The push on every part, by part name: `{ torso: { force, torque }, tail: { ... } }`.
+
+### `Fluid.remember`
+
+```ts
+static remember(parts: Record<string, FluidPart>, forces: Record<string, FluidPush>): number[]
+```
+
+What to keep from this tick for the next one, so that added mass can be worked out: store it as part of the entity's state
+(`state: { wake: Fluid.remember(self.parts, forces) }`) and give it back as `memory` next tick. Its length is `1 + 6 * (number of parts)`;
+start it as that many zeros (the leading 0 says there is nothing to go on yet).
 
 ### `Fluid.push`
 

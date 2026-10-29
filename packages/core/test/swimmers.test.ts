@@ -33,13 +33,15 @@ const run = async (params: Record<string, number>, ticks = 900) => {
   return { ...m, hash } as Record<string, number> & { hash: string }
 }
 
-test('the bending wave swims the fish forward through water, and with no drag the same wave goes nowhere', async () => {
+test('the bending wave swims the fish forward through water by what the water does to the tail, and with neither drag nor added mass the same wave goes nowhere', async () => {
   // (at one fixed depth, so nothing touches the floor: a fish that scrapes along the bottom can push off it)
   const minnows = { depthRange: 0, minnows: 4, tuna: 0, eels: 0 }
-  const water = await run(minnows)
-  const none = await run({ ...minnows, drag: 0 })
-  assert.ok(water.moved > 2, `swam ${water.moved.toFixed(1)} m`)
-  assert.ok(none.moved < water.moved / 2, `without drag ${none.moved.toFixed(1)} m vs ${water.moved.toFixed(1)} m`)
+  const nothing = await run({ ...minnows, drag: 0, addedMass: 0 })
+  const dragOnly = await run({ ...minnows, addedMass: 0 })
+  const both = await run(minnows)
+  assert.ok(dragOnly.moved > 4, `swam ${dragOnly.moved.toFixed(1)} m on drag alone`)
+  assert.ok(nothing.moved < dragOnly.moved / 2, `with no water to push on ${nothing.moved.toFixed(1)} m vs ${dragOnly.moved.toFixed(1)} m`)
+  assert.ok(both.moved > dragOnly.moved * 1.5, `added mass makes the tail a better paddle: ${both.moved.toFixed(1)} m vs ${dragOnly.moved.toFixed(1)} m`)
 })
 
 test('neutral fish hang in the water, fish that are too heavy sink, and a run repeats exactly', async () => {

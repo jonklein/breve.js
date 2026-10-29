@@ -30,7 +30,8 @@ export class RigidView {
   groundLevel = 0
   private loaded = new Map<string, Promise<THREE.BufferGeometry>>()
 
-  constructor(scene: THREE.Scene, private camera: THREE.PerspectiveCamera, private controls: { target: THREE.Vector3 }) {
+  /** `ground`: this view draws the terrain (a scene with several sets of creatures draws it once, with the first). */
+  constructor(scene: THREE.Scene, private camera: THREE.PerspectiveCamera, private controls: { target: THREE.Vector3 }, private ground = true) {
     this.group.visible = false
     scene.add(this.group)
   }
@@ -76,7 +77,7 @@ export class RigidView {
 
   private build(model: Model, halfSize: number): void {
     this.makeMeshes(model)
-    this.buildTerrain(model.terrain)
+    if (this.ground) this.buildTerrain(model.terrain)
     // frame the arena from a corner, a little above, but leave the camera alone when only a body was edited
     if (halfSize !== this.framed) {
       this.framed = halfSize

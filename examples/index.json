@@ -188,13 +188,28 @@
   {
     "id": "hypercycle",
     "name": "Hypercycle",
-    "description": "Five molecules that each help the next copy itself survive together in chasing spiral waves, until parasites that take help without giving it break the ring.",
+    "description": "Five chemicals in a ring, each catalyzing the replication of the next: they coexist as spiral waves across a surface.",
     "scene": "scene.json",
     "script": "hypercycle.js",
     "tags": [
       "grid",
       "evolution",
       "origin of life"
+    ],
+    "folder": "Cells & patterns",
+    "about": "about.md"
+  },
+  {
+    "id": "hypercycle-gpu",
+    "name": "Hypercycle (GPU)",
+    "description": "A ring of catalysts on a million cells: each chemical speeds up the replication of the next, and the five chase each other in spiral waves.",
+    "scene": "scene.json",
+    "script": "hypercycle.js",
+    "tags": [
+      "grid",
+      "evolution",
+      "origin of life",
+      "gpu"
     ],
     "folder": "Cells & patterns",
     "about": "about.md"

@@ -958,6 +958,14 @@ download(): Promise<Record<string, Float32Array>>
 
 The state, one value per cell for each field.
 
+### `FormulaLattice.cell`
+
+```ts
+cell(index: number): Promise<Record<string, number>>
+```
+
+One cell's state by field name (an inspector looks at a single cell without bringing the whole grid back).
+
 ### `FormulaLattice.totals`
 
 ```ts

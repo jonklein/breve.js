@@ -36,6 +36,10 @@ class CpuLattice implements FormulaLattice {
     return Object.fromEntries(this.fields.map((f) => [f, this.state[f].slice()]))
   }
 
+  async cell(index: number): Promise<Record<string, number>> {
+    return Object.fromEntries(this.fields.map((f) => [f, this.state[f][index]]))
+  }
+
   async totals(program: Program, run: RunArgs): Promise<Record<string, number>> {
     return interpretTotals(program, this.grid, { state: this.state, params: run.params, tick: run.tick, seed: run.seed })
   }

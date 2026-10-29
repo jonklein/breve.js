@@ -146,6 +146,19 @@ class GpuLattice implements FormulaLattice {
     return out
   }
 
+  async cell(index: number): Promise<Record<string, number>> {
+    const bytes = this.fields.length * 4
+    const rb = this.device.createBuffer({ size: Math.max(4, bytes), usage: 0x1 | 0x8 }) // MAP_READ | COPY_DST
+    const enc = this.device.createCommandEncoder()
+    this.fields.forEach((_, f) => enc.copyBufferToBuffer(this.buf[this.flip], (f * this.cells + index) * 4, rb, f * 4, 4))
+    this.device.queue.submit([enc.finish()])
+    await rb.mapAsync(1)
+    const values = new Float32Array(rb.getMappedRange().slice(0))
+    rb.unmap()
+    rb.destroy()
+    return Object.fromEntries(this.fields.map((f, i) => [f, values[i]]))
+  }
+
   async download(): Promise<Record<string, Float32Array>> {
     const all = new Float32Array(await this.read(this.buf[this.flip], this.fields.length * this.cells * 4))
     return Object.fromEntries(this.fields.map((f, i) => [f, all.slice(i * this.cells, (i + 1) * this.cells)]))

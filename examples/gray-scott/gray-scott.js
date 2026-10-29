@@ -12,28 +12,21 @@
 //   supply  how fast u is topped up          decay  how fast v breaks down
 //
 // The preset buttons set (supply, decay) for the classic patterns. Then try the sliders: the diffusion
-// rates change how fine the pattern is, and the palette buttons change how it is colored.
+// rates change how fine the pattern is. The picture is two chemicals added together: red is v, blue is u.
 //
 // The whole sheet is updated at once with field arithmetic: `u.neighborAverage().sub(u)` is how much
 // each cell differs from its neighbors, which is all that diffusion needs.
-const PALETTES = {
-  ocean: ['#0b1230', '#17509c', '#2fb8bd', '#f6efc4'],
-  fire: ['#10040a', '#7a1250', '#e8452e', '#ffd25a', '#fff6d8'],
-  aurora: ['#07102b', '#2a2f8f', '#16b6a0', '#9be564', '#f4f06a'],
-  rainbow: ['#1b0b3a', '#3a3cc8', '#18c4c4', '#7be45a', '#ffd23f', '#ff5a5f'],
-  candy: ['#2b1055', '#c13fa8', '#ff7ab6', '#ffd1a8', '#fffbe8'],
-  mono: ['#0a0a0c', '#4a4f5c', '#aab0bd', '#ffffff'],
-}
+const BLOBS = 8 // how many places v starts from, all inside the middle quarter
 
 export default {
-  // u everywhere, and a few random blobs of v to start the reaction
+  // u everywhere, with a few blobs of v at random places inside the middle quarter of the sheet; the pattern grows outward from there
   initAll({ count }, p, ctx) {
     const size = Math.round(Math.sqrt(count))
     const u = new Float32Array(count).fill(1)
     const v = new Float32Array(count)
-    for (let b = 0; b < p.blobs; b++) {
-      const cx = Math.floor(ctx.random() * size)
-      const cy = Math.floor(ctx.random() * size)
+    for (let b = 0; b < BLOBS; b++) {
+      const cx = Math.floor(size / 4 + ctx.random() * (size / 2))
+      const cy = Math.floor(size / 4 + ctx.random() * (size / 2))
       for (let dy = -3; dy <= 3; dy++) {
         for (let dx = -3; dx <= 3; dx++) {
           const i = ((cy + dy + size) % size) * size + ((cx + dx + size) % size)
@@ -45,10 +38,9 @@ export default {
     return { u, v }
   },
 
-  // every cell is drawn, colored along the chosen palette by how much v is there
-  displayAll({ v }, p, ctx) {
-    const stops = PALETTES[ctx.data?.palette] ?? PALETTES.ocean
-    return { visible: v.ge(-1), color: ctx.colors.gradientField(stops, v.mul(p.brightness)) }
+  // every cell is drawn: red is v, blue is u (dim, so the ground is dark), and where both are present they add
+  displayAll({ u, v }) {
+    return { visible: v.ge(-1), color: { r: v.mul(4).clamp(0, 1), g: v.mul(0.15).clamp(0, 1), b: u.mul(0.2) } }
   },
 
   actAll({ u, v }, p) {

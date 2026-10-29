@@ -34,7 +34,8 @@ check('front page runs a simulation behind the content', (await page.locator('#b
 check('front page offers Explore and the workbench', (await page.locator('a.button[href="explore/"]').count()) === 1 && (await page.locator('a.button[href="sim/"]').count()) === 1)
 await page.goto(`${base}/explore/`)
 await page.evaluate(() => document.getElementById('demos').scrollIntoView())
-await page.waitForTimeout(6000)
+// (the swimmers need the physics engine, which takes a moment to load)
+for (let i = 0; i < 30 && (await page.locator('.demo canvas').count()) < 3; i++) await page.waitForTimeout(1000)
 check('explore runs three live demos', (await page.locator('.demo canvas').count()) === 3)
 await page.goto(`${base}/?embed#boids`)
 await page.waitForTimeout(800)
@@ -47,8 +48,8 @@ const total = await page.locator('#cards .card').count()
 await page.click('.chip:has-text("physics")')
 check('gallery lists examples and filters by tag', total >= 13 && (await page.locator('#cards .card').count()) < total, `${total} cards`)
 await page.goto(`${base}/sim/?fork=boids`)
-await page.waitForTimeout(2000)
-check('gallery Fork opens a copy', (await page.inputValue('#name')) === 'Boids copy')
+await page.waitForSelector('#name:not(.hidden)', { timeout: 15000 }).catch(() => {})
+check('gallery Fork opens a copy', (await page.inputValue('#name', { timeout: 5000 }).catch(() => '')) === 'Boids copy')
 
 // tree editor: one edit changes one line of text; a bad value shows an inline error
 await sim('ants')
@@ -218,10 +219,21 @@ await sim('life3d-gpu')
 await page.waitForTimeout(4000)
 check('3D Life as formulas runs', (await page.locator('.problems li').count()) === 0 && /cells|generation/.test(await page.textContent('#stats')), `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
 
+// clicking a lattice cell (a patch of the epidemic grid) opens the inspector with its fields; the time label keeps its digits
+await sim('epidemic-grid')
+await page.waitForTimeout(3000)
+const vp = await page.locator('#viewport').boundingBox()
+await page.mouse.click(vp.x + vp.width / 2, vp.y + vp.height / 2)
+await page.waitForTimeout(1500)
+check('a lattice cell can be clicked and inspected', (await page.locator('#inspector:not(.hidden)').count()) === 1 && /cell #\d+/.test(await page.locator('#inspector').innerText()), (await page.locator('#inspector').innerText()).replace(/\n/g, ' | ').slice(0, 80))
+const labels = new Set()
+for (let i = 0; i < 6; i++) { labels.add((await page.textContent('#timeline-label')).replace(/[\d,]+/, '#').trim()); await page.waitForTimeout(150) }
+check('the time label has a fixed shape for a step of 1', labels.size === 1, [...labels].join(' / '))
+
 // swimmers: forces and the water plane run with no problems
 await sim('swimmers')
 await page.waitForTimeout(7000)
-check('the swimmers run', /creatures/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
+check('the swimmers run', /minnow/.test(await page.textContent('#stats')) && (await page.locator('.problems li').count()) === 0, `${await page.textContent('#stats')} | ${await page.locator('.problems li').allTextContents()}`)
 
 // particle life: the dots run with no problems
 await sim('particle-life')

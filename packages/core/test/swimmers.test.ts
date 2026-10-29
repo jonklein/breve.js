@@ -8,13 +8,13 @@ const load = async (params: Record<string, number> = {}) => {
   const p = parseScene(readFileSync(new URL('../../../examples/swimmers/scene.json', import.meta.url), 'utf8'))
   assert.ok(p.ok, p.ok ? '' : p.errors.join('\n'))
   for (const [k, v] of Object.entries(params)) (p.scene.params[k] as { value: number }).value = v
-  p.scene.params.count = { value: 3, min: 1, max: 30, step: 1 }
+  for (const k of ['minnows', 'tuna', 'eels']) (p.scene.params[k] as { value: number }).value = 2
   const script = (await import(pathToFileURL(new URL('../../../examples/swimmers/swimmer.js', import.meta.url).pathname).href)) as ScriptModule
   return Sim.create(p.scene, script)
 }
 const run = async (params: Record<string, number>, ticks = 900) => {
   const sim = await load(params)
-  const at = () => (sim.worlds[0] as unknown as { handles: { x: number; z: number }[] }).handles.map((h) => [h.x, h.z])
+  const at = () => sim.worlds.flatMap((w) => (w as unknown as { handles: { x: number; z: number }[] }).handles.map((h) => [h.x, h.z]))
   const start = at()
   for (let t = 0; t < ticks; t++) sim.step()
   assert.deepEqual(sim.takeErrors(), [])
@@ -33,8 +33,8 @@ test('the bending wave swims the fish forward through water, and with no drag th
   assert.ok(none.moved < water.moved / 3, `without drag ${none.moved.toFixed(1)} m vs ${water.moved.toFixed(1)} m`)
 })
 
-test('neutral fish hang in the water, heavy ones sink, and a run repeats exactly', async () => {
-  const neutral = await run({}), sinking = await run({ buoyancy: 0.85 })
+test('neutral fish hang in the water, ones too heavy for their swim bladders sink, and a run repeats exactly', async () => {
+  const neutral = await run({}), sinking = await run({ buoyancy: 0.6 })
   assert.ok(neutral.depth > 1 && neutral.depth < 2.5, `neutral fish at ${neutral.depth.toFixed(2)} m`)
   assert.ok(sinking.depth < neutral.depth - 0.5, `sinking fish at ${sinking.depth.toFixed(2)} m`)
   assert.equal((await run({})).hash, neutral.hash)

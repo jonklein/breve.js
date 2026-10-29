@@ -47,6 +47,13 @@ export class Viewport {
       const r = canvas.getBoundingClientRect()
       const ray = new THREE.Raycaster()
       ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1)), this.view.camera)
+      // a lattice drawn as a picture has no cubes to hit: the cell under the pointer is worked out from the window being shown
+      const f = this.field, cell = f ? this.cellAt(e.clientX, e.clientY) : null
+      if (f && cell) {
+        const x = Math.floor(cell.x), y = Math.floor(cell.y)
+        this.onPick(x >= 0 && y >= 0 && x < f.dims[0] && y < f.dims[1] ? { set: f.set, row: y * f.dims[0] + x } : null)
+        return
+      }
       this.onPick(this.view.pick(ray))
     })
     this.listenForFieldView(canvas)

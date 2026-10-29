@@ -1,32 +1,115 @@
 {
   "name": "hypercycle",
   "seed": 5,
-  "time": { "step": 1, "unit": "step", "pace": 24 },
+  "time": {
+    "step": 1,
+    "unit": "step",
+    "pace": 24
+  },
   "world": {
-    "preset": "studio",
+    "preset": "night",
     "grid": false,
     "frame": false,
-    "camera": { "distance": 1.45, "elevation": 62, "azimuth": 90 },
-    "sky": { "top": "#0b1020", "horizon": "#161c2e", "ground": "#0b1020" },
-    "light": { "sun": { "intensity": 1.6, "elevation": 60, "azimuth": 40 } },
-    "effects": { "bloom": { "strength": 0.3, "threshold": 0.8 }, "vignette": 0.25 }
+    "fog": false,
+    "camera": {
+      "distance": 1.45,
+      "elevation": 62,
+      "azimuth": 90
+    },
+    "light": {
+      "sun": {
+        "intensity": 0
+      },
+      "ambient": {
+        "intensity": 0
+      },
+      "hemisphere": {
+        "intensity": 0
+      },
+      "toneMapping": "neutral"
+    },
+    "effects": {
+      "bloom": false,
+      "saturation": 1.15
+    },
+    "reflections": 0
   },
   "params": {
-    "help": { "value": 3, "min": 0, "max": 8, "step": 0.1, "label": "help from the one before (c)" },
-    "base": { "value": 0.05, "min": 0, "max": 0.5, "step": 0.01, "label": "copying without help (k)" },
-    "spread": { "value": 0.25, "min": 0, "max": 0.5, "step": 0.01, "label": "spreading to neighbors" },
-    "dt": { "value": 0.4, "min": 0.05, "max": 1, "step": 0.05, "label": "step size" },
-    "speed": { "value": 4, "min": 1, "max": 16, "step": 1, "label": "small steps per tick" },
-    "contrast": { "value": 3, "min": 1, "max": 8, "step": 0.5, "label": "color contrast" }
+    "help": {
+      "value": 3,
+      "min": 0,
+      "max": 8,
+      "step": 0.1,
+      "label": "catalysis by the previous chemical (c)"
+    },
+    "base": {
+      "value": 0.05,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.01,
+      "label": "uncatalyzed replication (k)"
+    },
+    "spread": {
+      "value": 0.25,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.01,
+      "label": "diffusion"
+    },
+    "dt": {
+      "value": 0.4,
+      "min": 0.05,
+      "max": 1,
+      "step": 0.05,
+      "label": "step size"
+    },
+    "speed": {
+      "value": 4,
+      "min": 1,
+      "max": 16,
+      "step": 1,
+      "label": "small steps per tick"
+    }
   },
   "entities": [
     {
       "name": "cell",
       "controller": "hypercycle.js",
-      "lattice": { "size": [128, 1, 128], "spacing": 1, "edges": "wrap", "thickness": 0.35 },
-      "style": { "material": { "roughness": 0.55, "glow": 0.3 } }
+      "lattice": {
+        "size": [
+          128,
+          1,
+          128
+        ],
+        "spacing": 1,
+        "edges": "wrap",
+        "thickness": 0.35
+      },
+      "style": {
+        "material": {
+          "roughness": 1,
+          "glow": 1
+        }
+      }
     }
   ],
-  "metrics": ["chemical1", "chemical2", "chemical3", "chemical4", "chemical5"],
-  "charts": [{ "title": "how much of the sheet each holds", "metrics": ["chemical1", "chemical2", "chemical3", "chemical4", "chemical5"] }]
+  "metrics": [
+    "chemical1",
+    "chemical2",
+    "chemical3",
+    "chemical4",
+    "chemical5"
+  ],
+  "charts": [
+    {
+      "title": "average concentration of each chemical",
+      "metrics": [
+        "chemical1",
+        "chemical2",
+        "chemical3",
+        "chemical4",
+        "chemical5"
+      ]
+    }
+  ]
 }

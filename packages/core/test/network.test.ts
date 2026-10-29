@@ -39,10 +39,10 @@ test('an epidemic runs through a network: infected rises then falls, everyone en
   for (let t = 0; t < 400; t++) { sim.step(); peak = Math.max(peak, sim.metrics().infected) }
   const m = sim.metrics()
   assert.equal(sim.takeErrors().length, 0)
-  assert.ok(peak > 20, `peak ${peak}`)
+  assert.ok(peak > 100, `peak ${peak}`)
   assert.equal(m.infected, 0)
-  assert.equal(m.susceptible + m.infected + m.recovered, 300)
-  assert.ok(m.recovered > 50)
+  assert.equal(m.susceptible + m.infected + m.recovered, scene.entities[0].count)
+  assert.ok(m.recovered > 500)
 })
 
 test('the very same script file runs on a network and on a grid', async () => {

@@ -129,3 +129,16 @@ test('a 3D lattice on the card is drawn cell by cell, and gives the same cells a
   assert.ok(f.lattice!.rgb && f.lattice!.rgb.length === 3000)
   assert.equal(card.takeErrors().length, 0)
 })
+
+test('a single cell of a lattice on the card can be inspected without bringing the grid back', async () => {
+  const sim = await Sim.create(sceneOf([16, 12, 1]), await script())
+  assert.ok(sim.worlds[0] instanceof GpuLatticeWorld)
+  for (let t = 0; t < 4; t++) sim.step()
+  assert.throws(() => sim.inspect(0, 5), /graphics card/)
+  const info = await sim.inspectCell(0, 5)
+  assert.ok(info && info.kind === 'cell' && info.row === 5 && 'alive' in info.fields && 'age' in info.fields)
+  await sim.sync()
+  const state = (sim.snapshot().worlds[0] as { state: Record<string, Float32Array> }).state
+  assert.equal(info!.fields.alive, state.alive[5])
+  assert.equal(await sim.inspectCell(0, 9999), null)
+})

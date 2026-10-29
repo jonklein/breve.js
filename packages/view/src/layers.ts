@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { WorldFrame } from './world-view'
 import { alphaMaterial, blend, withAlpha } from './alpha'
-import { applyMaterial, shapeGeometry, type Fallback } from './style'
+import { applyMaterial, detailFor, shapeGeometry, type Fallback } from './style'
 import { groundSquare, loadSprite, spriteMaterial } from './sprite'
 import { Trails } from './trails'
 
@@ -105,7 +105,7 @@ export class AgentLayer {
       this.mesh.material = this.spriteMat = m
       this.mesh.castShadow = false
     } else {
-      this.mesh.geometry = shapeGeometry(style?.shape, 'cone')
+      this.mesh.geometry = shapeGeometry(style?.shape, 'cone', detailFor(this.capacity))
       this.mesh.material = this.lit
     }
     this.mesh.geometry.setAttribute('instanceAlpha', this.alpha)
@@ -144,7 +144,7 @@ export class AgentLayer {
       this.alpha.setX(i, a)
       // heading as colour: boids flying the same way share a colour
       if (this.selected === i) this.c.set('#ffffff')
-      else if (look?.rgb) this.c.setRGB(look.rgb[i * 3] / 255, look.rgb[i * 3 + 1] / 255, look.rgb[i * 3 + 2] / 255)
+      else if (look?.rgb) this.c.setRGB(look.rgb[i * 3] / 255, look.rgb[i * 3 + 1] / 255, look.rgb[i * 3 + 2] / 255, THREE.SRGBColorSpace)
       else if (own) this.c.copy(own)
       else this.c.setRGB(0.35 + 0.65 * (this.d.x * 0.5 + 0.5), 0.35 + 0.65 * (this.d.y * 0.5 + 0.5), 0.35 + 0.65 * (this.d.z * 0.5 + 0.5))
       colors.setXYZ(i, this.c.r, this.c.g, this.c.b)
@@ -210,8 +210,32 @@ export class CellLayer {
 
   constructor(private scene: THREE.Scene) {}
 
+  /** Highlighted cell (the one being inspected), or -1. */
+  private chosen = -1
+  get selected(): number { return this.chosen }
+  set selected(row: number) {
+    this.chosen = row
+    if (this.cells) this.cells.animating = true // redraw with the highlight
+  }
+
+  /**
+   * The cell under a ray. A flat grid (size 1 on one axis) is found by where the ray crosses its plane, so a thin tile is as easy to hit as a
+   * fat one; a 3D grid is found by casting the ray at the cubes.
+   */
   pick(ray: THREE.Raycaster): { row: number; distance: number } | null {
-    if (!this.cubes || !this.cubes.visible) return null
+    if (!this.cubes || !this.cubes.visible || !this.cells) return null
+    const c = this.cells
+    const flat = c.dims.findIndex((d) => d === 1)
+    if (flat >= 0 && c.dims.filter((d) => d === 1).length === 1) {
+      const normal = new THREE.Vector3(flat === 0 ? 1 : 0, flat === 1 ? 1 : 0, flat === 2 ? 1 : 0)
+      const at = ray.ray.intersectPlane(new THREE.Plane(normal, 0), new THREE.Vector3())
+      if (!at) return null
+      const [nx, ny, nz] = c.dims
+      const ix = Math.round(at.x / c.spacing + (nx - 1) / 2), iy = Math.round(at.y / c.spacing + (ny - 1) / 2), iz = Math.round(at.z / c.spacing + (nz - 1) / 2)
+      if (ix < 0 || iy < 0 || iz < 0 || ix >= nx || iy >= ny || iz >= nz) return null
+      const row = ix + nx * (iy + ny * iz)
+      return { row, distance: ray.ray.origin.distanceTo(at) } // a dead or hidden cell is still a cell: it can be chosen
+    }
     this.cubes.boundingSphere = null
     const hit = ray.intersectObject(this.cubes)[0]
     return hit && hit.instanceId !== undefined ? { row: this.rows[hit.instanceId], distance: hit.distance } : null
@@ -249,7 +273,7 @@ export class CellLayer {
     if (key === this.styleKey) return
     this.styleKey = key
     const old = cubes.geometry
-    cubes.geometry = shapeGeometry(style?.shape, 'cube')
+    cubes.geometry = shapeGeometry(style?.shape, 'cube', detailFor(cubes.instanceMatrix.count))
     cubes.geometry.setAttribute('instanceAlpha', this.alpha!)
     old.dispose()
     cubes.boundingSphere = null
@@ -297,14 +321,17 @@ export class CellLayer {
     for (let i = 0; i < c.scale.length && w < this.capacity; i++) {
       let s = c.scale[i]
       const t = c.target[i]
+      const isChosen = i === this.chosen
       if (s !== t) {
         s += (t - s) * k
         if (Math.abs(t - s) < 0.02) s = t
         else moving = true
         c.scale[i] = s
       }
-      if (s <= 0) continue
-      const u = c.unit * s * s * (3 - 2 * s) * (c.sizes ? c.sizes[i] : 1) // smoothstep, so growth starts and ends gently
+      if (s <= 0 && !isChosen) continue // (a chosen cell shows even where the display hides it)
+      const chosen = isChosen
+      if (s <= 0) s = 1
+      const u = c.unit * s * s * (3 - 2 * s) * (c.sizes ? c.sizes[i] : 1) * (chosen ? 1.5 : 1) // smoothstep, so growth starts and ends gently; the chosen cell is bigger
       this.p.set(
         ((i % nx) - (nx - 1) / 2) * c.spacing,
         ((Math.floor(i / nx) % ny) - (ny - 1) / 2) * c.spacing,
@@ -314,7 +341,8 @@ export class CellLayer {
       this.m.compose(this.p, this.q, this.d)
       cubes.setMatrixAt(w, this.m)
       this.rows[w] = i
-      if (c.rgb) this.c.setRGB(c.rgb[i * 3] / 255, c.rgb[i * 3 + 1] / 255, c.rgb[i * 3 + 2] / 255)
+      if (chosen) this.c.set('#ffffff')
+      else if (c.rgb) this.c.setRGB(c.rgb[i * 3] / 255, c.rgb[i * 3 + 1] / 255, c.rgb[i * 3 + 2] / 255, THREE.SRGBColorSpace)
       else this.c.copy(this.fixed ?? this.fallback)
       colors.setXYZ(w, this.c.r, this.c.g, this.c.b)
       const a = c.alpha ? c.alpha[i] / 255 : 1
@@ -383,7 +411,7 @@ export class GraphLayer {
     if (key === this.styleKey || !this.mesh) return
     this.styleKey = key
     const old = this.mesh.geometry
-    this.mesh.geometry = shapeGeometry(style?.shape, 'sphere')
+    this.mesh.geometry = shapeGeometry(style?.shape, 'sphere', detailFor(this.capacity))
     this.mesh.geometry.setAttribute('instanceAlpha', this.alpha!)
     old.dispose()
     this.mesh.boundingSphere = null
@@ -419,7 +447,7 @@ export class GraphLayer {
       this.m.compose(this.p, this.q, this.s)
       this.mesh.setMatrixAt(i, this.m)
       if (this.selected === i) this.c.set('#ffffff')
-      else if (look?.rgb) this.c.setRGB(look.rgb[i * 3] / 255, look.rgb[i * 3 + 1] / 255, look.rgb[i * 3 + 2] / 255)
+      else if (look?.rgb) this.c.setRGB(look.rgb[i * 3] / 255, look.rgb[i * 3 + 1] / 255, look.rgb[i * 3 + 2] / 255, THREE.SRGBColorSpace)
       else this.c.copy(fixed ?? color(DEFAULT_NODE))
       const a = look?.alpha ? look.alpha[i] / 255 : 1
       if (a < 1) see = true

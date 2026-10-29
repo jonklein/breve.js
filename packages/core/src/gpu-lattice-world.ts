@@ -200,6 +200,11 @@ export class GpuLatticeWorld implements World {
     if (!this.state) this.state = await this.lattice.download()
   }
 
+  /** One cell's values, read from the card (an inspector looking at a single cell). */
+  async cellValues(row: number): Promise<Record<string, number>> {
+    return this.lattice.cell(row)
+  }
+
   frame(): FrameData {
     const [nx, ny, nz] = this.dims
     const L = this.host.def.lattice!

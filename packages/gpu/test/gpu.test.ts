@@ -176,3 +176,25 @@ test('3D Life on the graphics card: the look of every cell matches the CPU inter
   }
   assert.ok(live > 0, 'something is alive')
 })
+
+test('the hypercycle example (five chemicals, sums, cubes, diffusion) matches the CPU interpreter on the card, and its picture is dark where nothing is', async (t) => {
+  if (skip(t)) return
+  const js: any = await import(new URL('../../../examples/hypercycle-gpu/hypercycle.js', import.meta.url).href)
+  const grid: Grid = { size: [24, 24, 1], wrap: true }
+  const fields = ['a', 'b', 'c', 'd', 'e']
+  const params = ['help', 'base', 'spread', 'dt']
+  const init = trace(js.default.initFormula, [], params), step = trace(js.default.actFormula, fields, params), look = trace(js.default.displayFormula, fields, params)
+  const { program: metrics } = traceMetrics({ chemical1: ({ cells }: any) => cells.a.average() }, fields)
+  const p = { help: 3, base: 0.05, spread: 0.25, dt: 0.4 }, seed = 9, steps = 8
+  const got: any = await page.evaluate(RUN, { grid, fields, init, step, metrics, look, params: p, steps, seed, window: [0, 0, 24, 24], size: [24, 24] })
+  if (got.skip) return t.skip('no WebGPU adapter')
+  assert.deepEqual(got.problems, [])
+  let state = interpret(init, grid, { state: {}, params: p, tick: 0, seed }) as Record<string, Float32Array>
+  for (let tick = 0; tick < steps; tick++) state = interpret(step, grid, { state, params: p, tick, seed }) as typeof state
+  for (const f of fields) {
+    const want = Array.from(state[f]), have: number[] = got.state[f]
+    assert.ok(have.every((v, i) => Math.abs(v - want[i]) < 1e-4), `chemical ${f} matches`)
+  }
+  const corner = got.whole.slice(0, 4) // cell (0, 0) lies outside the middle quarter: still empty after a few steps, so dark
+  assert.ok(corner[0] + corner[1] + corner[2] < 30, `dark corner ${corner}`)
+})

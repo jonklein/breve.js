@@ -44,7 +44,11 @@ export class WorldView {
   readonly controls: { target: THREE.Vector3 }
   /** One layer per entity set, in scene order. */
   private layers: (AgentLayer | CellLayer | FieldLayer | GraphLayer | null)[] = []
-  private rigid: RigidView
+  /** One view per set of creatures; the first also draws the ground. */
+  private rigids: RigidView[] = []
+  private rigidSets: number[] = []
+  private cameraFor = 0
+  private get rigid(): RigidView { return (this.rigids[0] ??= new RigidView(this.scene, this.camera, this.controls)) }
   private markers: THREE.Group | null = null
   private water: THREE.Mesh | null = null
   private followWanted = false
@@ -103,7 +107,6 @@ export class WorldView {
     this.catcher.receiveShadow = true
     this.catcher.visible = false
     this.scene.add(this.catcher)
-    this.rigid = new RigidView(this.scene, this.camera, this.controls)
     this.applyLook()
 
   }
@@ -341,13 +344,14 @@ export class WorldView {
       const m = (o as THREE.Mesh).material as THREE.Material | undefined
       if (m) m.needsUpdate = true
     })
-    this.rigid.setShadows(on)
+    for (const r of this.rigids) r.setShadows(on)
     for (const l of this.layers) l?.setShadows(on)
   }
 
   /** Where relative model paths (a part's `visual.gltf`) start: a URL ending in `/`. */
   setAssetBase(base: string): void {
-    this.rigid.assetBase = base
+    for (const r of this.rigids) r.assetBase = base
+    this.assetBase = base
     this.assetBase = base
     this.floorKey = '' // a floor texture may now resolve somewhere else
     this.applyFloor()
@@ -417,7 +421,7 @@ export class WorldView {
   pickHit(ray: THREE.Raycaster): { set: number; row: number; distance: number } | null {
     const found: { set: number; row: number; distance: number }[] = []
     this.layers.forEach((l, set) => { const hit = l?.pick(ray); if (hit) found.push({ set, ...hit }) })
-    if (this.isBodies) { const hit = this.rigid.pick(ray); if (hit) found.push({ set: 0, ...hit }) }
+    if (this.isBodies) this.rigids.forEach((r, k) => { const hit = r.pick(ray); if (hit) found.push({ set: this.rigidSets[k] ?? 0, ...hit }) })
     found.sort((a, b) => a.distance - b.distance)
     return found[0] ?? null
   }
@@ -437,23 +441,33 @@ export class WorldView {
 
   /** Mark the agent being inspected (or none). */
   select(sel: { set: number; row: number } | null): void {
-    this.layers.forEach((l, i) => { if (l instanceof AgentLayer || l instanceof GraphLayer) l.selected = sel && sel.set === i ? sel.row : -1 })
+    this.layers.forEach((l, i) => { if (l instanceof AgentLayer || l instanceof GraphLayer || l instanceof CellLayer) l.selected = sel && sel.set === i ? sel.row : -1 })
   }
 
   update(frames: WorldFrame[]): void {
     // physics scenes draw their own ground: hide the bounds box and floor grid the other kinds use
-    const rigidFrame = frames.find((f) => f.kind === 'bodies')
+    const bodySets = frames.map((f, set) => ({ f, set })).filter((x) => x.f.kind === 'bodies')
+    const rigidFrame = bodySets[0]?.f
     const bodies = !!rigidFrame
     this.isBodies = bodies
+    this.rigidSets = bodySets.map((x) => x.set)
+    while (this.rigids.length < bodySets.length) this.rigids.push(new RigidView(this.scene, this.camera, this.controls, this.rigids.length === 0))
+    if (bodies) { this.rigids[0].assetBase = this.assetBase; for (const r of this.rigids) r.assetBase = this.assetBase }
     this.applyFloor()
     this.applyShadows()
-    this.rigid.setVisible(bodies)
+    this.rigids.forEach((r, k) => r.setVisible(k < bodySets.length))
     if (this.box) this.box.visible = !bodies && this.look.frame
     if (this.grid) this.grid.visible = !bodies
     if (rigidFrame) {
       for (const l of this.layers) l?.setVisible(false)
+      bodySets.forEach((x, k) => { if (x.f.rigid) { if (x.f.rigid.model && k === 0) this.cameraFor = 0; this.rigids[k].update(x.f.rigid, x.f.size) } }) // (a new model frames the arena again: say again where the camera goes)
+      // a scene that says where its camera starts gets that (as a multiple of the arena's size); otherwise the arena is framed from a corner
+      if (this.look.camera.given && this.cameraFor !== rigidFrame.size) {
+        this.cameraFor = rigidFrame.size
+        this.controls.target.set(0, 0, 0)
+        this.placeCamera(rigidFrame.size)
+      }
       if (rigidFrame.rigid) {
-        this.rigid.update(rigidFrame.rigid, rigidFrame.size)
         const p = rigidFrame.rigid.poses
         if (this.followWanted && p.length >= 3) this.follow(new THREE.Vector3(p[0], p[1], p[2]), rigidFrame.size)
       }

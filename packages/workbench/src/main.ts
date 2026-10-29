@@ -565,8 +565,10 @@ async function main(): Promise<void> {
   // how fast time is passing, in words: "6.2x real time" for a scene measured in seconds, "47 generation/s" otherwise
   const paceText = (m: { pace: number; unit: string }) => (m.unit === 's' ? `${num(m.pace)}× real time` : `${num(m.pace)} ${m.unit}/s`)
   const num = (x: number) => (x >= 100 ? Math.round(x).toLocaleString() : String(Number(x.toPrecision(3))))
-  const showTime = (time: number, unit: string, past: boolean) => {
-    $('timeline-label').textContent = `T = ${Number(time.toPrecision(5)).toLocaleString('en', { maximumFractionDigits: 4 })} ${unit}`
+  // the label always shows as many decimals as the step needs (0.1 shows 1.9 then 2.0, never 1.9 then 2), so it does not change width
+  const showTime = (time: number, step: number, unit: string, past: boolean) => {
+    const digits = Math.min(6, Math.max(0, Math.ceil(-Math.log10(step) - 1e-9)))
+    $('timeline-label').textContent = `T = ${time.toLocaleString('en', { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${unit}`
     $('timeline-label').classList.toggle('past', past)
   }
 
@@ -631,9 +633,10 @@ async function main(): Promise<void> {
         slider.min = String(m.timeline.first); slider.max = String(m.timeline.last); slider.step = String(m.timeline.step)
         if (!scrubbing) slider.value = String(Math.min(m.tick, m.timeline.last))
       }
-      showTime(m.time, m.unit, !!m.timeline && m.tick < m.timeline.last)
+      showTime(m.time, m.step, m.unit, !!m.timeline && m.tick < m.timeline.last)
       viewport.update(m.frames.map((f) => ({ ...f, rate: m.rate })))
-      if (inspecting) { if (m.inspected) inspector.update(m.inspected); else stopInspecting() }
+      // a frame made before the worker heard about the click has nothing to show yet: only a frame for this very selection can say it is gone
+      if (inspecting) { if (m.inspected) inspector.update(m.inspected); else if (m.selected && m.selected.set === inspecting.set && m.selected.row === inspecting.row) stopInspecting() }
       if (m.metrics) metrics.push(m.metrics)
       const now = performance.now()
       if (now - lastTime > 500) {
@@ -655,7 +658,7 @@ async function main(): Promise<void> {
       $('sweepbar').classList.toggle('hidden', true)
     } else if (m.type === 'tiles') {
       if (sweeping) tiles.update(m.tiles, '')
-      showTime(m.time, m.unit, false)
+      showTime(m.time, m.step, m.unit, false)
       const now = performance.now()
       if (now - lastTime > 500) {
         lastTime = now

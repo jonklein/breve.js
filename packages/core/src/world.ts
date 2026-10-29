@@ -283,6 +283,8 @@ export interface World {
   snapshot?(): unknown
   restore?(s: unknown): void
   /** Release engine resources (physics worlds live in wasm memory). */
+  /** One entity's state when the world keeps it somewhere an inspector cannot read directly (a lattice on a graphics card). */
+  cellValues?(row: number): Promise<Record<string, number>>
   /** Put entity `row` at (x, z) now, keeping what else it is (a person dragging it). Not every kind of world can. */
   moveTo?(row: number, x: number, z: number): void
   dispose?(): void

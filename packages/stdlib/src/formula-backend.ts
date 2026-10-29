@@ -37,6 +37,8 @@ export interface FormulaLattice {
   upload(state: Record<string, ArrayLike<number>>): void
   /** The state, one value per cell for each field. */
   download(): Promise<Record<string, Float32Array>>
+  /** One cell's state by field name (an inspector looks at a single cell without bringing the whole grid back). */
+  cell(index: number): Promise<Record<string, number>>
   /** The program's totals (`program.reduce`) over the current state. */
   totals(program: Program, run: RunArgs): Promise<Record<string, number>>
   /** A picture of the state: the program's `visible`, `r`, `g`, `b` for the cell under each pixel. RGBA, 4 bytes a pixel, row by row from the top. */

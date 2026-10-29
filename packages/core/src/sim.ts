@@ -344,6 +344,15 @@ export class Sim {
     this.inputLog.push({ tick: this.tick, keys: next })
   }
 
+  /** The same for a lattice kept on a graphics card, where one cell is read back from the card. */
+  async inspectCell(set: number, row: number): Promise<Inspected | null> {
+    const def = this.scene.entities[set], world = this.worlds[set]
+    if (!def?.lattice || !world?.cellValues) return this.inspect(set, row)
+    const n = def.lattice.size[0] * def.lattice.size[1] * def.lattice.size[2]
+    if (row < 0 || row >= n) return null
+    return { set: def.name, index: set, kind: 'cell', row, id: row, controller: def.type ?? 'default', fields: await world.cellValues(row) }
+  }
+
   /** Everything one entity holds, for an inspector: its set, kind, controller, and every field by name. */
   inspect(set: number, row: number): Inspected | null {
     const def = this.scene.entities[set]

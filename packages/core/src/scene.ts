@@ -714,7 +714,8 @@ export function validateScene(data: unknown): SceneResult {
     if (seen.has(e.name)) errors.push(`entities.${i}.name: another set is already called "${e.name}"`)
     seen.add(e.name)
   })
-  if (scene.entities.length > 1 && scene.entities.some((e) => e.body)) errors.push('entities: creatures (a set with a "body") cannot be mixed with other sets yet')
+  // several sets of creatures are fine (each has its own physics world, so different kinds do not bump into each other); creatures and other kinds of set are not mixed yet
+  if (scene.entities.some((e) => e.body) && scene.entities.some((e) => !e.body)) errors.push('entities: creatures (a set with a "body") cannot be mixed with other kinds of sets yet')
   scene.entities.forEach((e, i) => {
     if (!e.lattice === (e.count === undefined)) errors.push(`entities.${i}: give either "count" (free agents) or "lattice" (a grid of cells)`)
     if (e.network) {

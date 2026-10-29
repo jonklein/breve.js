@@ -4,7 +4,12 @@
 // memory and works out the next generation for all of them at the same time; the picture is made there too, of just the part of the grid
 // you are looking at. Scroll to zoom in, drag to move around. (Without WebGPU this grid is too big to run, and the scene says so.)
 export default {
-  initFormula: (fields, p, k) => ({ alive: k.hash('start').lt(p.density) }),
+  // only the middle quarter of the grid (a square half as wide and half as tall) starts populated; life spreads out from there
+  initFormula: (fields, p, k) => {
+    const [nx, ny] = k.size
+    const middle = k.x.sub(nx / 2).abs().lt(nx / 4).and(k.y.sub(ny / 2).abs().lt(ny / 4))
+    return { alive: middle.and(k.hash('start').lt(p.density)) }
+  },
 
   actFormula: ({ alive }) => {
     const crowd = alive.neighborSum()

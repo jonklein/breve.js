@@ -1,0 +1,91 @@
+{
+  "name": "hypercycle gpu",
+  "seed": 5,
+  "time": {
+    "step": 1,
+    "unit": "step",
+    "pace": 30
+  },
+  "world": {
+    "preset": "night",
+    "grid": false,
+    "fog": false,
+    "frame": false,
+    "camera": {
+      "mode": "plane"
+    }
+  },
+  "params": {
+    "help": {
+      "value": 3,
+      "min": 0,
+      "max": 8,
+      "step": 0.1,
+      "label": "catalysis by the previous chemical (c)"
+    },
+    "base": {
+      "value": 0.05,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.01,
+      "label": "uncatalyzed replication (k)"
+    },
+    "spread": {
+      "value": 0.25,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.01,
+      "label": "diffusion"
+    },
+    "dt": {
+      "value": 0.4,
+      "min": 0.05,
+      "max": 1,
+      "step": 0.05,
+      "label": "step size"
+    },
+    "speed": {
+      "value": 8,
+      "min": 1,
+      "max": 32,
+      "step": 1,
+      "label": "small steps per tick"
+    }
+  },
+  "entities": [
+    {
+      "name": "cell",
+      "controller": "hypercycle.js",
+      "lattice": {
+        "compute": "auto",
+        "size": [
+          1024,
+          1024,
+          1
+        ],
+        "spacing": 1,
+        "edges": "wrap",
+        "substeps": "$speed"
+      }
+    }
+  ],
+  "metrics": [
+    "chemical1",
+    "chemical2",
+    "chemical3",
+    "chemical4",
+    "chemical5"
+  ],
+  "charts": [
+    {
+      "title": "average concentration of each chemical",
+      "metrics": [
+        "chemical1",
+        "chemical2",
+        "chemical3",
+        "chemical4",
+        "chemical5"
+      ]
+    }
+  ]
+}

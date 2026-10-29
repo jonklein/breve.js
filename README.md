@@ -30,6 +30,7 @@ npm run typecheck
 - **Gallery** (`/gallery/`): every example with a picture; Open it, Fork it into your own projects, or copy a link.
 - **Timeline** slider under the view: go back to an earlier moment and pause there; Play carries on from it as a new branch.
 - **Tree view** (above the editor): edit `scene.json` and `experiment.json` as a tree of fields (number inputs, color pickers, dropdowns, `$param` pickers) over the same text, so the file keeps its formatting.
+- **Click anything**: a click on a free agent, a creature, a network node or a lattice cell (even one drawn as a picture on the graphics card, where the cell is read back from the card) opens the inspector with its fields.
 - **Drag things**: press on a free agent or a creature and move it across the ground; press on a marker pole (like the lights in the Braitenberg example) and drag it, which edits its position in the scene text (in `data` when `world.markers` names a key there). Dragging a creature stands it up fresh at the new spot.
 - **Share**: copies a link that carries the whole project. A project opened from a link is held until you read its script and press Run.
 - **Thinking bar** (for scenes where something thinks): lockstep or realtime, and save or replay a decision log.

@@ -7,11 +7,11 @@
 //   A susceptible one catches it from each infected neighbor with chance `infectiousness`.
 //   An infected one recovers after `recoveryTime` ticks and cannot catch it again.
 export default {
-  // everyone starts susceptible but three random ones, who are infected. (`present` is only for the grid, which draws it.)
+  // everyone starts susceptible but five random ones, who are infected. (`present` is only for the grid, which draws it.)
   initAll({ count }, p, ctx) {
     const status = new Float32Array(count)
     const order = Array.from({ length: count }, (_, i) => i)
-    for (let i = 0; i < Math.min(3, count); i++) {
+    for (let i = 0; i < Math.min(5, count); i++) {
       const j = i + Math.floor(ctx.random() * (count - i))
       ;[order[i], order[j]] = [order[j], order[i]]
       status[order[i]] = 1

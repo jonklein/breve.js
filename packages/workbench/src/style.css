@@ -240,7 +240,7 @@ main.drawer-resizing #editors, main.drawer-resizing .drawer-handle { transition:
 .timeline { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 12px; }
 .timeline input[type='range'] { flex: 1; min-width: 80px; padding: 0; }
 /* fixed width, so the number changing never moves the slider */
-.t-label { margin-left: auto; min-width: 11ch; text-align: right; font: 12px ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; color: var(--muted); }
+.t-label { margin-left: auto; min-width: 20ch; text-align: right; font: 12px ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; color: var(--muted); }
 .t-label.past { color: #e0a64a; }
 .embed .transport { display: none !important; }
 

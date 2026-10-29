@@ -1,13 +1,15 @@
 {
   "name": "swimmers",
   "seed": 5,
-  "time": { "pace": 1 },
+  "time": {
+    "pace": 1
+  },
   "world": {
     "preset": "day",
     "water": "water",
     "camera": {
-      "distance": 0.9,
-      "elevation": 38,
+      "distance": 0.55,
+      "elevation": 30,
       "azimuth": 40
     },
     "floor": {
@@ -33,23 +35,37 @@
   },
   "data": {
     "water": {
-      "level": 3,
+      "level": 3.2,
       "color": "#1b6a9c",
       "opacity": 0.55
     }
   },
   "params": {
-    "count": {
-      "value": 8,
-      "min": 1,
+    "minnows": {
+      "value": 6,
+      "min": 0,
       "max": 30,
       "step": 1,
-      "label": "fish"
+      "label": "minnows"
+    },
+    "tuna": {
+      "value": 3,
+      "min": 0,
+      "max": 15,
+      "step": 1,
+      "label": "tuna"
+    },
+    "eels": {
+      "value": 2,
+      "min": 0,
+      "max": 10,
+      "step": 1,
+      "label": "eels"
     },
     "frequency": {
-      "value": 2.0,
+      "value": 3,
       "min": 0.3,
-      "max": 4,
+      "max": 5,
       "step": 0.1,
       "label": "tail beat (Hz)"
     },
@@ -68,9 +84,9 @@
       "label": "wave lag per joint (cycles)"
     },
     "strength": {
-      "value": 400.0,
-      "min": 20,
-      "max": 800,
+      "value": 1200,
+      "min": 100,
+      "max": 3000,
       "step": 10,
       "label": "muscle strength"
     },
@@ -88,6 +104,13 @@
       "step": 0.1,
       "label": "drag"
     },
+    "depthRange": {
+      "value": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "label": "how much they rise and dive"
+    },
     "steering": {
       "value": 1.2,
       "min": 0,
@@ -101,7 +124,7 @@
       "step": 0.1
     },
     "radius": {
-      "value": 14,
+      "value": 10,
       "min": 4,
       "max": 25,
       "step": 1,
@@ -116,31 +139,48 @@
     }
   },
   "physics": {
-    "minGyration": 0.08
+    "minGyration": 0.08,
+    "linearDamping": 0,
+    "angularDamping": 0.1
   },
   "entities": [
     {
-      "name": "fish",
-      "count": "$count",
+      "name": "minnow",
+      "type": "minnow",
+      "count": "$minnows",
       "controller": "swimmer.js",
+      "spawn": {
+        "box": [
+          [
+            -5,
+            0.4,
+            -5
+          ],
+          [
+            5,
+            1.9,
+            5
+          ]
+        ]
+      },
       "body": {
         "motor": {
           "stiffness": "$strength",
-          "damping": 12
+          "damping": 14
         },
         "parts": [
           {
             "name": "head",
             "shape": "box",
             "size": [
-              0.5,
-              0.34,
-              0.22
+              0.325,
+              0.22100000000000003,
+              0.14300000000000002
             ],
-            "mass": 37.4,
+            "mass": 10.27,
             "position": [
               0.0,
-              1.4,
+              0,
               0
             ]
           },
@@ -148,14 +188,14 @@
             "name": "s1",
             "shape": "box",
             "size": [
-              0.45,
-              0.3,
-              0.16
+              0.29250000000000004,
+              0.195,
+              0.10400000000000001
             ],
-            "mass": 21.6,
+            "mass": 5.93,
             "position": [
-              -0.475,
-              1.4,
+              -0.309,
+              0,
               0
             ]
           },
@@ -163,14 +203,14 @@
             "name": "s2",
             "shape": "box",
             "size": [
-              0.4,
               0.26,
-              0.12
+              0.169,
+              0.078
             ],
-            "mass": 12.48,
+            "mass": 3.43,
             "position": [
-              -0.9,
-              1.4,
+              -0.585,
+              0,
               0
             ]
           },
@@ -178,14 +218,14 @@
             "name": "s3",
             "shape": "box",
             "size": [
-              0.35,
-              0.2,
-              0.08
+              0.22749999999999998,
+              0.13,
+              0.052000000000000005
             ],
-            "mass": 5.6,
+            "mass": 1.54,
             "position": [
-              -1.275,
-              1.4,
+              -0.829,
+              0,
               0
             ]
           },
@@ -193,14 +233,14 @@
             "name": "tail",
             "shape": "box",
             "size": [
-              0.3,
-              0.38,
-              0.04
+              0.195,
+              0.35750000000000004,
+              0.026000000000000002
             ],
-            "mass": 4.56,
+            "mass": 1.81,
             "position": [
-              -1.6,
-              1.4,
+              -1.04,
+              0,
               0
             ]
           }
@@ -211,8 +251,8 @@
             "parent": "head",
             "child": "s1",
             "anchor": [
-              -0.25,
-              1.4,
+              -0.163,
+              0,
               0
             ],
             "axis": [
@@ -231,8 +271,8 @@
             "parent": "s1",
             "child": "s2",
             "anchor": [
-              -0.7,
-              1.4,
+              -0.455,
+              0,
               0
             ],
             "axis": [
@@ -251,8 +291,8 @@
             "parent": "s2",
             "child": "s3",
             "anchor": [
-              -1.1,
-              1.4,
+              -0.715,
+              0,
               0
             ],
             "axis": [
@@ -271,8 +311,540 @@
             "parent": "s3",
             "child": "tail",
             "anchor": [
-              -1.45,
-              1.4,
+              -0.943,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          }
+        ],
+        "sensors": [
+          {
+            "type": "pose"
+          },
+          {
+            "type": "joints"
+          },
+          {
+            "type": "parts"
+          }
+        ]
+      }
+    },
+    {
+      "name": "tuna",
+      "type": "tuna",
+      "count": "$tuna",
+      "controller": "swimmer.js",
+      "spawn": {
+        "box": [
+          [
+            -5,
+            0.4,
+            -5
+          ],
+          [
+            5,
+            1.9,
+            5
+          ]
+        ]
+      },
+      "body": {
+        "motor": {
+          "stiffness": "$strength",
+          "damping": 14
+        },
+        "parts": [
+          {
+            "name": "head",
+            "shape": "box",
+            "size": [
+              0.5,
+              0.34,
+              0.24
+            ],
+            "mass": 40.8,
+            "position": [
+              0.0,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s1",
+            "shape": "box",
+            "size": [
+              0.46,
+              0.34,
+              0.2
+            ],
+            "mass": 31.28,
+            "position": [
+              -0.48,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s2",
+            "shape": "box",
+            "size": [
+              0.4,
+              0.28,
+              0.14
+            ],
+            "mass": 15.68,
+            "position": [
+              -0.91,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s3",
+            "shape": "box",
+            "size": [
+              0.32,
+              0.2,
+              0.08
+            ],
+            "mass": 5.12,
+            "position": [
+              -1.27,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "tail",
+            "shape": "box",
+            "size": [
+              0.36,
+              0.7,
+              0.04
+            ],
+            "mass": 10.08,
+            "position": [
+              -1.61,
+              0,
+              0
+            ]
+          }
+        ],
+        "joints": [
+          {
+            "name": "j1",
+            "parent": "head",
+            "child": "s1",
+            "anchor": [
+              -0.25,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j2",
+            "parent": "s1",
+            "child": "s2",
+            "anchor": [
+              -0.71,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j3",
+            "parent": "s2",
+            "child": "s3",
+            "anchor": [
+              -1.11,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j4",
+            "parent": "s3",
+            "child": "tail",
+            "anchor": [
+              -1.43,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          }
+        ],
+        "sensors": [
+          {
+            "type": "pose"
+          },
+          {
+            "type": "joints"
+          },
+          {
+            "type": "parts"
+          }
+        ]
+      }
+    },
+    {
+      "name": "eel",
+      "type": "eel",
+      "count": "$eels",
+      "controller": "swimmer.js",
+      "spawn": {
+        "box": [
+          [
+            -5,
+            0.4,
+            -5
+          ],
+          [
+            5,
+            1.9,
+            5
+          ]
+        ]
+      },
+      "body": {
+        "motor": {
+          "stiffness": "$strength",
+          "damping": 14
+        },
+        "parts": [
+          {
+            "name": "head",
+            "shape": "box",
+            "size": [
+              0.3,
+              0.14,
+              0.13
+            ],
+            "mass": 5.46,
+            "position": [
+              0.0,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s1",
+            "shape": "box",
+            "size": [
+              0.28,
+              0.12,
+              0.092
+            ],
+            "mass": 3.09,
+            "position": [
+              -0.29,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s2",
+            "shape": "box",
+            "size": [
+              0.28,
+              0.12,
+              0.084
+            ],
+            "mass": 2.82,
+            "position": [
+              -0.57,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s3",
+            "shape": "box",
+            "size": [
+              0.28,
+              0.12,
+              0.07600000000000001
+            ],
+            "mass": 2.55,
+            "position": [
+              -0.85,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s4",
+            "shape": "box",
+            "size": [
+              0.28,
+              0.12,
+              0.068
+            ],
+            "mass": 2.28,
+            "position": [
+              -1.13,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s5",
+            "shape": "box",
+            "size": [
+              0.28,
+              0.12,
+              0.060000000000000005
+            ],
+            "mass": 2.02,
+            "position": [
+              -1.41,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s6",
+            "shape": "box",
+            "size": [
+              0.28,
+              0.12,
+              0.052000000000000005
+            ],
+            "mass": 1.75,
+            "position": [
+              -1.69,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "s7",
+            "shape": "box",
+            "size": [
+              0.28,
+              0.12,
+              0.044000000000000004
+            ],
+            "mass": 1.48,
+            "position": [
+              -1.97,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "tail",
+            "shape": "box",
+            "size": [
+              0.22,
+              0.2,
+              0.03
+            ],
+            "mass": 1.32,
+            "position": [
+              -2.22,
+              0,
+              0
+            ]
+          }
+        ],
+        "joints": [
+          {
+            "name": "j1",
+            "parent": "head",
+            "child": "s1",
+            "anchor": [
+              -0.15,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j2",
+            "parent": "s1",
+            "child": "s2",
+            "anchor": [
+              -0.43,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j3",
+            "parent": "s2",
+            "child": "s3",
+            "anchor": [
+              -0.71,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j4",
+            "parent": "s3",
+            "child": "s4",
+            "anchor": [
+              -0.99,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j5",
+            "parent": "s4",
+            "child": "s5",
+            "anchor": [
+              -1.27,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j6",
+            "parent": "s5",
+            "child": "s6",
+            "anchor": [
+              -1.55,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j7",
+            "parent": "s6",
+            "child": "s7",
+            "anchor": [
+              -1.83,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              1,
+              0
+            ],
+            "limits": [
+              -0.9,
+              0.9
+            ],
+            "motor": {}
+          },
+          {
+            "name": "j8",
+            "parent": "s7",
+            "child": "tail",
+            "anchor": [
+              -2.11,
+              0,
               0
             ],
             "axis": [

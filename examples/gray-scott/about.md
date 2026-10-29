@@ -4,5 +4,5 @@ Two imaginary chemicals, **u** and **v**, share a sheet, and three things happen
 - Press the **Pattern** buttons: each sets *supply* and *decay* to a known setting.
 - **supply** is how fast u is topped up; **decay** is how fast v breaks down. Small changes flip the pattern from spots to stripes.
 - **diffusion of u / v** sets how fast each spreads out, and so how fine the pattern is.
-- **Palette** only changes colors. The color shows how much v is in each cell.
-- *starting blobs* and the seed only take effect after **Reset**.
+- The picture adds two colors: **red** is v, **blue** is u, and where both are present they make purple, on a dark ground.
+- The sheet starts empty except for a few blobs of v in its middle quarter and the pattern grows outward from there. **Reset** starts it again.

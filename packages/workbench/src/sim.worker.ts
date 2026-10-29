@@ -67,13 +67,13 @@ export type FromWorker =
   | { type: 'population'; on: boolean }
   /** Where you are in a multi-sim setup, root first: `['All runs', 'c04']`. Empty when there is nothing to go back to. */
   | { type: 'crumbs'; trail: string[] }
-  | { type: 'tiles'; epoch: number; tick: number; time: number; unit: string; rate: number; pace: number; stepMs: number; /** a parent's progress line, when a parent runs the sims */ status?: string; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
+  | { type: 'tiles'; epoch: number; tick: number; time: number; step: number; unit: string; rate: number; pace: number; stepMs: number; /** a parent's progress line, when a parent runs the sims */ status?: string; tiles: { name: string; params: Record<string, number>; metrics: Record<string, number> | null; frames: WorldFrameMsg[] }[] }
   | { type: 'focused'; params: Record<string, number> }
   | { type: 'controllers'; names: string[] }
   | { type: 'log'; log: DecisionLog }
   /** The metric samples up to a moment, after a seek: the charts redraw from them. */
   | { type: 'metrics'; samples: Record<string, number>[] }
-  | { type: 'frame'; epoch: number; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean; complete: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; frames: WorldFrameMsg[]; /** Simulated time so far, and what it counts. */ time: number; unit: string; /** Steps per real second now, and simulated time per real second now (the achieved pace). */ rate: number; pace: number; metrics: Record<string, number> | null; stepMs: number }
+  | { type: 'frame'; epoch: number; tick: number; think: { enabled: boolean; mode: 'realtime' | 'lockstep'; decisions: number; replaying: boolean; complete: boolean }; /** Sets whose behavior depends on something outside the sim, so a fork or rerun may differ. */ nondeterministic: string[]; /** The moments that can be returned to, or null when this sim cannot be snapshotted. */ timeline: { first: number; last: number; step: number } | null; inspected: Inspected | null; /** What the worker had selected when it made this frame (so the page can tell a frame made before its click arrived from one that found nothing). */ selected: { set: number; row: number } | null; frames: WorldFrameMsg[]; /** Simulated time so far, and what it counts. */ time: number; step: number; unit: string; /** Steps per real second now, and simulated time per real second now (the achieved pace). */ rate: number; pace: number; metrics: Record<string, number> | null; stepMs: number }
   | { type: 'problems'; scene: string[]; script: string[]; runtime: string[] }
 
 let sim: Sim | null = null
@@ -86,6 +86,23 @@ let scriptErrors: string[] = []
 let epoch = 0
 let lastSent = ''
 let selection: { set: number; row: number } | null = null
+// A cell of a lattice on the graphics card is read back from the card, a little behind the frame it is shown with.
+let cardCell: Inspected | null = null
+let cardReading = false
+function inspectedNow(s: Sim): Inspected | null {
+  if (!selection) return null
+  try {
+    return s.inspect(selection.set, selection.row)
+  } catch {
+    const sel = selection
+    if (!cardReading) {
+      cardReading = true
+      void s.inspectCell(sel.set, sel.row).then((i) => { if (selection && selection.set === sel.set && selection.row === sel.row) cardCell = i }).catch(() => undefined).finally(() => { cardReading = false })
+    }
+    if (cardCell && cardCell.row === sel.row && cardCell.index === sel.set) return cardCell
+    return { set: s.scene.entities[sel.set]?.name ?? '', index: sel.set, kind: 'cell', row: sel.row, id: sel.row, controller: 'default', fields: {} } // until the first read arrives
+  }
+}
 // sweep mode: many sims in one group, ticking together
 let group: SimGroup | null = null
 let sweepRuns = new Map<string, Record<string, number>>()
@@ -274,7 +291,7 @@ function postGroup(): void {
     groupTick = first.tick
     const all = first.tick % 4 === 0 || achievedRate < 30
     const tiles = [...group.sims].map(([name, s]) => ({ name, params: sweepRuns.get(name) ?? {}, metrics: all ? s.metrics() : null, frames: s.frames() }))
-    postMessage({ type: 'tiles', epoch, tick: population ? population.tick : first.tick, time: first.time, unit: first.unit, rate: achievedRate, pace: achievedRate * first.stepTime, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
+    postMessage({ type: 'tiles', epoch, tick: population ? population.tick : first.tick, time: first.time, step: first.stepTime, unit: first.unit, rate: achievedRate, pace: achievedRate * first.stepTime, stepMs, status: population?.status(), tiles } satisfies FromWorker, tiles.flatMap((t) => t.frames.flatMap(transfers)))
   }
   const runtime = [...new Set([...group.sims.values()].flatMap((s) => s.takeErrors()))]
   const problems = JSON.stringify([sceneErrors, scriptErrors, runtime])
@@ -312,8 +329,8 @@ function post(): void {
     const frames = sim.frames()
     const m = sim.tick % 4 === 0 || achievedRate < 30 || card ? sim.metrics() : null // totals from a graphics card are already in hand
     if (m) { metricLog.push({ tick: sim.tick, m }); if (metricLog.length > 600) metricLog.shift() }
-    const inspected = selection ? sim.inspect(selection.set, selection.row) : null
-    const msg: FromWorker = { type: 'frame', epoch, tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying, complete: sim.decisionLogComplete }, nondeterministic: flagged(sim), timeline: timeline(), inspected, metrics: m, stepMs, time: sim.time, unit: sim.unit, rate: achievedRate, pace: achievedRate * sim.stepTime, frames }
+    const inspected = inspectedNow(sim)
+    const msg: FromWorker = { type: 'frame', epoch, tick: sim.tick, think: { enabled: sim.thinks, mode: thinkMode, decisions: sim.decisionLog.length, replaying: sim.isReplaying, complete: sim.decisionLogComplete }, nondeterministic: flagged(sim), timeline: timeline(), inspected, selected: selection, metrics: m, stepMs, time: sim.time, step: sim.stepTime, unit: sim.unit, rate: achievedRate, pace: achievedRate * sim.stepTime, frames }
     postMessage(msg, frames.flatMap(transfers))
   }
   const runtime = [...modelProblems, ...sim.takeErrors()]
@@ -414,6 +431,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       break
     case 'inspect':
       selection = { set: m.set, row: m.row }
+      cardCell = null
       lastPosted = -1
       break
     case 'uninspect':

@@ -2,7 +2,7 @@
   "name": "market",
   "seed": 4,
   "time": { "step": 1, "unit": "round", "pace": 15 },
-  "world": { "frame": false, "preset": "night", "light": { "toneMapping": "neutral" }, "effects": { "bloom": { "strength": 0.1 }, "saturation": 1.4 }, "camera": {"distance": 2.4, "elevation": 12}, "grid": false, "fog": false },
+  "world": { "frame": false, "preset": "night", "light": { "toneMapping": "neutral" }, "effects": { "bloom": { "strength": 0.1 }, "saturation": 1.1 }, "camera": {"distance": 2.4, "elevation": 12}, "grid": false, "fog": false },
   "controls": [
     { "label": "Layout", "set": "entities.0.network.layout", "options": ["force-sphere", "force", "sphere", "circle", "radial"] }
   ],

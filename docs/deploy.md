@@ -1,7 +1,7 @@
 # Deploying the site to Fly
 
 The workbench is a static site (`packages/workbench/dist`). The `Dockerfile` builds it with Node and serves it with nginx
-(`deploy/nginx.conf`); `fly.toml` runs that image. A push to `main` deploys it (`.github/workflows/deploy.yml`), the same way
+(`deploy/nginx.conf`); `fly.toml` runs that image. A push to `next` deploys it (`.github/workflows/deploy.yml`), the same way
 the kleininen site does.
 
 ## One-time setup
@@ -10,7 +10,7 @@ the kleininen site does.
    `fly apps create breve-js`
 2. Make a deploy token and store it in the GitHub repository as the secret `FLY_API_TOKEN` (Settings > Secrets and variables > Actions):
    `fly tokens create deploy -a breve-js`
-3. Deploy once by hand to check it, or just merge to `main`:
+3. Deploy once by hand to check it, or just merge to `next`:
    `fly deploy --remote-only --ha=false`
 4. Optional, for a domain of your own, see below.
 
@@ -37,3 +37,8 @@ the kleininen site does.
 ## Checking a build without Fly
 
 `docker build -t breve .` then `docker run -p 8080:8080 breve` and open http://localhost:8080.
+
+## GitHub Pages
+
+GitHub Pages publishing is disabled in the repository settings (publishing branch: None).
+The workbench is deployed only to Fly from `next`.

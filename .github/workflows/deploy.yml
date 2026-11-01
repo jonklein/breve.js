@@ -1,11 +1,14 @@
-name: Deploy
+name: Deploy to Fly
 
-# Publishes the workbench to Fly when `main` changes. Needs the repository secret FLY_API_TOKEN
+# Publishes the workbench to Fly when `next` changes. Needs the repository secret FLY_API_TOKEN
 # (see docs/deploy.md). Run it by hand from the Actions tab to redeploy without a new commit.
 on:
   push:
-    branches: [main]
+    branches: [next]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: deploy
@@ -13,6 +16,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/next'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
